@@ -659,18 +659,186 @@ def generate_forecast(months=12):
 
 ---
 
-## Questions for Clarification
+## Clarifications (Confirmed)
 
-1. **Daily Spend CSV format**: You mentioned both formats but the Daily Spend format shown is `Date,Description,Money in,Money out,Balance`. Is this correct?
+1. **CSV Format**: Single standard bank export format for all accounts:
+   ```
+   Transaction Date,Transaction Type,Sort Code,Account Number,Transaction Description,Debit Amount,Credit Amount,Balance
+   ```
+   - Date format: DD/MM/YYYY
+   - Account auto-detected from `Account Number` column
+   - Sort code is ignored (not stored)
 
-2. **Opening balance editing**: Should changes to opening balance recalculate all running balances?
+2. **Transaction Types** (displayed to user):
+   - `FPO` = Faster Payment Out
+   - `TFR` = Transfer between accounts
+   - `DEB` = Debit card payment
+   - `FPI` = Faster Payment In
 
-3. **Transfer date window**: Is ±3 days acceptable for matching transfers?
+3. **Opening Balance**: Editable, triggers full recalculation of all running balances
 
-4. **Budget periods**: Monthly budgets only, or support for custom periods?
+4. **Transfer Detection**: Same-day only (transfers are instant) + TFR transaction type
 
-5. **Data retention**: Any requirements for archiving old data?
+5. **Budget Periods**: Monthly only
 
 ---
 
-*Ready for your approval to begin implementation.*
+## 12. Competitor Research & Feature Ideas
+
+### Research Sources
+Analysis of leading personal finance applications to identify best practices and feature opportunities.
+
+### Competitor Overview
+
+| App | Strengths | Key Features |
+|-----|-----------|--------------|
+| **YNAB** | Zero-based budgeting, discipline | "Give every dollar a job", goal tracking, debt payoff tools |
+| **Monarch Money** | Beautiful UI, collaboration | Investment tracking, long-term planning, advisor sharing |
+| **Copilot** | AI-powered, Apple design | Auto-categorization, AI chatbot, budget rollover |
+| **PocketSmith** | Forecasting | 30-year projections, customizable dashboards |
+| **Tiller** | Spreadsheet flexibility | Google Sheets integration, full customization |
+| **Quicken Simplifi** | Adaptive budgeting | Auto-adjusting spending plans, subscription tracking |
+
+### Features to Incorporate (Priority Order)
+
+#### High Priority (Include in v1)
+| Feature | Inspired By | Implementation |
+|---------|-------------|----------------|
+| **Budget Rollover** | Copilot | Unspent budget carries forward to next month |
+| **Net Worth Tracking** | Monarch, Copilot | Assets vs liabilities dashboard widget |
+| **Bill Reminders** | Buxfer, Simplifi | Upcoming payments based on regular payment detection |
+| **Daily Balance Email/Notification** | Tiller | Morning summary of balances and recent transactions |
+| **Savings Rate Metric** | YNAB | (Income - Expenses) / Income displayed prominently |
+| **Goal Tracking** | YNAB, Monarch | Save toward specific targets (holiday, emergency fund) |
+
+#### Medium Priority (Enhanced Experience)
+| Feature | Inspired By | Implementation |
+|---------|-------------|----------------|
+| **"Age Your Money"** | YNAB | Days between earning and spending money |
+| **Debt Payoff Planner** | YNAB | Interest saved by extra payments calculator |
+| **Investment Tracking** | Monarch | Manual entry for investment account values |
+| **Confidence Intervals** | PocketSmith | Forecast uncertainty visualization |
+| **Category Drill-down** | All | Click any metric to see underlying transactions |
+| **Spending Velocity** | Copilot | "You're spending £X/day, £Y faster than last month" |
+
+#### Future Consideration (Phase 2+)
+| Feature | Inspired By | Notes |
+|---------|-------------|-------|
+| **AI Chatbot** | Copilot | Natural language queries ("How much did I spend on groceries?") |
+| **Advisor Sharing** | Monarch | Export/share view for financial advisor |
+| **Multi-currency** | Toshl | Support for foreign transactions |
+| **Receipt Scanning** | Various | OCR for paper receipts |
+| **Bank Sync** | All premium apps | Direct bank connection (requires Open Banking API) |
+
+### UI/UX Best Practices from Competitors
+
+#### Dashboard Design (Copilot, Monarch)
+- **Hero metrics at top**: Income, Expenses, Net savings in large cards
+- **Trend arrows**: +12% ↑ or -5% ↓ compared to previous period
+- **Dark mode option**: Reduces eye strain for frequent use
+- **Narrative insights**: "You're under budget in 4 categories this month"
+
+#### Visual Hierarchy (Apple Design Principles)
+- **Progressive disclosure**: Summary → Details on click
+- **Consistent spacing**: 8px grid system
+- **Color meaning**: Green=positive, Red=negative, Blue=neutral actions
+- **Subtle animations**: 200-300ms transitions for state changes
+
+#### Data Tables (Tiller, YNAB)
+- **Inline editing**: Click cell to edit, Enter to save, Escape to cancel
+- **Keyboard navigation**: Tab between editable fields
+- **Undo capability**: Ctrl+Z or undo button for recent changes
+- **Batch operations**: Select multiple rows, apply category
+
+#### Charts (PocketSmith, Monarch)
+- **Tooltips on hover**: Show exact values
+- **Click-through**: Chart segment → filtered transaction list
+- **Comparison overlays**: This month vs last month toggle
+- **Export capability**: Download chart as PNG/SVG
+
+### Recommended Additions to MyFinance
+
+Based on competitor analysis, these features provide the most value for a household finance app:
+
+#### 1. Budget Rollover System
+```
+If category underspent:
+  - Option to roll over to next month
+  - Or allocate to savings goal
+  - Or redistribute to other categories
+```
+
+#### 2. Net Worth Widget (Overview Page)
+```
+Assets:
+  - Main Account: £X,XXX
+  - Daily Spend: £XXX
+  - [Manual] Savings: £X,XXX
+  - [Manual] Investments: £XX,XXX
+  Total Assets: £XX,XXX
+
+Liabilities:
+  - [Manual] Mortgage: £XXX,XXX
+  - [Manual] Credit Card: £X,XXX
+  Total Liabilities: £XXX,XXX
+
+NET WORTH: £XX,XXX (+£X,XXX this month)
+```
+
+#### 3. Savings Goals (New Feature)
+```sql
+CREATE TABLE savings_goals (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    target_amount DECIMAL(12,2) NOT NULL,
+    current_amount DECIMAL(12,2) DEFAULT 0,
+    target_date DATE,
+    color TEXT,
+    icon TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### 4. Upcoming Bills Widget
+- Auto-detected from regular payments
+- Days until due
+- Amount expected
+- Mark as paid when transaction appears
+
+#### 5. Quick Stats Bar
+Persistent bar showing:
+- Days left in month
+- Daily budget remaining: £XX/day
+- Spending pace: On track / £XX over pace
+
+---
+
+## 13. Updated Feature List
+
+### Core Features (v1)
+1. ✅ CSV Upload with auto-categorization
+2. ✅ Running balances (penny-accurate)
+3. ✅ Transfer detection (same-day + TFR type)
+4. ✅ Envelope budgeting with progress bars
+5. ✅ Monthly/YTD analytics
+6. ✅ 12-month forecasting
+7. ✅ Subscription detection
+8. **NEW** Budget rollover option
+9. **NEW** Net worth tracking (manual + auto accounts)
+10. **NEW** Savings goals
+11. **NEW** Upcoming bills widget
+12. **NEW** Spending pace indicator
+
+### Pages (Updated)
+1. **Overview** - Summary cards, net worth, quick stats, upcoming bills
+2. **Transactions** - Full list with inline editing
+3. **Analysis** - Trends, categories, merchants
+4. **Budget** - Envelope progress with rollover
+5. **Forecast** - Projections, pace analysis
+6. **Settings** - Upload, accounts, categories, rules
+7. **Subscriptions** - Recurring payment management
+8. **Goals** - Savings targets (replaces "Advanced Analytics" placeholder)
+
+---
+
+*Plan updated with competitor insights. Ready for implementation approval.*
