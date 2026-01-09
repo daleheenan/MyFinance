@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceFlow</title>
+  <link rel="stylesheet" href="core/styles.css">
+  <link rel="stylesheet" href="features/transactions/transactions.css">
+  <link rel="stylesheet" href="features/settings/settings.css">
+  <link rel="stylesheet" href="features/budgets/budgets.css">
+</head>
+<body>
+  <header class="main-nav">
+    <nav class="nav-container">
+      <a href="#/overview" class="nav-logo">FinanceFlow</a>
+      <ul class="nav-links">
+        <li><a href="#/overview" class="nav-link" data-route="/overview">Overview</a></li>
+        <li><a href="#/transactions" class="nav-link" data-route="/transactions">Transactions</a></li>
+        <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
+        <li><a href="#/analytics" class="nav-link" data-route="/analytics">Analytics</a></li>
+        <li><a href="#/settings" class="nav-link" data-route="/settings">Settings</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="app" class="app-container">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+  </main>
+
+  <script type="module" src="core/app.js"></script>
+</body>
+</html>

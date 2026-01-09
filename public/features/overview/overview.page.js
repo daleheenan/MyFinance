@@ -1,0 +1,781 @@
+/**
+ * Overview Page - Dashboard for FinanceFlow
+ * Displays enhanced account cards with sparklines, quick stats, and recent transactions
+ */
+
+import { api } from '../../core/api.js';
+import { formatCurrency, formatDate, formatRelativeDate, escapeHtml } from '../../core/utils.js';
+import { router } from '../../core/app.js';
+
+// Private state
+let container = null;
+let cleanupFunctions = [];
+
+/**
+ * Register cleanup function to be called on unmount
+ * @param {function} fn - Cleanup function
+ */
+function onCleanup(fn) {
+  cleanupFunctions.push(fn);
+}
+
+/**
+ * Mount the overview page
+ * @param {HTMLElement} el - Container element
+ * @param {URLSearchParams} params - URL parameters
+ */
+export async function mount(el, params) {
+  container = el;
+  cleanupFunctions = [];
+
+  // Load CSS
+  loadStyles();
+
+  // Render initial loading state
+  render();
+
+  // Load all data
+  await loadData();
+}
+
+/**
+ * Unmount the overview page
+ */
+export function unmount() {
+  // Run all cleanup functions
+  cleanupFunctions.forEach(fn => fn());
+  cleanupFunctions = [];
+
+  // Clear container
+  if (container) {
+    container.innerHTML = '';
+    container = null;
+  }
+}
+
+/**
+ * Load page-specific CSS
+ */
+function loadStyles() {
+  const styleId = 'overview-styles';
+  if (!document.getElementById(styleId)) {
+    const link = document.createElement('link');
+    link.id = styleId;
+    link.rel = 'stylesheet';
+    link.href = 'features/overview/overview.css';
+    document.head.appendChild(link);
+  }
+}
+
+/**
+ * Render the page structure with loading states
+ */
+function render() {
+  container.innerHTML = `
+    <div class="page overview-page overview-page--compact">
+      <!-- Top Row: Summary Card + 12-Month Balance Trend -->
+      <section class="top-row-section">
+        <div id="quick-stats-container" class="summary-card card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading stats...</p>
+          </div>
+        </div>
+        <div id="balance-trend-container" class="balance-trend-card card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading balance trend...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Account Cards Grid -->
+      <section class="accounts-section">
+        <div id="accounts-container" class="accounts-grid">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading accounts...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Grid: Categories + Recent Transactions -->
+      <section class="dashboard-grid">
+        <div id="categories-container" class="categories-card card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading categories...</p>
+          </div>
+        </div>
+        <div id="transactions-container" class="transactions-card card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading transactions...</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+/**
+ * Load all dashboard data in parallel
+ */
+async function loadData() {
+  try {
+    // Fetch all data in parallel
+    const [overviewStats, recentTransactions, categories, mainAccountTrend] = await Promise.all([
+      api.get('/accounts/overview/stats'),
+      api.get('/accounts/overview/recent-transactions?limit=10'),
+      api.get('/categories?include_totals=true').catch(() => []),
+      api.get('/accounts/1/balance-trend?days=365').catch(() => []) // Main account 12-month trend
+    ]);
+
+    // Render quick stats first
+    renderQuickStats(overviewStats.totals, overviewStats.month);
+
+    // Render 12-month balance trend for Main Account
+    renderBalanceTrend(mainAccountTrend);
+
+    // Fetch sparkline data for each account (90 days for better trend visibility)
+    const sparklinePromises = overviewStats.accounts.map(account =>
+      api.get(`/accounts/${account.id}/balance-trend?days=90`).catch(() => [])
+    );
+    const sparklineData = await Promise.all(sparklinePromises);
+
+    // Combine account data with sparklines
+    const accountsWithSparklines = overviewStats.accounts.map((account, index) => ({
+      ...account,
+      sparkline: sparklineData[index] || []
+    }));
+
+    // Render each section
+    renderAccounts(accountsWithSparklines);
+    renderTransactions(recentTransactions);
+    renderCategories(categories);
+
+    // Attach event listeners after rendering
+    attachEventListeners();
+  } catch (err) {
+    showGlobalError(err.message);
+  }
+}
+
+/**
+ * Render unified summary card (combines Total Balance, Income, Expenses, Net)
+ * @param {Object} totals - Totals data
+ * @param {string} month - Current month string
+ */
+function renderQuickStats(totals, month) {
+  const quickStatsContainer = container.querySelector('#quick-stats-container');
+
+  // Get current month name
+  const [year, monthNum] = month.split('-');
+  const monthDate = new Date(year, parseInt(monthNum) - 1);
+  const monthName = monthDate.toLocaleDateString('en-GB', { month: 'long' });
+
+  const totalClass = totals.balance >= 0 ? 'amount-positive' : 'amount-negative';
+  const netClass = totals.net >= 0 ? 'amount-positive' : 'amount-negative';
+  const netSign = totals.net >= 0 ? '+' : '';
+
+  quickStatsContainer.innerHTML = `
+    <div class="summary-card__header">
+      <h3 class="summary-card__title">Financial Summary</h3>
+      <span class="summary-card__month">${monthName} ${year}</span>
+    </div>
+    <div class="summary-card__balance">
+      <span class="summary-card__balance-label">Total Balance</span>
+      <span class="summary-card__balance-value ${totalClass}">${formatCurrency(totals.balance)}</span>
+    </div>
+    <div class="summary-card__metrics">
+      <div class="summary-metric summary-metric--income">
+        <div class="summary-metric__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 7l-5-5-5 5"/>
+          </svg>
+        </div>
+        <div class="summary-metric__content">
+          <span class="summary-metric__label">Income</span>
+          <span class="summary-metric__value amount-positive">+${formatCurrency(totals.income)}</span>
+        </div>
+      </div>
+      <div class="summary-metric summary-metric--expenses">
+        <div class="summary-metric__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22V2M7 17l5 5 5-5"/>
+          </svg>
+        </div>
+        <div class="summary-metric__content">
+          <span class="summary-metric__label">Expenses</span>
+          <span class="summary-metric__value amount-negative">-${formatCurrency(totals.expenses)}</span>
+        </div>
+      </div>
+      <div class="summary-metric summary-metric--net">
+        <div class="summary-metric__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20"/>
+          </svg>
+        </div>
+        <div class="summary-metric__content">
+          <span class="summary-metric__label">Net Change</span>
+          <span class="summary-metric__value ${netClass}">${netSign}${formatCurrency(totals.net)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render the 12-month balance trend chart for Main Account
+ * Enhanced with Y-axis scale, smooth curves, and all 12 month labels
+ * @param {Array} data - Array of {date, balance} objects for 365 days
+ */
+function renderBalanceTrend(data) {
+  const trendContainer = container.querySelector('#balance-trend-container');
+
+  if (!data || data.length === 0) {
+    trendContainer.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">Main Account - 12 Month Balance</h3>
+      </div>
+      <div class="empty-state">
+        <p>No balance data available</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Sample data to ~12 points (monthly) for cleaner visualization
+  const monthlyData = sampleMonthlyData(data);
+
+  // Calculate min/max for scaling with nice round numbers for Y-axis
+  const balances = monthlyData.map(d => d.balance);
+  const rawMin = Math.min(...balances);
+  const rawMax = Math.max(...balances);
+
+  // Calculate nice axis bounds (round to nearest significant value)
+  const { minBal, maxBal, yAxisLabels } = calculateYAxisScale(rawMin, rawMax);
+  const range = maxBal - minBal || 1;
+
+  // Chart dimensions (in SVG units)
+  const svgWidth = 800;
+  const svgHeight = 200;
+  const padding = { top: 20, right: 30, bottom: 40, left: 70 };
+  const chartWidth = svgWidth - padding.left - padding.right;
+  const chartHeight = svgHeight - padding.top - padding.bottom;
+
+  // Generate SVG path points
+  const points = monthlyData.map((d, i) => {
+    const x = padding.left + (i / (monthlyData.length - 1 || 1)) * chartWidth;
+    const y = padding.top + chartHeight - ((d.balance - minBal) / range) * chartHeight;
+    return { x, y, date: d.date, balance: d.balance };
+  });
+
+  // Create smooth curved line using Catmull-Rom spline converted to Bezier
+  const smoothPath = createSmoothPath(points);
+
+  // Create smooth area path (filled under the curve)
+  const areaPath = `M ${padding.left} ${padding.top + chartHeight} ` +
+    `L ${points[0].x} ${points[0].y} ` +
+    smoothPath.substring(smoothPath.indexOf('C')) +
+    ` L ${points[points.length - 1].x} ${padding.top + chartHeight} Z`;
+
+  // Determine color based on trend
+  const firstBalance = balances[0];
+  const lastBalance = balances[balances.length - 1];
+  const trendColor = lastBalance >= firstBalance ? 'var(--green)' : 'var(--red)';
+  const changeAmount = lastBalance - firstBalance;
+  const changePercent = firstBalance !== 0 ? ((changeAmount / Math.abs(firstBalance)) * 100).toFixed(1) : 0;
+  const changeSign = changeAmount >= 0 ? '+' : '';
+
+  // Generate Y-axis grid lines and labels
+  const yAxisElements = yAxisLabels.map(val => {
+    const y = padding.top + chartHeight - ((val - minBal) / range) * chartHeight;
+    return {
+      y,
+      label: formatCompactCurrency(val),
+      gridLine: `M ${padding.left} ${y} L ${svgWidth - padding.right} ${y}`
+    };
+  });
+
+  // Format month labels - show ALL 12 months
+  const monthLabels = monthlyData.map((d, i) => {
+    const date = new Date(d.date);
+    const x = padding.left + (i / (monthlyData.length - 1 || 1)) * chartWidth;
+    return {
+      x,
+      label: date.toLocaleDateString('en-GB', { month: 'short' })
+    };
+  });
+
+  trendContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Main Account - 12 Month Balance</h3>
+      <div class="trend-change ${changeAmount >= 0 ? 'trend-positive' : 'trend-negative'}">
+        ${changeSign}${formatCurrency(changeAmount)} (${changeSign}${changePercent}%)
+      </div>
+    </div>
+    <div class="balance-trend-chart">
+      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" class="trend-svg">
+        <defs>
+          <linearGradient id="trend-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:${trendColor};stop-opacity:0.25"/>
+            <stop offset="100%" style="stop-color:${trendColor};stop-opacity:0.02"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Y-axis grid lines -->
+        ${yAxisElements.map(el => `
+          <line x1="${padding.left}" y1="${el.y}" x2="${svgWidth - padding.right}" y2="${el.y}"
+                stroke="var(--border-color, #e5e5e5)" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+        `).join('')}
+
+        <!-- Y-axis labels -->
+        ${yAxisElements.map(el => `
+          <text x="${padding.left - 10}" y="${el.y + 4}"
+                text-anchor="end" font-size="12" fill="var(--text-tertiary)">${el.label}</text>
+        `).join('')}
+
+        <!-- X-axis labels (all 12 months) -->
+        ${monthLabels.map(ml => `
+          <text x="${ml.x}" y="${svgHeight - 10}"
+                text-anchor="middle" font-size="12" fill="var(--text-tertiary)">${ml.label}</text>
+        `).join('')}
+
+        <!-- Filled area under curve -->
+        <path d="${areaPath}" fill="url(#trend-gradient)" />
+
+        <!-- Smooth curve line -->
+        <path d="${smoothPath}" fill="none" stroke="${trendColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Data points -->
+        ${points.map((p, i) => `
+          <circle cx="${p.x}" cy="${p.y}" r="${i === points.length - 1 ? 6 : 4}"
+                  fill="${trendColor}" stroke="var(--bg-secondary)" stroke-width="2"/>
+        `).join('')}
+
+        <!-- Current value highlight -->
+        <circle cx="${points[points.length - 1].x}" cy="${points[points.length - 1].y}" r="8"
+                fill="${trendColor}" opacity="0.2"/>
+      </svg>
+    </div>
+    <div class="balance-trend-footer">
+      <span class="trend-min">Low: ${formatCurrency(rawMin)}</span>
+      <span class="trend-current">Current: ${formatCurrency(lastBalance)}</span>
+      <span class="trend-max">High: ${formatCurrency(rawMax)}</span>
+    </div>
+  `;
+}
+
+/**
+ * Calculate nice Y-axis scale values
+ * @param {number} min - Minimum data value
+ * @param {number} max - Maximum data value
+ * @returns {{minBal: number, maxBal: number, yAxisLabels: number[]}}
+ */
+function calculateYAxisScale(min, max) {
+  const range = max - min;
+
+  // Calculate step size for ~5 grid lines
+  const rawStep = range / 4;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const normalizedStep = rawStep / magnitude;
+
+  let step;
+  if (normalizedStep <= 1) step = magnitude;
+  else if (normalizedStep <= 2) step = 2 * magnitude;
+  else if (normalizedStep <= 5) step = 5 * magnitude;
+  else step = 10 * magnitude;
+
+  // Round min down and max up to step boundaries
+  const minBal = Math.floor(min / step) * step;
+  const maxBal = Math.ceil(max / step) * step;
+
+  // Generate label values
+  const yAxisLabels = [];
+  for (let val = minBal; val <= maxBal; val += step) {
+    yAxisLabels.push(val);
+  }
+
+  return { minBal, maxBal, yAxisLabels };
+}
+
+/**
+ * Format currency in compact form for axis labels
+ * @param {number} value - Currency value
+ * @returns {string} Formatted string like "£5K" or "£-2K"
+ */
+function formatCompactCurrency(value) {
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+
+  if (absValue >= 1000) {
+    return `${sign}£${(absValue / 1000).toFixed(absValue % 1000 === 0 ? 0 : 1)}K`;
+  }
+  return `${sign}£${absValue.toFixed(0)}`;
+}
+
+/**
+ * Create smooth SVG path using Catmull-Rom spline
+ * @param {Array} points - Array of {x, y} points
+ * @returns {string} SVG path string with smooth curves
+ */
+function createSmoothPath(points) {
+  if (points.length < 2) return '';
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 >= points.length ? i + 1 : i + 2];
+
+    // Catmull-Rom to Bezier conversion
+    const tension = 0.3;
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+
+  return path;
+}
+
+/**
+ * Sample daily data to monthly points for cleaner chart
+ * @param {Array} data - Daily balance data
+ * @returns {Array} Monthly sampled data
+ */
+function sampleMonthlyData(data) {
+  if (!data || data.length === 0) return [];
+
+  // Group by month and take the last balance of each month
+  const monthlyMap = new Map();
+
+  data.forEach(d => {
+    const monthKey = d.date.substring(0, 7); // YYYY-MM
+    monthlyMap.set(monthKey, d);
+  });
+
+  // Convert to array and sort
+  const monthly = Array.from(monthlyMap.values())
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return monthly;
+}
+
+/**
+ * Render enhanced account cards grid with sparklines
+ * @param {Array} accounts - List of accounts with sparkline data
+ */
+function renderAccounts(accounts) {
+  const accountsContainer = container.querySelector('#accounts-container');
+
+  if (!accounts || accounts.length === 0) {
+    accountsContainer.innerHTML = `
+      <div class="empty-state">
+        <p>No accounts found</p>
+      </div>
+    `;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  accounts.forEach(account => {
+    const card = document.createElement('div');
+    card.className = `account-card account-card--${account.account_type}`;
+    card.dataset.accountId = account.id;
+
+    const balanceClass = account.current_balance >= 0 ? 'amount-positive' : 'amount-negative';
+    const accountType = account.account_type === 'credit' ? 'Credit' : 'Debit';
+
+    // Format month-to-date income/expenses
+    const incomeClass = account.month_income > 0 ? 'mtd-positive' : '';
+    const expenseClass = account.month_expenses > 0 ? 'mtd-negative' : '';
+
+    // Generate sparkline SVG
+    const sparklineSvg = generateSparkline(account.sparkline);
+
+    card.innerHTML = `
+      <div class="account-card__accent"></div>
+      <div class="account-card__content">
+        <div class="account-card__header">
+          <span class="account-card__name">${escapeHtml(account.account_name)}</span>
+          <span class="account-card__type-badge account-card__type-badge--${account.account_type}">
+            ${accountType}
+          </span>
+        </div>
+        <div class="account-card__balance ${balanceClass}">
+          ${formatCurrency(account.current_balance)}
+        </div>
+        <div class="account-card__mtd">
+          <span class="mtd-item ${incomeClass}">
+            <span class="mtd-label">In:</span>
+            <span class="mtd-value">+${formatCurrency(account.month_income)}</span>
+          </span>
+          <span class="mtd-item ${expenseClass}">
+            <span class="mtd-label">Out:</span>
+            <span class="mtd-value">-${formatCurrency(account.month_expenses)}</span>
+          </span>
+        </div>
+        <div class="account-card__sparkline">
+          ${sparklineSvg}
+        </div>
+      </div>
+    `;
+
+    fragment.appendChild(card);
+  });
+
+  accountsContainer.innerHTML = '';
+  accountsContainer.appendChild(fragment);
+}
+
+/**
+ * Generate SVG sparkline from balance data
+ * @param {Array} data - Array of {date, balance} objects
+ * @returns {string} SVG element as string
+ */
+function generateSparkline(data) {
+  if (!data || data.length === 0) {
+    return '<div class="sparkline-empty">No data</div>';
+  }
+
+  const width = 120;
+  const height = 32;
+  const padding = 2;
+
+  const balances = data.map(d => d.balance);
+  const minBal = Math.min(...balances);
+  const maxBal = Math.max(...balances);
+  const range = maxBal - minBal || 1; // Avoid division by zero
+
+  // Calculate points
+  const points = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
+    const y = height - padding - ((d.balance - minBal) / range) * (height - 2 * padding);
+    return `${x},${y}`;
+  }).join(' ');
+
+  // Determine color based on trend (first vs last balance)
+  const firstBalance = balances[0];
+  const lastBalance = balances[balances.length - 1];
+  const trendColor = lastBalance >= firstBalance ? 'var(--green)' : 'var(--red)';
+
+  // Create filled area path
+  const areaPath = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
+    const y = height - padding - ((d.balance - minBal) / range) * (height - 2 * padding);
+    return i === 0 ? `M ${x},${height - padding} L ${x},${y}` : `L ${x},${y}`;
+  }).join(' ') + ` L ${width - padding},${height - padding} Z`;
+
+  return `
+    <svg class="sparkline-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="sparkline-gradient-${data[0]?.balance || 0}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:${trendColor};stop-opacity:0.3"/>
+          <stop offset="100%" style="stop-color:${trendColor};stop-opacity:0.05"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#sparkline-gradient-${data[0]?.balance || 0})" />
+      <polyline
+        points="${points}"
+        fill="none"
+        stroke="${trendColor}"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <circle cx="${width - padding}" cy="${height - padding - ((lastBalance - minBal) / range) * (height - 2 * padding)}" r="3" fill="${trendColor}" />
+    </svg>
+  `;
+}
+
+/**
+ * Render recent transactions list with account names
+ * @param {Array} transactions - List of transactions
+ */
+function renderTransactions(transactions) {
+  const transactionsContainer = container.querySelector('#transactions-container');
+
+  transactionsContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Recent Transactions</h3>
+      <a href="#/transactions" class="view-all-link">View All</a>
+    </div>
+  `;
+
+  if (!transactions || transactions.length === 0) {
+    transactionsContainer.innerHTML += `
+      <div class="empty-state">
+        <p>No recent transactions</p>
+      </div>
+    `;
+    return;
+  }
+
+  const listElement = document.createElement('div');
+  listElement.className = 'transactions-list';
+  listElement.id = 'transactions-list';
+
+  const fragment = document.createDocumentFragment();
+
+  transactions.forEach(txn => {
+    const row = document.createElement('div');
+    row.className = 'transaction-row';
+    row.dataset.transactionId = txn.id;
+    row.dataset.accountId = txn.account_id;
+
+    // Determine amount and class
+    const amount = txn.credit_amount > 0 ? txn.credit_amount : -txn.debit_amount;
+    const amountClass = txn.credit_amount > 0 ? 'amount-positive' : 'amount-negative';
+    const amountPrefix = txn.credit_amount > 0 ? '+' : '';
+
+    row.innerHTML = `
+      <div class="transaction-row__date">
+        ${formatRelativeDate(txn.transaction_date)}
+      </div>
+      <div class="transaction-row__main">
+        <div class="transaction-row__description">
+          ${escapeHtml(txn.description || txn.original_description)}
+        </div>
+        <div class="transaction-row__account">
+          ${escapeHtml(txn.account_name)}
+        </div>
+      </div>
+      <div class="transaction-row__amount ${amountClass}">
+        ${amountPrefix}${formatCurrency(Math.abs(amount))}
+      </div>
+    `;
+
+    fragment.appendChild(row);
+  });
+
+  listElement.appendChild(fragment);
+  transactionsContainer.appendChild(listElement);
+}
+
+/**
+ * Render category breakdown (top 5 by spending)
+ * @param {Array} categories - List of categories with totals
+ */
+function renderCategories(categories) {
+  const categoriesContainer = container.querySelector('#categories-container');
+
+  categoriesContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Top Spending Categories</h3>
+    </div>
+  `;
+
+  if (!categories || categories.length === 0) {
+    categoriesContainer.innerHTML += `
+      <div class="empty-state">
+        <p>No category data available</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Filter expense categories and sort by total spent (descending)
+  const expenseCategories = categories
+    .filter(cat => cat.type === 'expense' && cat.total_amount > 0)
+    .sort((a, b) => b.total_amount - a.total_amount)
+    .slice(0, 5);
+
+  if (expenseCategories.length === 0) {
+    categoriesContainer.innerHTML += `
+      <div class="empty-state">
+        <p>No spending data yet</p>
+      </div>
+    `;
+    return;
+  }
+
+  const listElement = document.createElement('div');
+  listElement.className = 'categories-list';
+
+  const fragment = document.createDocumentFragment();
+  const maxAmount = expenseCategories[0].total_amount;
+
+  expenseCategories.forEach(category => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+
+    const percentage = maxAmount > 0 ? (category.total_amount / maxAmount) * 100 : 0;
+
+    row.innerHTML = `
+      <div class="category-row__info">
+        <span class="category-row__indicator" style="background-color: ${category.colour || '#636366'}"></span>
+        <span class="category-row__name">${escapeHtml(category.name)}</span>
+      </div>
+      <div class="category-row__bar-container">
+        <div class="category-row__bar" style="width: ${percentage}%; background-color: ${category.colour || '#636366'}"></div>
+      </div>
+      <div class="category-row__amount">
+        ${formatCurrency(category.total_amount)}
+      </div>
+    `;
+
+    fragment.appendChild(row);
+  });
+
+  listElement.appendChild(fragment);
+  categoriesContainer.appendChild(listElement);
+}
+
+/**
+ * Attach event listeners using delegation
+ */
+function attachEventListeners() {
+  // Account card click - navigate to transactions filtered by account
+  const accountsContainer = container.querySelector('#accounts-container');
+  if (accountsContainer) {
+    const accountClickHandler = (e) => {
+      const card = e.target.closest('.account-card');
+      if (card) {
+        const accountId = card.dataset.accountId;
+        router.go(`/transactions?account_id=${accountId}`);
+      }
+    };
+    accountsContainer.addEventListener('click', accountClickHandler);
+    onCleanup(() => accountsContainer.removeEventListener('click', accountClickHandler));
+  }
+
+  // Transaction row click - navigate to transactions page for that account
+  const transactionsList = container.querySelector('#transactions-list');
+  if (transactionsList) {
+    const transactionClickHandler = (e) => {
+      const row = e.target.closest('.transaction-row');
+      if (row) {
+        const accountId = row.dataset.accountId;
+        router.go(`/transactions?account_id=${accountId}`);
+      }
+    };
+    transactionsList.addEventListener('click', transactionClickHandler);
+    onCleanup(() => transactionsList.removeEventListener('click', transactionClickHandler));
+  }
+}
+
+/**
+ * Show global error state
+ * @param {string} message - Error message
+ */
+function showGlobalError(message) {
+  container.innerHTML = `
+    <div class="page overview-page">
+      <div class="error-state">
+        <h1>Error</h1>
+        <p>${escapeHtml(message)}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+      </div>
+    </div>
+  `;
+}

@@ -1,0 +1,28 @@
+{
+  "name": "financeflow",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "csv-parse": "^5.5.0",
+    "express": "^5.0.0",
+    "multer": "^2.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "supertest": "^7.0.0",
+    "vitest": "^4.0.16"
+  }
+}

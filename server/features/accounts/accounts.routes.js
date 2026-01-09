@@ -1,0 +1,621 @@
+/**
+ * Accounts Routes (TASK-3.1)
+ *
+ * API endpoints for account management:
+ * - GET /api/accounts - List all accounts
+ * - GET /api/accounts/:id - Get single account with current month summary
+ * - PUT /api/accounts/:id - Update account name and/or opening balance
+ * - GET /api/accounts/:id/summary - Get account summary for a month
+ * - GET /api/accounts/:id/monthly - Get month-by-month summary for last 12 months
+ */
+
+import { Router } from 'express';
+import { getDb } from '../../core/database.js';
+import {
+  getAccountSummary,
+  getMonthlyAccountSummary,
+  calculateRunningBalances
+} from './balance.service.js';
+
+const router = Router();
+
+/**
+ * Validate that the ID parameter is a valid positive integer.
+ * @param {string} id - The ID from request params
+ * @returns {number|null} The parsed ID or null if invalid
+ */
+function parseAccountId(id) {
+  const parsed = parseInt(id, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+/**
+ * Validate month format (YYYY-MM).
+ * @param {string} month - The month string to validate
+ * @returns {boolean} True if valid
+ */
+function isValidMonthFormat(month) {
+  return /^\d{4}-\d{2}$/.test(month);
+}
+
+/**
+ * Get current month in YYYY-MM format.
+ * @returns {string}
+ */
+function getCurrentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+/**
+ * Get last N months including current month.
+ * @param {number} count - Number of months to get
+ * @returns {string[]} Array of month strings in YYYY-MM format
+ */
+function getLastNMonths(count) {
+  const months = [];
+  const today = new Date();
+
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const month = date.toISOString().slice(0, 7);
+    months.push(month);
+  }
+
+  return months;
+}
+
+// ==========================================================================
+// GET /api/accounts - List all accounts
+// ==========================================================================
+router.get('/', (req, res, next) => {
+  try {
+    const db = getDb();
+
+    const accounts = db.prepare(`
+      SELECT id, account_number, account_name, sort_code, account_type,
+             opening_balance, current_balance, credit_limit, is_active,
+             created_at, updated_at
+      FROM accounts
+      ORDER BY id
+    `).all();
+
+    res.json({
+      success: true,
+      data: accounts
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/:id - Get single account with current month summary
+// ==========================================================================
+router.get('/:id', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    const account = db.prepare(`
+      SELECT id, account_number, account_name, sort_code, account_type,
+             opening_balance, current_balance, credit_limit, is_active,
+             created_at, updated_at
+      FROM accounts
+      WHERE id = ?
+    `).get(accountId);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Get current month summary
+    const currentMonth = getCurrentMonth();
+    const summary = getAccountSummary(db, accountId, currentMonth);
+
+    res.json({
+      success: true,
+      data: {
+        ...account,
+        summary: {
+          income: summary.income,
+          expenses: summary.expenses,
+          net: summary.net
+        }
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// PUT /api/accounts/:id - Update account
+// ==========================================================================
+router.put('/:id', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists
+    const existing = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    const { account_name, account_number, opening_balance } = req.body;
+
+    // Validate input
+    const hasAccountName = account_name !== undefined;
+    const hasAccountNumber = account_number !== undefined;
+    const hasOpeningBalance = opening_balance !== undefined;
+
+    if (!hasAccountName && !hasAccountNumber && !hasOpeningBalance) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid fields provided. Provide account_name, account_number, and/or opening_balance.'
+      });
+    }
+
+    // Validate account_name if provided
+    if (hasAccountName) {
+      if (typeof account_name !== 'string' || account_name.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          error: 'account_name cannot be empty'
+        });
+      }
+    }
+
+    // Validate account_number if provided
+    if (hasAccountNumber) {
+      if (typeof account_number !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'account_number must be a string'
+        });
+      }
+      // Check for uniqueness if account_number is being changed
+      if (account_number.trim() !== '') {
+        const existingWithNumber = db.prepare(
+          'SELECT id FROM accounts WHERE account_number = ? AND id != ?'
+        ).get(account_number.trim(), accountId);
+        if (existingWithNumber) {
+          return res.status(400).json({
+            success: false,
+            error: 'An account with this number already exists'
+          });
+        }
+      }
+    }
+
+    // Validate opening_balance if provided
+    if (hasOpeningBalance) {
+      if (typeof opening_balance !== 'number' || isNaN(opening_balance)) {
+        return res.status(400).json({
+          success: false,
+          error: 'opening_balance must be a number'
+        });
+      }
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const params = [];
+
+    if (hasAccountName) {
+      updates.push('account_name = ?');
+      params.push(account_name.trim());
+    }
+
+    if (hasAccountNumber) {
+      updates.push('account_number = ?');
+      params.push(account_number.trim());
+    }
+
+    if (hasOpeningBalance) {
+      updates.push('opening_balance = ?');
+      params.push(Math.round(opening_balance * 100) / 100);
+    }
+
+    updates.push("updated_at = datetime('now')");
+    params.push(accountId);
+
+    // Execute update
+    const updateQuery = `UPDATE accounts SET ${updates.join(', ')} WHERE id = ?`;
+    db.prepare(updateQuery).run(...params);
+
+    // If opening_balance changed, recalculate all balances
+    if (hasOpeningBalance) {
+      calculateRunningBalances(db, accountId);
+    }
+
+    // Fetch and return updated account
+    const updatedAccount = db.prepare(`
+      SELECT id, account_number, account_name, sort_code, account_type,
+             opening_balance, current_balance, credit_limit, is_active,
+             created_at, updated_at
+      FROM accounts
+      WHERE id = ?
+    `).get(accountId);
+
+    res.json({
+      success: true,
+      data: updatedAccount
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/:id/summary - Get account summary for a month
+// ==========================================================================
+router.get('/:id/summary', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists first
+    const account = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Get month from query param or use current month
+    let month = req.query.month;
+
+    if (month) {
+      if (!isValidMonthFormat(month)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid month format. Expected YYYY-MM'
+        });
+      }
+    } else {
+      month = getCurrentMonth();
+    }
+
+    const summary = getAccountSummary(db, accountId, month);
+
+    res.json({
+      success: true,
+      data: summary
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// DELETE /api/accounts/:id/transactions - Clear all transactions from an account
+// ==========================================================================
+router.delete('/:id/transactions', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists first
+    const account = db.prepare('SELECT id, account_name FROM accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Delete all transactions for this account
+    const result = db.prepare('DELETE FROM transactions WHERE account_id = ?').run(accountId);
+
+    // Reset current balance to opening balance
+    db.prepare(`
+      UPDATE accounts
+      SET current_balance = opening_balance, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(accountId);
+
+    res.json({
+      success: true,
+      data: {
+        deleted: result.changes,
+        message: `Cleared ${result.changes} transactions from ${account.account_name}`
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/overview/stats - Aggregated stats across all accounts
+// ==========================================================================
+router.get('/overview/stats', (req, res, next) => {
+  try {
+    const db = getDb();
+    const currentMonth = getCurrentMonth();
+
+    // Get all accounts
+    const accounts = db.prepare(`
+      SELECT id, account_number, account_name, account_type, current_balance
+      FROM accounts
+      WHERE is_active = 1
+      ORDER BY id
+    `).all();
+
+    // Calculate total across all accounts
+    let totalBalance = 0;
+    let totalIncome = 0;
+    let totalExpenses = 0;
+
+    const accountSummaries = accounts.map(account => {
+      // For total calculations, exclude transfers to avoid double-counting
+      const summary = getAccountSummary(db, account.id, currentMonth);
+      totalBalance += account.current_balance;
+      totalIncome += summary.income;
+      totalExpenses += summary.expenses;
+
+      // For individual account display, include ALL transactions (including transfers)
+      // so users see actual money movement in/out of each account
+      const allActivityResult = db.prepare(`
+        SELECT
+          COALESCE(SUM(credit_amount), 0) as total_in,
+          COALESCE(SUM(debit_amount), 0) as total_out
+        FROM transactions
+        WHERE account_id = ?
+          AND strftime('%Y-%m', transaction_date) = ?
+      `).get(account.id, currentMonth);
+
+      const monthIn = Math.round((allActivityResult?.total_in || 0) * 100) / 100;
+      const monthOut = Math.round((allActivityResult?.total_out || 0) * 100) / 100;
+
+      return {
+        id: account.id,
+        account_name: account.account_name,
+        account_number: account.account_number,
+        account_type: account.account_type,
+        current_balance: account.current_balance,
+        month_income: monthIn,
+        month_expenses: monthOut,
+        month_net: Math.round((monthIn - monthOut) * 100) / 100
+      };
+    });
+
+    // Round totals
+    totalBalance = Math.round(totalBalance * 100) / 100;
+    totalIncome = Math.round(totalIncome * 100) / 100;
+    totalExpenses = Math.round(totalExpenses * 100) / 100;
+    const netChange = Math.round((totalIncome - totalExpenses) * 100) / 100;
+
+    res.json({
+      success: true,
+      data: {
+        month: currentMonth,
+        totals: {
+          balance: totalBalance,
+          income: totalIncome,
+          expenses: totalExpenses,
+          net: netChange
+        },
+        accounts: accountSummaries
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/overview/recent-transactions - Recent transactions across all accounts
+// ==========================================================================
+router.get('/overview/recent-transactions', (req, res, next) => {
+  try {
+    const db = getDb();
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    const transactions = db.prepare(`
+      SELECT
+        t.id,
+        t.transaction_date,
+        t.description,
+        t.original_description,
+        t.debit_amount,
+        t.credit_amount,
+        t.is_transfer,
+        a.id as account_id,
+        a.account_name,
+        c.name as category_name,
+        c.colour as category_colour,
+        c.icon as category_icon
+      FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE a.is_active = 1
+      ORDER BY t.transaction_date DESC, t.id DESC
+      LIMIT ?
+    `).all(limit);
+
+    res.json({
+      success: true,
+      data: transactions
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/:id/balance-trend - Get last N days balance trend for sparkline
+// ==========================================================================
+router.get('/:id/balance-trend', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists first
+    const account = db.prepare('SELECT id, opening_balance, current_balance FROM accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    const days = parseInt(req.query.days, 10) || 7;
+
+    // Get the date N days ago
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - days + 1);
+    const startDateStr = startDate.toISOString().slice(0, 10);
+
+    // Get the balance just before the start date (last transaction before startDate)
+    const lastTxnBefore = db.prepare(`
+      SELECT balance_after
+      FROM transactions
+      WHERE account_id = ?
+        AND transaction_date < ?
+      ORDER BY transaction_date DESC, id DESC
+      LIMIT 1
+    `).get(accountId, startDateStr);
+
+    const startingBalance = lastTxnBefore ? lastTxnBefore.balance_after : account.opening_balance;
+
+    // Get all transactions in the date range
+    const transactions = db.prepare(`
+      SELECT transaction_date, balance_after
+      FROM transactions
+      WHERE account_id = ?
+        AND transaction_date >= ?
+      ORDER BY transaction_date ASC, id ASC
+    `).all(accountId, startDateStr);
+
+    // Build daily balance array
+    const dailyBalances = [];
+    let currentBalance = startingBalance;
+
+    for (let i = 0; i < days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().slice(0, 10);
+
+      // Find all transactions for this date and get the last balance
+      const dayTxns = transactions.filter(t => t.transaction_date === dateStr);
+      if (dayTxns.length > 0) {
+        currentBalance = dayTxns[dayTxns.length - 1].balance_after;
+      }
+
+      dailyBalances.push({
+        date: dateStr,
+        balance: currentBalance
+      });
+    }
+
+    res.json({
+      success: true,
+      data: dailyBalances
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/accounts/:id/monthly - Get month-by-month summary for last 12 months
+// ==========================================================================
+router.get('/:id/monthly', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists first
+    const account = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Get last 12 months
+    const months = getLastNMonths(12);
+
+    // Get summary for each month
+    const monthlySummaries = months.map(month => {
+      const summary = getMonthlyAccountSummary(db, accountId, month);
+      return {
+        month,
+        income: summary.income,
+        expenses: summary.expenses,
+        net: summary.net
+      };
+    });
+
+    res.json({
+      success: true,
+      data: monthlySummaries
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default router;

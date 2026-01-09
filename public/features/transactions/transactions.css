@@ -1,0 +1,666 @@
+/**
+ * Transactions Page Styles
+ * Styling for transactions list, filters, modals, and inline editing
+ */
+
+/* ===== PAGE LAYOUT ===== */
+
+.transactions-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ===== ACCOUNT SELECTOR ===== */
+
+.account-selector-card {
+  padding: var(--space-md);
+}
+
+.account-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.account-selector .form-label {
+  margin-bottom: 0;
+  font-weight: var(--font-semibold);
+}
+
+.account-selector .form-select {
+  max-width: 300px;
+}
+
+/* ===== FILTERS BAR ===== */
+
+.filters-card {
+  padding: var(--space-md);
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.filter-group .form-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0;
+}
+
+.filter-group .form-input,
+.filter-group .form-select {
+  min-width: 140px;
+}
+
+.filter-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-search .form-input {
+  width: 100%;
+}
+
+.filter-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-direction: row;
+  align-items: flex-end;
+  padding-bottom: 2px;
+}
+
+/* ===== TRANSACTIONS TABLE ===== */
+
+.transactions-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
+}
+
+.transactions-table th {
+  text-align: left;
+  padding: var(--space-md);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-bottom: var(--border-medium);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.transactions-table td {
+  padding: var(--space-md);
+  border-bottom: var(--border-light);
+  vertical-align: middle;
+}
+
+.transactions-table tbody tr:nth-child(even):not(.transaction-detail-row) {
+  background: var(--bg-tertiary);
+}
+
+.transactions-table tbody tr.transaction-row {
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.transactions-table tbody tr.transaction-row:hover {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.transactions-table tbody tr.transaction-row.expanded {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+/* Column widths - using fixed table layout */
+.col-date {
+  width: 100px;
+  white-space: nowrap;
+}
+
+.col-description {
+  width: auto;  /* Takes remaining space */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-category {
+  width: 140px;
+}
+
+.col-debit,
+.col-credit,
+.col-balance {
+  width: 100px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transactions-table th.col-debit,
+.transactions-table th.col-credit,
+.transactions-table th.col-balance {
+  text-align: right;
+}
+
+/* ===== TRANSACTION DETAIL ROW ===== */
+
+.transaction-detail-row {
+  background: var(--bg-primary) !important;
+}
+
+.transaction-detail-row td {
+  padding: 0;
+}
+
+.transaction-details {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-primary);
+  border-top: var(--border-light);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detail-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: var(--border-light);
+}
+
+/* ===== CATEGORY BADGE ===== */
+
+.editable-category {
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.editable-category:hover {
+  transform: scale(1.02);
+}
+
+/* ===== INLINE EDITING ===== */
+
+.editable-description {
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-sm));
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+
+.editable-description:hover {
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.inline-edit-input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  border: 2px solid var(--blue);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  outline: none;
+}
+
+/* ===== PAGINATION ===== */
+
+.pagination-card {
+  padding: var(--space-md);
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.pagination-input {
+  width: 60px;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  text-align: center;
+  border: var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.pagination-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.pagination-count {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ===== IMPORT SECTION ===== */
+
+.import-section {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-sm) 0;
+}
+
+/* ===== MODALS (Transactions page specific) ===== */
+
+.transactions-page .modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.transactions-page .modal.hidden {
+  display: none;
+}
+
+.transactions-page .modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  /* Backdrop filter with fallback for unsupported browsers */
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(4px)) {
+  .transactions-page .modal-backdrop {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+
+.transactions-page .modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn var(--transition-base) ease-out;
+  /* Prevent modal from overflowing viewport */
+  overflow: hidden;
+}
+
+.transactions-page .modal-content.modal-sm {
+  max-width: 400px;
+  /* Category picker modal needs less height */
+  max-height: 80vh;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.transactions-page .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  border-bottom: var(--border-light);
+}
+
+.transactions-page .modal-header h2 {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.transactions-page .modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.transactions-page .modal-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.transactions-page .modal-body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Ensure the modal body can scroll if content is too tall */
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Better scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-tertiary) transparent;
+}
+
+/* Webkit scrollbar styling for modal body */
+.transactions-page .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.transactions-page .modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.transactions-page .modal-body::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 4px;
+}
+
+.transactions-page .modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.transactions-page .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-top: var(--border-light);
+}
+
+/* ===== CATEGORY PICKER ===== */
+
+.category-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  /* No scroll here - modal-body handles scrolling to avoid double scrollbars */
+}
+
+.category-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+  border: 1px solid transparent;
+  /* Prevent layout shift when scrollbar appears */
+  flex-shrink: 0;
+  min-height: 44px; /* Touch-friendly minimum */
+}
+
+.category-option:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-light);
+}
+
+.category-option:focus {
+  outline: none;
+  background: var(--bg-tertiary);
+  border-color: var(--blue);
+}
+
+.category-option:active {
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.category-option .category-badge {
+  pointer-events: none;
+  /* Ensure badge doesn't get cut off */
+  white-space: nowrap;
+}
+
+/* ===== IMPORT MODAL ===== */
+
+.import-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.import-step.hidden {
+  display: none;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.import-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin: var(--space-md) 0;
+}
+
+.import-preview-table th,
+.import-preview-table td {
+  padding: var(--space-sm);
+  text-align: left;
+  border-bottom: var(--border-light);
+}
+
+.import-preview-table th {
+  font-weight: var(--font-semibold);
+  background: var(--bg-tertiary);
+}
+
+.preview-summary {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.preview-more {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* ===== IMPORT RESULT ===== */
+
+.import-result {
+  text-align: center;
+}
+
+.result-success {
+  padding: var(--space-lg);
+}
+
+.result-success h3 {
+  color: var(--green);
+  margin-bottom: var(--space-md);
+}
+
+.result-errors {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  background: rgba(255, 59, 48, 0.1);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.result-errors h4 {
+  color: var(--red);
+  margin-bottom: var(--space-sm);
+}
+
+.result-errors ul {
+  margin-left: var(--space-md);
+  list-style: disc;
+}
+
+.result-errors li {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ===== LOADING & ERROR STATES ===== */
+
+.transactions-table-card .loading,
+.transactions-table-card .error-state,
+.transactions-table-card .empty-state {
+  min-height: 200px;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group .form-input,
+  .filter-group .form-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .filter-actions .btn {
+    flex: 1;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .transactions-table {
+    font-size: var(--text-xs);
+  }
+
+  .transactions-table th,
+  .transactions-table td {
+    padding: var(--space-sm);
+  }
+
+  .col-balance {
+    display: none;
+  }
+
+  .account-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-selector .form-select {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .col-category {
+    display: none;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Mobile modal improvements */
+  .transactions-page .modal {
+    padding: var(--space-sm);
+  }
+
+  .transactions-page .modal-content {
+    max-height: 95vh;
+    margin: 0;
+  }
+
+  .transactions-page .modal-content.modal-sm {
+    max-height: 90vh;
+  }
+
+  .transactions-page .modal-header,
+  .transactions-page .modal-body,
+  .transactions-page .modal-footer {
+    padding: var(--space-md);
+  }
+
+  .category-option {
+    padding: var(--space-md);
+    min-height: 48px;
+  }
+}

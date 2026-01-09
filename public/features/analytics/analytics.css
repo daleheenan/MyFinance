@@ -1,0 +1,486 @@
+/**
+ * Analytics Page Styles
+ * Reports and insights layout with charts and category breakdowns
+ */
+
+/* ===== FILTER SECTION ===== */
+
+.filter-section {
+  margin-bottom: var(--space-lg);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.filter-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.filter-buttons {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.filter-btn {
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.filter-btn.active {
+  color: white;
+  background: var(--blue);
+  border-color: var(--blue);
+}
+
+.custom-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.custom-date-inputs.hidden {
+  display: none;
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.date-input-group label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.date-input-group input {
+  padding: var(--space-xs) var(--space-sm);
+  width: 140px;
+}
+
+/* ===== SUMMARY SECTION ===== */
+
+.summary-section {
+  margin-bottom: var(--space-lg);
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-md);
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+/* ===== ANALYTICS GRID ===== */
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .analytics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== CATEGORY SPENDING CARD ===== */
+
+.category-spending-card {
+  min-height: 300px;
+}
+
+.card-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.category-item {
+  display: grid;
+  grid-template-columns: 150px 1fr 80px;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 480px) {
+  .category-item {
+    grid-template-columns: 1fr 80px;
+  }
+
+  .category-bar-wrapper {
+    display: none;
+  }
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.category-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-percentage {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+.category-bar-wrapper {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.category-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.category-amount {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* ===== INCOME VS EXPENSES CARD ===== */
+
+.income-expenses-card {
+  min-height: 300px;
+}
+
+.income-expense-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-light);
+}
+
+.ie-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ie-stat--net {
+  grid-column: 1 / -1;
+  padding-top: var(--space-sm);
+}
+
+.ie-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.ie-value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+}
+
+.ie-stat--net .ie-value {
+  font-size: var(--text-xl);
+}
+
+/* Monthly Chart */
+.monthly-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 120px;
+  padding: var(--space-sm) 0;
+  margin-bottom: var(--space-md);
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 1;
+  max-width: 60px;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100px;
+}
+
+.bar {
+  width: 16px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height var(--transition-slow);
+  cursor: pointer;
+}
+
+.bar:hover {
+  opacity: 0.8;
+}
+
+.bar--income {
+  background: var(--green);
+}
+
+.bar--expense {
+  background: var(--red);
+}
+
+.bar-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* Chart Legend */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-color--income {
+  background: var(--green);
+}
+
+.legend-color--expense {
+  background: var(--red);
+}
+
+.legend-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ===== TRENDS SECTION ===== */
+
+.trends-section {
+  margin-bottom: var(--space-lg);
+}
+
+.trends-card {
+  min-height: 250px;
+}
+
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  padding: var(--space-sm) 0;
+  margin-bottom: var(--space-md);
+  overflow-x: auto;
+}
+
+.trend-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 1;
+  min-width: 24px;
+}
+
+.trend-bar {
+  width: 100%;
+  max-width: 24px;
+  background: var(--blue);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height var(--transition-slow);
+  cursor: pointer;
+}
+
+.trend-bar:hover {
+  background: #0066d6;
+}
+
+.trend-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.trend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--border-light);
+}
+
+@media (max-width: 480px) {
+  .trend-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trend-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-align: center;
+}
+
+.trend-stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.trend-stat-value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+
+@media (max-width: 640px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-buttons {
+    flex-wrap: wrap;
+  }
+
+  .custom-date-inputs {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--space-sm);
+  }
+
+  .date-input-group {
+    width: 100%;
+  }
+
+  .date-input-group input {
+    flex: 1;
+    width: auto;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-card {
+    padding: var(--space-md);
+  }
+
+  .stat-value {
+    font-size: var(--text-xl);
+  }
+}
+
+/* ===== LOADING STATES ===== */
+
+.category-spending-card .loading,
+.income-expenses-card .loading,
+.trends-card .loading,
+.summary-stats .loading {
+  padding: var(--space-xl);
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes barGrow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.bar,
+.trend-bar,
+.category-bar {
+  transform-origin: bottom;
+  animation: barGrow var(--transition-slow) ease-out;
+}
