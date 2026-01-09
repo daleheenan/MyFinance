@@ -258,7 +258,7 @@ p {
 .app-container {
   max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: var(--space-lg);
+  padding: var(--space-sm) var(--space-lg) var(--space-lg);
   min-height: calc(100vh - var(--nav-height));
 }
 

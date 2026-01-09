@@ -347,15 +347,35 @@ router.delete('/:id/transactions', (req, res, next) => {
       });
     }
 
-    // Delete all transactions for this account
-    const result = db.prepare('DELETE FROM transactions WHERE account_id = ?').run(accountId);
+    // Use transaction to ensure atomicity
+    const clearTransactions = db.transaction(() => {
+      // 1. Delete anomalies that reference transactions in this account
+      db.prepare(`
+        DELETE FROM anomalies
+        WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id = ?)
+      `).run(accountId);
 
-    // Reset current balance to opening balance
-    db.prepare(`
-      UPDATE accounts
-      SET current_balance = opening_balance, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(accountId);
+      // 2. Clear linked_transaction_id references (for transfers)
+      db.prepare(`
+        UPDATE transactions
+        SET linked_transaction_id = NULL
+        WHERE linked_transaction_id IN (SELECT id FROM transactions WHERE account_id = ?)
+      `).run(accountId);
+
+      // 3. Delete all transactions for this account
+      const result = db.prepare('DELETE FROM transactions WHERE account_id = ?').run(accountId);
+
+      // 4. Reset current balance to opening balance
+      db.prepare(`
+        UPDATE accounts
+        SET current_balance = opening_balance, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(accountId);
+
+      return result;
+    });
+
+    const result = clearTransactions();
 
     res.json({
       success: true,
