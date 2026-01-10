@@ -132,11 +132,20 @@
   padding: var(--space-lg);
 }
 
+.scenarios-grid--four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .scenario-card {
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   border: 2px solid transparent;
+}
+
+.scenario-card--subscriptions {
+  border-color: var(--purple);
+  background: rgba(175, 82, 222, 0.05);
 }
 
 .scenario-card--optimistic {
@@ -152,6 +161,10 @@
 .scenario-card--conservative {
   border-color: var(--orange);
   background: rgba(255, 149, 0, 0.05);
+}
+
+.scenario-stat--small .scenario-value {
+  font-size: var(--text-base);
 }
 
 .scenario-header {
@@ -445,6 +458,12 @@
 
 /* ===== RESPONSIVE ===== */
 
+@media (max-width: 1200px) {
+  .scenarios-grid--four {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 1024px) {
   .averages-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -452,6 +471,10 @@
 
   .scenarios-grid {
     grid-template-columns: 1fr;
+  }
+
+  .scenarios-grid--four {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

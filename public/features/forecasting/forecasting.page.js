@@ -353,21 +353,50 @@ function renderAverages() {
 function renderScenarios() {
   const scenariosContainer = container.querySelector('#scenarios-container');
 
-  // Service returns { current_balance, optimistic, expected, conservative } directly
+  // Service returns { current_balance, subscriptions_only, optimistic, expected, conservative } directly
   if (!scenarios || !scenarios.optimistic) {
     scenariosContainer.innerHTML = '<div class="empty-state"><p>No scenarios available</p></div>';
     return;
   }
 
-  const { current_balance, optimistic, expected, conservative } = scenarios;
+  const { current_balance, subscriptions_only, optimistic, expected, conservative, subscriptions } = scenarios;
 
   // Calculate total saved for each scenario (projected_balance_end - current_balance)
+  const subscriptionsOnlySaved = (subscriptions_only?.projected_balance_end || 0) - (current_balance || 0);
   const optimisticSaved = (optimistic.projected_balance_end || 0) - (current_balance || 0);
   const expectedSaved = (expected.projected_balance_end || 0) - (current_balance || 0);
   const conservativeSaved = (conservative.projected_balance_end || 0) - (current_balance || 0);
 
   scenariosContainer.innerHTML = `
-    <div class="scenarios-grid">
+    <div class="scenarios-grid scenarios-grid--four">
+      <div class="scenario-card scenario-card--subscriptions">
+        <div class="scenario-header">
+          <span class="scenario-icon">🔄</span>
+          <span class="scenario-name">Subscriptions Only</span>
+        </div>
+        <div class="scenario-body">
+          <div class="scenario-stat">
+            <span class="scenario-label">Projected Balance</span>
+            <span class="scenario-value ${(subscriptions_only?.projected_balance_end || 0) >= 0 ? 'value--positive' : 'value--negative'}">
+              ${formatCurrency(subscriptions_only?.projected_balance_end || 0)}
+            </span>
+          </div>
+          <div class="scenario-stat">
+            <span class="scenario-label">Total Saved</span>
+            <span class="scenario-value">${formatCurrency(subscriptionsOnlySaved)}</span>
+          </div>
+          <div class="scenario-stat scenario-stat--small">
+            <span class="scenario-label">Monthly Net</span>
+            <span class="scenario-value ${(subscriptions_only?.projected_net || 0) >= 0 ? 'value--positive' : 'value--negative'}">
+              ${formatCurrency(subscriptions_only?.projected_net || 0)}
+            </span>
+          </div>
+          <div class="scenario-assumption">
+            Only recurring items (${subscriptions?.count || 0} tracked)
+          </div>
+        </div>
+      </div>
+
       <div class="scenario-card scenario-card--optimistic">
         <div class="scenario-header">
           <span class="scenario-icon">🌟</span>

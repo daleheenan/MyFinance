@@ -328,8 +328,9 @@ export function getCashFlowForecast(db, options = {}) {
 }
 
 /**
- * Get three forecast scenarios: optimistic, expected, and conservative.
+ * Get four forecast scenarios: subscriptions_only, optimistic, expected, and conservative.
  * Uses subscriptions as a baseline for known recurring amounts.
+ * - Subscriptions Only: Only known recurring income and expenses (no variable spending)
  * - Optimistic: +10% variable income, -10% variable expenses (subscriptions stay fixed)
  * - Expected: Average values
  * - Conservative: -10% variable income, +10% variable expenses (subscriptions stay fixed)
@@ -341,6 +342,7 @@ export function getCashFlowForecast(db, options = {}) {
  * @returns {{
  *   currentBalance: number,
  *   subscriptions: Object,
+ *   subscriptions_only: Object,
  *   optimistic: Object,
  *   expected: Object,
  *   conservative: Object
@@ -374,6 +376,14 @@ export function getScenarios(db, options = {}) {
   // Total expected = known recurring + variable
   const expectedIncome = pennyPrecision(knownRecurringIncome + variableIncome);
   const expectedExpenses = pennyPrecision(knownRecurringExpenses + variableExpenses);
+
+  // Subscriptions Only: ONLY known recurring income and expenses, no variable spending
+  const subscriptionsOnly = {
+    projected_income: knownRecurringIncome,
+    projected_expenses: knownRecurringExpenses,
+    projected_net: pennyPrecision(knownRecurringIncome - knownRecurringExpenses),
+    projected_balance_end: pennyPrecision(currentBalance + (pennyPrecision(knownRecurringIncome - knownRecurringExpenses) * months))
+  };
 
   // Calculate scenarios
   // Optimistic: Subscriptions stay fixed, variable income +10%, variable expenses -10%
@@ -411,6 +421,7 @@ export function getScenarios(db, options = {}) {
       monthly_net: pennyPrecision(knownRecurringIncome - knownRecurringExpenses),
       count: subscriptionTotals.items.length
     },
+    subscriptions_only: subscriptionsOnly,
     optimistic,
     expected,
     conservative
