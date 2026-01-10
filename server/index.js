@@ -84,13 +84,26 @@ export function createApp(db = null) {
 }
 
 // Start server if run directly
-const isMain = import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`;
+// Note: In production containers, this file is the entry point
+const isMain = process.argv[1]?.endsWith('index.js') ||
+               import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, '/')}`;
+
 if (isMain) {
   const PORT = process.env.PORT || 3000;
   const HOST = '0.0.0.0'; // Bind to all interfaces for Railway/Docker
   const app = createApp();
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log(`FinanceFlow running on http://${HOST}:${PORT}`);
+    console.log(`Health check available at http://${HOST}:${PORT}/api/health`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
 }
