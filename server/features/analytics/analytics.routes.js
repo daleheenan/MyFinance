@@ -18,7 +18,8 @@ import {
   getTopSpendingCategories,
   getSummaryStats,
   getYearOverYearComparison,
-  getMonthlyYoYComparison
+  getMonthlyYoYComparison,
+  getMonthlyExpenseBreakdown
 } from './analytics.service.js';
 import anomaliesRouter from '../anomalies/anomalies.routes.js';
 
@@ -320,6 +321,35 @@ router.get('/summary', (req, res, next) => {
         summary,
         top_categories: topCategories
       }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/analytics/monthly-breakdown
+// Monthly expense breakdown with category details
+// ==========================================================================
+router.get('/monthly-breakdown', (req, res, next) => {
+  try {
+    const db = getDb();
+    const { months: monthsStr = '3' } = req.query;
+
+    // Parse months
+    const months = parseInt(monthsStr, 10);
+    if (isNaN(months) || months < 1 || months > 12) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid months parameter. Expected 1-12.'
+      });
+    }
+
+    const data = getMonthlyExpenseBreakdown(db, months);
+
+    res.json({
+      success: true,
+      data
     });
   } catch (err) {
     next(err);

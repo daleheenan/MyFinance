@@ -144,12 +144,13 @@ class Router {
    * Start the router (call on DOMContentLoaded)
    */
   async start() {
-    // Set default route if no hash
-    if (!window.location.hash) {
-      window.location.hash = '/overview';
-    } else {
-      await this.navigate();
+    // Set default route if no hash - use replaceState to avoid triggering hashchange
+    if (!window.location.hash || window.location.hash === '#') {
+      const newUrl = window.location.pathname + window.location.search + '#/overview';
+      window.history.replaceState(null, '', newUrl);
     }
+    // Always call navigate on start to ensure the page renders
+    await this.navigate();
   }
 
   /**

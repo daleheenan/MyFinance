@@ -159,6 +159,16 @@ function render() {
           </div>
         </div>
       </section>
+
+      <!-- Monthly Expense Breakdown -->
+      <section class="expense-breakdown-section">
+        <div id="expense-breakdown-container" class="card expense-breakdown-card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading expense breakdown...</p>
+          </div>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -248,12 +258,13 @@ async function loadData() {
 
   try {
     // Fetch all data in parallel
-    const [categoryData, incomeExpenseData, trendsData, summaryData, merchantsData] = await Promise.all([
+    const [categoryData, incomeExpenseData, trendsData, summaryData, merchantsData, expenseBreakdownData] = await Promise.all([
       api.get(`/analytics/spending-by-category?${queryParams}`),
       api.get('/analytics/income-vs-expenses?months=12'),
       api.get(`/analytics/trends?${queryParams}&group_by=day`),
       api.get(`/analytics/summary?${queryParams}`),
-      api.get('/merchants/top?by=spend&limit=10')
+      api.get('/merchants/top?by=spend&limit=10'),
+      api.get('/analytics/monthly-breakdown?months=3')
     ]);
 
     // Render each section
@@ -262,6 +273,7 @@ async function loadData() {
     renderIncomeVsExpenses(incomeExpenseData);
     renderTrends(trendsData);
     renderTopMerchants(merchantsData);
+    renderExpenseBreakdown(expenseBreakdownData);
   } catch (err) {
     showGlobalError(err.message);
   }
@@ -619,6 +631,145 @@ function renderTopMerchants(data) {
   });
 
   merchantsContainer.appendChild(listElement);
+}
+
+/**
+ * Render monthly expense breakdown
+ * @param {Object} data - Monthly breakdown data from API
+ */
+function renderExpenseBreakdown(data) {
+  const breakdownContainer = container.querySelector('#expense-breakdown-container');
+
+  const periodStr = data.period.start && data.period.end
+    ? `${formatMonthName(data.period.start)} - ${formatMonthName(data.period.end)}`
+    : 'Last 3 Months';
+
+  breakdownContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Avg Monthly Expenses Breakdown</h3>
+      <span class="card-subtitle">${periodStr} (${data.months_analyzed} months)</span>
+    </div>
+  `;
+
+  // Summary section
+  const summaryEl = document.createElement('div');
+  summaryEl.className = 'expense-breakdown-summary';
+  summaryEl.innerHTML = `
+    <div class="breakdown-stat breakdown-stat--primary">
+      <span class="breakdown-stat-label">Avg Monthly Expenses</span>
+      <span class="breakdown-stat-value amount-negative">${formatCurrency(data.avg_monthly_expenses)}</span>
+    </div>
+    <div class="breakdown-stat">
+      <span class="breakdown-stat-label">Avg Monthly Income</span>
+      <span class="breakdown-stat-value amount-positive">${formatCurrency(data.avg_monthly_income)}</span>
+    </div>
+  `;
+  breakdownContainer.appendChild(summaryEl);
+
+  if (!data.category_averages || data.category_averages.length === 0) {
+    breakdownContainer.innerHTML += `
+      <div class="empty-state">
+        <p>No expense data for this period</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Category breakdown
+  const categoryHeader = document.createElement('div');
+  categoryHeader.className = 'breakdown-section-header';
+  categoryHeader.innerHTML = `
+    <h4>Category Breakdown</h4>
+    <span class="breakdown-hint">Click a category to view transactions</span>
+  `;
+  breakdownContainer.appendChild(categoryHeader);
+
+  const listElement = document.createElement('div');
+  listElement.className = 'breakdown-category-list';
+
+  const maxAvg = data.category_averages[0]?.avg_monthly || 1;
+
+  data.category_averages.forEach(category => {
+    const row = document.createElement('div');
+    row.className = 'breakdown-category-item';
+    row.dataset.categoryId = category.category_id;
+
+    const barWidth = (category.avg_monthly / maxAvg) * 100;
+
+    row.innerHTML = `
+      <div class="breakdown-category-info">
+        <span class="category-indicator" style="background-color: ${category.colour}"></span>
+        <span class="breakdown-category-name">${escapeHtml(category.category_name)}</span>
+        <span class="breakdown-category-percentage">${category.percentage.toFixed(1)}%</span>
+      </div>
+      <div class="breakdown-category-bar-wrapper">
+        <div class="breakdown-category-bar" style="width: ${barWidth}%; background-color: ${category.colour}"></div>
+      </div>
+      <div class="breakdown-category-amount">
+        <span class="breakdown-avg">${formatCurrency(category.avg_monthly)}/mo</span>
+        <span class="breakdown-total">(${formatCurrency(category.total)} total)</span>
+      </div>
+      <button class="btn btn-sm btn-secondary breakdown-view-btn" data-category-id="${category.category_id}" data-category-name="${escapeHtml(category.category_name)}">
+        View
+      </button>
+    `;
+
+    listElement.appendChild(row);
+  });
+
+  breakdownContainer.appendChild(listElement);
+
+  // Add click handlers for view buttons
+  listElement.querySelectorAll('.breakdown-view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const categoryId = btn.dataset.categoryId;
+      const categoryName = btn.dataset.categoryName;
+      // Navigate to transactions filtered by category
+      window.location.hash = `/transactions?category_id=${categoryId}`;
+    });
+  });
+
+  // Monthly breakdown toggle
+  const monthlyToggle = document.createElement('details');
+  monthlyToggle.className = 'monthly-breakdown-details';
+  monthlyToggle.innerHTML = `
+    <summary class="monthly-breakdown-toggle">View Monthly Details</summary>
+    <div class="monthly-breakdown-content">
+      ${data.monthly_breakdown.map(month => `
+        <div class="monthly-breakdown-month">
+          <div class="monthly-breakdown-month-header">
+            <span class="month-name">${formatMonthName(month.month)}</span>
+            <span class="month-total">${formatCurrency(month.total_expenses)}</span>
+          </div>
+          <div class="monthly-breakdown-categories">
+            ${month.category_breakdown.slice(0, 5).map(cat => `
+              <div class="monthly-cat-item">
+                <span class="monthly-cat-indicator" style="background-color: ${cat.colour}"></span>
+                <span class="monthly-cat-name">${escapeHtml(cat.category_name)}</span>
+                <span class="monthly-cat-amount">${formatCurrency(cat.total)}</span>
+              </div>
+            `).join('')}
+            ${month.category_breakdown.length > 5 ? `
+              <div class="monthly-cat-more">+${month.category_breakdown.length - 5} more categories</div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  breakdownContainer.appendChild(monthlyToggle);
+}
+
+/**
+ * Format month string (YYYY-MM) to readable name
+ * @param {string} monthStr - Month string in YYYY-MM format
+ * @returns {string} Month name with year
+ */
+function formatMonthName(monthStr) {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
 /**

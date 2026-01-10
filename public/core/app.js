@@ -32,12 +32,12 @@ function registerRoutes() {
 /**
  * Initialize the application
  */
-function init() {
+async function init() {
   // Register routes
   registerRoutes();
 
-  // Start the router
-  router.start();
+  // Start the router (await to ensure first page renders)
+  await router.start();
 
   console.log('FinanceFlow initialized');
 }

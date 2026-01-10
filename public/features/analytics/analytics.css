@@ -597,3 +597,271 @@
     display: none;
   }
 }
+
+/* ===== EXPENSE BREAKDOWN SECTION ===== */
+
+.expense-breakdown-section {
+  margin-bottom: var(--space-lg);
+}
+
+.expense-breakdown-card {
+  min-height: 300px;
+}
+
+.expense-breakdown-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-light);
+}
+
+.breakdown-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.breakdown-stat--primary {
+  background: var(--bg-tertiary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.breakdown-stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.breakdown-stat-value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+}
+
+.breakdown-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.breakdown-section-header h4 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.breakdown-hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.breakdown-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.breakdown-category-item {
+  display: grid;
+  grid-template-columns: 180px 1fr 150px auto;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.breakdown-category-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.breakdown-category-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.breakdown-category-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breakdown-category-percentage {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+.breakdown-category-bar-wrapper {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.breakdown-category-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.breakdown-category-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.breakdown-avg {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.breakdown-total {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.breakdown-view-btn {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+/* Monthly breakdown details */
+.monthly-breakdown-details {
+  margin-top: var(--space-md);
+  border: var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.monthly-breakdown-toggle {
+  padding: var(--space-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.monthly-breakdown-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.monthly-breakdown-details[open] .monthly-breakdown-toggle {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.monthly-breakdown-content {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.monthly-breakdown-month {
+  background: var(--bg-tertiary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.monthly-breakdown-month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--border-light);
+}
+
+.month-name {
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.month-total {
+  font-weight: var(--font-bold);
+  color: var(--red);
+}
+
+.monthly-breakdown-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.monthly-cat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.monthly-cat-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.monthly-cat-name {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.monthly-cat-amount {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.monthly-cat-more {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  padding-top: var(--space-xs);
+}
+
+/* Responsive adjustments for expense breakdown */
+@media (max-width: 768px) {
+  .expense-breakdown-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .breakdown-category-item {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .breakdown-category-bar-wrapper {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .breakdown-category-item {
+    grid-template-columns: 1fr auto;
+  }
+
+  .breakdown-view-btn {
+    display: none;
+  }
+
+  .breakdown-category-amount {
+    flex-direction: row;
+    gap: var(--space-xs);
+  }
+
+  .breakdown-total {
+    display: none;
+  }
+}

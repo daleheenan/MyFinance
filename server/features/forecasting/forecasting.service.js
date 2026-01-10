@@ -168,10 +168,10 @@ function getSubscriptionMonthlyTotals(db) {
  * Excludes transfers from calculations.
  *
  * @param {Database} db - The database instance
- * @param {number} months - Number of months to look back (default: 6)
+ * @param {number} months - Number of months to look back (default: 3)
  * @returns {{ avgIncome: number, avgExpenses: number, avgNet: number, monthsAnalyzed: number }}
  */
-export function getMonthlyAverages(db, months = 6) {
+export function getMonthlyAverages(db, months = 3) {
   // Calculate the date range
   const endMonth = getPastMonth(1); // Start from last month (current month is incomplete)
   const startMonth = getPastMonth(months);
@@ -222,7 +222,7 @@ export function getMonthlyAverages(db, months = 6) {
  * @param {Database} db - The database instance
  * @param {Object} options - Forecast options
  * @param {number} options.months - Number of months to project (default: 12)
- * @param {number} options.historyMonths - Number of months of history to analyze (default: 6)
+ * @param {number} options.historyMonths - Number of months of history to analyze (default: 3)
  * @returns {{
  *   currentBalance: number,
  *   averages: Object,
@@ -240,7 +240,7 @@ export function getMonthlyAverages(db, months = 6) {
 export function getCashFlowForecast(db, options = {}) {
   const {
     months = 12,
-    historyMonths = 6
+    historyMonths = 3
   } = options;
 
   // Get current total balance
@@ -337,7 +337,7 @@ export function getCashFlowForecast(db, options = {}) {
  * @param {Database} db - The database instance
  * @param {Object} options - Scenario options
  * @param {number} options.months - Projection period in months (default: 12)
- * @param {number} options.historyMonths - History period for averages (default: 6)
+ * @param {number} options.historyMonths - History period for averages (default: 3)
  * @returns {{
  *   currentBalance: number,
  *   subscriptions: Object,
@@ -349,7 +349,7 @@ export function getCashFlowForecast(db, options = {}) {
 export function getScenarios(db, options = {}) {
   const {
     months = 12,
-    historyMonths = 6
+    historyMonths = 3
   } = options;
 
   // Get current balance

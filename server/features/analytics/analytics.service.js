@@ -484,6 +484,144 @@ export function getYearOverYearComparison(db, options = {}) {
  *   }
  * }}
  */
+/**
+ * Get monthly expense breakdown showing what's included in average monthly expenses.
+ * Returns data for the last N months with category breakdown and transaction details.
+ *
+ * @param {Database} db - The database instance
+ * @param {number} months - Number of months to analyze (default: 3)
+ * @returns {{
+ *   months_analyzed: number,
+ *   period: { start: string, end: string },
+ *   avg_monthly_expenses: number,
+ *   avg_monthly_income: number,
+ *   monthly_breakdown: Array<{
+ *     month: string,
+ *     total_expenses: number,
+ *     total_income: number,
+ *     category_breakdown: Array<{
+ *       category_id: number,
+ *       category_name: string,
+ *       colour: string,
+ *       total: number,
+ *       transaction_count: number
+ *     }>
+ *   }>,
+ *   category_averages: Array<{
+ *     category_id: number,
+ *     category_name: string,
+ *     colour: string,
+ *     avg_monthly: number,
+ *     total: number,
+ *     transaction_count: number,
+ *     percentage: number
+ *   }>
+ * }}
+ */
+export function getMonthlyExpenseBreakdown(db, months = 3) {
+  const today = new Date();
+  const monthlyData = [];
+
+  // Calculate data for each of the last N months (excluding current month which is incomplete)
+  for (let i = 1; i <= months; i++) {
+    const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+
+    // Get total expenses and income for this month
+    const totalsResult = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN debit_amount > 0 THEN debit_amount ELSE 0 END), 0) AS total_expenses,
+        COALESCE(SUM(CASE WHEN credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS total_income
+      FROM transactions
+      WHERE strftime('%Y-%m', transaction_date) = ?
+        AND is_transfer = 0
+    `).get(monthStr);
+
+    // Get category breakdown for this month
+    const categoryBreakdown = db.prepare(`
+      SELECT
+        COALESCE(c.id, 0) AS category_id,
+        COALESCE(c.name, 'Uncategorized') AS category_name,
+        COALESCE(c.colour, '#8e8e93') AS colour,
+        COALESCE(SUM(t.debit_amount), 0) AS total,
+        COUNT(t.id) AS transaction_count
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE strftime('%Y-%m', t.transaction_date) = ?
+        AND t.is_transfer = 0
+        AND t.debit_amount > 0
+      GROUP BY COALESCE(c.id, 0), COALESCE(c.name, 'Uncategorized'), COALESCE(c.colour, '#8e8e93')
+      ORDER BY total DESC
+    `).all(monthStr);
+
+    monthlyData.push({
+      month: monthStr,
+      total_expenses: pennyPrecision(totalsResult.total_expenses),
+      total_income: pennyPrecision(totalsResult.total_income),
+      category_breakdown: categoryBreakdown.map(c => ({
+        category_id: c.category_id,
+        category_name: c.category_name,
+        colour: c.colour,
+        total: pennyPrecision(c.total),
+        transaction_count: c.transaction_count
+      }))
+    });
+  }
+
+  // Calculate averages
+  const totalExpenses = monthlyData.reduce((sum, m) => sum + m.total_expenses, 0);
+  const totalIncome = monthlyData.reduce((sum, m) => sum + m.total_income, 0);
+  const avgMonthlyExpenses = monthlyData.length > 0 ? pennyPrecision(totalExpenses / monthlyData.length) : 0;
+  const avgMonthlyIncome = monthlyData.length > 0 ? pennyPrecision(totalIncome / monthlyData.length) : 0;
+
+  // Calculate category averages across all months
+  const categoryTotals = new Map();
+  monthlyData.forEach(month => {
+    month.category_breakdown.forEach(cat => {
+      if (!categoryTotals.has(cat.category_id)) {
+        categoryTotals.set(cat.category_id, {
+          category_id: cat.category_id,
+          category_name: cat.category_name,
+          colour: cat.colour,
+          total: 0,
+          transaction_count: 0
+        });
+      }
+      const existing = categoryTotals.get(cat.category_id);
+      existing.total += cat.total;
+      existing.transaction_count += cat.transaction_count;
+    });
+  });
+
+  const categoryAverages = Array.from(categoryTotals.values())
+    .map(cat => ({
+      category_id: cat.category_id,
+      category_name: cat.category_name,
+      colour: cat.colour,
+      avg_monthly: monthlyData.length > 0 ? pennyPrecision(cat.total / monthlyData.length) : 0,
+      total: pennyPrecision(cat.total),
+      transaction_count: cat.transaction_count,
+      percentage: totalExpenses > 0 ? pennyPrecision((cat.total / totalExpenses) * 100) : 0
+    }))
+    .sort((a, b) => b.avg_monthly - a.avg_monthly);
+
+  // Calculate period
+  const startMonth = monthlyData.length > 0 ? monthlyData[monthlyData.length - 1].month : '';
+  const endMonth = monthlyData.length > 0 ? monthlyData[0].month : '';
+
+  return {
+    months_analyzed: monthlyData.length,
+    period: {
+      start: startMonth,
+      end: endMonth
+    },
+    avg_monthly_expenses: avgMonthlyExpenses,
+    avg_monthly_income: avgMonthlyIncome,
+    monthly_breakdown: monthlyData,
+    category_averages: categoryAverages
+  };
+}
+
 export function getMonthlyYoYComparison(db, month, options = {}) {
   // Validate month format
   if (!month || !/^(0[1-9]|1[0-2])$/.test(month)) {
