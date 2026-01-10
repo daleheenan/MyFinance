@@ -7,7 +7,6 @@ import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce } from '../../core/utils.js';
 import { router } from '../../core/app.js';
 
-// Default icons for categories without icons
 const DEFAULT_ICONS = {
   salary: '💰', income: '💰', wages: '💰',
   bills: '📄', utilities: '💡',
@@ -53,17 +52,14 @@ function getDefaultIcon(name) {
   return '📁';
 }
 
-// Private state
 let container = null;
 let cleanupFunctions = [];
 
-// Page data
 let accounts = [];
 let categories = [];
 let transactions = [];
 let pagination = { page: 1, limit: 50, total: 0, pages: 0 };
 
-// Filter state
 let filters = {
   accountId: null,
   startDate: '',
@@ -72,25 +68,15 @@ let filters = {
   search: ''
 };
 
-// UI state
 let expandedRowId = null;
 let editingCell = null;
 let isLoading = false;
 let scrollPosition = 0;
 
-/**
- * Register a cleanup function to run on unmount
- * @param {function} fn - Cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- * @param {HTMLElement} el - Container element
- * @param {URLSearchParams} params - Route parameters
- */
 export function mount(el, params) {
   container = el;
   cleanupFunctions = [];
@@ -114,21 +100,15 @@ export function mount(el, params) {
   loadInitialData();
 }
 
-/**
- * Unmount the page and cleanup resources
- */
 export function unmount() {
-  // Run all cleanup functions
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
 
-  // Clear container reference
   if (container) {
     container.innerHTML = '';
     container = null;
   }
 
-  // Reset state
   accounts = [];
   categories = [];
   transactions = [];
@@ -136,13 +116,9 @@ export function unmount() {
   editingCell = null;
 }
 
-/**
- * Render the page structure
- */
 function render() {
   container.innerHTML = `
     <div class="page transactions-page">
-      <!-- Account Selector -->
       <div class="card account-selector-card">
         <div class="account-selector">
           <label for="account-select" class="form-label">Account</label>
@@ -152,7 +128,6 @@ function render() {
         </div>
       </div>
 
-      <!-- Filters Bar -->
       <div class="card filters-card">
         <div class="filters-bar">
           <div class="filter-group">
@@ -180,7 +155,6 @@ function render() {
         </div>
       </div>
 
-      <!-- Transactions Table -->
       <div class="card transactions-table-card">
         <div id="transactions-container">
           <div class="loading">
@@ -190,21 +164,16 @@ function render() {
         </div>
       </div>
 
-      <!-- Pagination -->
       <div class="card pagination-card">
-        <div id="pagination-container" class="pagination-controls">
-          <!-- Pagination rendered dynamically -->
-        </div>
+        <div id="pagination-container" class="pagination-controls"></div>
       </div>
 
-      <!-- Import Button -->
       <div class="import-section">
         <button type="button" id="import-csv-btn" class="btn btn-secondary">
           Import CSV
         </button>
       </div>
 
-      <!-- Import Modal -->
       <div id="import-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
@@ -243,7 +212,6 @@ function render() {
         </div>
       </div>
 
-      <!-- Category Picker Modal -->
       <div id="category-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-sm">
@@ -265,7 +233,6 @@ function render() {
         </div>
       </div>
 
-      <!-- Delete Confirm Modal -->
       <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-sm">
@@ -289,11 +256,7 @@ function render() {
   attachEventListeners();
 }
 
-/**
- * Attach event listeners with cleanup
- */
 function attachEventListeners() {
-  // Account selector
   const accountSelect = container.querySelector('#account-select');
   const accountHandler = (e) => {
     filters.accountId = e.target.value || null;
@@ -304,13 +267,11 @@ function attachEventListeners() {
   accountSelect.addEventListener('change', accountHandler);
   onCleanup(() => accountSelect.removeEventListener('change', accountHandler));
 
-  // Filter inputs
   const startDateInput = container.querySelector('#filter-start-date');
   const endDateInput = container.querySelector('#filter-end-date');
   const categorySelect = container.querySelector('#filter-category');
   const searchInput = container.querySelector('#filter-search');
 
-  // Date inputs
   const startDateHandler = (e) => { filters.startDate = e.target.value; };
   const endDateHandler = (e) => { filters.endDate = e.target.value; };
   startDateInput.addEventListener('change', startDateHandler);
@@ -318,12 +279,10 @@ function attachEventListeners() {
   onCleanup(() => startDateInput.removeEventListener('change', startDateHandler));
   onCleanup(() => endDateInput.removeEventListener('change', endDateHandler));
 
-  // Category select
   const categoryHandler = (e) => { filters.categoryId = e.target.value; };
   categorySelect.addEventListener('change', categoryHandler);
   onCleanup(() => categorySelect.removeEventListener('change', categoryHandler));
 
-  // Search input with debounce
   const debouncedSearch = debounce((value) => {
     filters.search = value;
   }, 300);
@@ -331,7 +290,6 @@ function attachEventListeners() {
   searchInput.addEventListener('input', searchHandler);
   onCleanup(() => searchInput.removeEventListener('input', searchHandler));
 
-  // Apply filters button
   const applyBtn = container.querySelector('#apply-filters-btn');
   const applyHandler = () => {
     pagination.page = 1;
@@ -341,7 +299,6 @@ function attachEventListeners() {
   applyBtn.addEventListener('click', applyHandler);
   onCleanup(() => applyBtn.removeEventListener('click', applyHandler));
 
-  // Clear filters button
   const clearBtn = container.querySelector('#clear-filters-btn');
   const clearHandler = () => {
     filters.startDate = '';
@@ -359,13 +316,11 @@ function attachEventListeners() {
   clearBtn.addEventListener('click', clearHandler);
   onCleanup(() => clearBtn.removeEventListener('click', clearHandler));
 
-  // Transactions table event delegation
   const txnContainer = container.querySelector('#transactions-container');
   const tableHandler = (e) => handleTableClick(e);
   txnContainer.addEventListener('click', tableHandler);
   onCleanup(() => txnContainer.removeEventListener('click', tableHandler));
 
-  // Pagination event delegation
   const paginationContainer = container.querySelector('#pagination-container');
   const paginationHandler = (e) => handlePaginationClick(e);
   const paginationKeypressHandler = (e) => handlePaginationKeypress(e);
@@ -374,7 +329,6 @@ function attachEventListeners() {
   onCleanup(() => paginationContainer.removeEventListener('click', paginationHandler));
   onCleanup(() => paginationContainer.removeEventListener('keypress', paginationKeypressHandler));
 
-  // Import CSV button
   const importBtn = container.querySelector('#import-csv-btn');
   const importBtnHandler = () => openImportModal();
   importBtn.addEventListener('click', importBtnHandler);

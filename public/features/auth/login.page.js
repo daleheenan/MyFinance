@@ -1,6 +1,23 @@
 import { auth } from '../../core/auth.js';
 
 /**
+ * Helper functions for form UI state
+ */
+function showError(errorDiv, message) {
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+}
+
+function hideError(errorDiv) {
+  errorDiv.style.display = 'none';
+}
+
+function setButtonLoading(btn, loading, loadingText, defaultText) {
+  btn.disabled = loading;
+  btn.textContent = loading ? loadingText : defaultText;
+}
+
+/**
  * Check if the system has any users set up
  */
 async function checkSetupStatus() {
@@ -10,7 +27,7 @@ async function checkSetupStatus() {
     return data.hasUsers;
   } catch (err) {
     console.error('Failed to check setup status:', err);
-    return true; // Assume has users on error
+    return true;
   }
 }
 
@@ -95,44 +112,30 @@ function renderSetupForm(container) {
   const errorDiv = container.querySelector('#setup-error');
   const submitBtn = container.querySelector('#setup-btn');
 
-  function showError(message) {
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-  }
-
-  function hideError() {
-    errorDiv.style.display = 'none';
-  }
-
-  function setLoading(loading) {
-    submitBtn.disabled = loading;
-    submitBtn.textContent = loading ? 'Creating...' : 'Create Account';
-  }
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    hideError();
+    hideError(errorDiv);
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
     const confirmPassword = confirmInput.value;
 
     if (!username || !password) {
-      showError('Please enter username and password');
+      showError(errorDiv, 'Please enter username and password');
       return;
     }
 
     if (password.length < 8) {
-      showError('Password must be at least 8 characters');
+      showError(errorDiv, 'Password must be at least 8 characters');
       return;
     }
 
     if (password !== confirmPassword) {
-      showError('Passwords do not match');
+      showError(errorDiv, 'Passwords do not match');
       return;
     }
 
-    setLoading(true);
+    setButtonLoading(submitBtn, true, 'Creating...', 'Create Account');
 
     try {
       const response = await fetch('/api/auth/setup', {
@@ -144,21 +147,19 @@ function renderSetupForm(container) {
       const data = await response.json();
 
       if (data.success) {
-        // Auto-login after setup
         const loginResult = await auth.login(username, password);
         if (loginResult.success) {
           window.location.hash = '#/overview';
         } else {
-          // Setup worked but login failed - show login form
           renderLoginForm(container);
         }
       } else {
-        showError(data.error || 'Failed to create account');
-        setLoading(false);
+        showError(errorDiv, data.error || 'Failed to create account');
+        setButtonLoading(submitBtn, false, 'Creating...', 'Create Account');
       }
     } catch (err) {
-      showError('Network error. Please try again.');
-      setLoading(false);
+      showError(errorDiv, 'Network error. Please try again.');
+      setButtonLoading(submitBtn, false, 'Creating...', 'Create Account');
     }
   });
 }
@@ -215,44 +216,28 @@ function renderLoginForm(container) {
   const errorDiv = container.querySelector('#login-error');
   const submitBtn = container.querySelector('#login-btn');
 
-  function showError(message) {
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-  }
-
-  function hideError() {
-    errorDiv.style.display = 'none';
-  }
-
-  function setLoading(loading) {
-    submitBtn.disabled = loading;
-    submitBtn.textContent = loading ? 'Signing in...' : 'Sign In';
-  }
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    hideError();
+    hideError(errorDiv);
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
 
     if (!username || !password) {
-      showError('Please enter both username and password');
+      showError(errorDiv, 'Please enter both username and password');
       return;
     }
 
-    setLoading(true);
+    setButtonLoading(submitBtn, true, 'Signing in...', 'Sign In');
 
     const result = await auth.login(username, password);
 
-    setLoading(false);
+    setButtonLoading(submitBtn, false, 'Signing in...', 'Sign In');
 
     if (result.success) {
-      // Redirect to overview
       window.location.hash = '#/overview';
     } else {
-      showError(result.error);
-      // Focus password field for retry
+      showError(errorDiv, result.error);
       passwordInput.value = '';
       passwordInput.focus();
     }

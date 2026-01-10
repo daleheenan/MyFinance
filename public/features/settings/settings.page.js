@@ -7,11 +7,8 @@ import { api } from '../../core/api.js';
 import { escapeHtml, formatCurrency, formatDate } from '../../core/utils.js';
 import { auth } from '../../core/auth.js';
 
-// Private state
 let container = null;
 let cleanupFunctions = [];
-
-// Data state
 let accounts = [];
 let categories = [];
 let categoryRules = [];
@@ -19,26 +16,16 @@ let importBatches = [];
 let recurringPatterns = [];
 let detectedPatterns = [];
 
-// Predefined colours for category colour picker
 const PRESET_COLOURS = [
   '#34c759', '#ff3b30', '#007aff', '#ff9500', '#af52de',
   '#5ac8fa', '#ff2d55', '#32ade6', '#ff6482', '#8e8e93',
   '#636366', '#00c7be', '#30d158', '#ff453a', '#0a84ff'
 ];
 
-/**
- * Register a cleanup function to run on unmount
- * @param {function} fn - Cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- * @param {HTMLElement} el - Container element
- * @param {URLSearchParams} params - Route parameters
- */
 export function mount(el, params) {
   container = el;
   cleanupFunctions = [];
@@ -48,38 +35,27 @@ export function mount(el, params) {
   loadAllData();
 }
 
-/**
- * Unmount the page and cleanup resources
- */
 export function unmount() {
-  // Run all cleanup functions
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
 
-  // Remove toast container if exists
   const toastContainer = document.querySelector('.toast-container');
   if (toastContainer) {
     toastContainer.remove();
   }
 
-  // Remove any open modals
   const modals = document.querySelectorAll('.modal-overlay');
   modals.forEach(modal => modal.remove());
 
-  // Clear container reference
   if (container) {
     container.innerHTML = '';
     container = null;
   }
 }
 
-/**
- * Render the page content
- */
 function render() {
   container.innerHTML = `
     <div class="page settings-page">
-      <!-- Accounts Section -->
       <section class="settings-section" id="accounts-section">
         <div class="settings-section-header">
           <div>
@@ -95,7 +71,6 @@ function render() {
         </div>
       </section>
 
-      <!-- Categories Section -->
       <section class="settings-section" id="categories-section">
         <div class="settings-section-header">
           <div>
@@ -111,7 +86,6 @@ function render() {
         </div>
       </section>
 
-      <!-- Category Rules Section -->
       <section class="settings-section" id="rules-section">
         <div class="settings-section-header">
           <div>
@@ -136,7 +110,6 @@ function render() {
         </div>
       </section>
 
-      <!-- Recurring Transactions Section -->
       <section class="settings-section" id="recurring-section">
         <div class="settings-section-header">
           <div>
@@ -159,7 +132,6 @@ function render() {
         </div>
       </section>
 
-      <!-- Import History Section -->
       <section class="settings-section" id="import-section">
         <div class="settings-section-header">
           <div>
@@ -174,7 +146,6 @@ function render() {
         </div>
       </section>
 
-      <!-- Data Export Section -->
       <section class="settings-section" id="export-section">
         <div class="settings-section-header">
           <div>
@@ -192,7 +163,6 @@ function render() {
         </div>
       </section>
 
-      <!-- User Management Section -->
       <section class="settings-section" id="user-section">
         <div class="settings-section-header">
           <div>
@@ -201,7 +171,6 @@ function render() {
           </div>
         </div>
 
-        <!-- Change Password -->
         <div class="user-management-card">
           <div class="user-management-header">
             <span class="user-management-icon">🔒</span>
@@ -229,7 +198,6 @@ function render() {
           </form>
         </div>
 
-        <!-- Login History -->
         <div class="user-management-card">
           <div class="user-management-header">
             <span class="user-management-icon">📋</span>
@@ -246,7 +214,6 @@ function render() {
           </div>
         </div>
 
-        <!-- Active Sessions -->
         <div class="user-management-card">
           <div class="user-management-header">
             <span class="user-management-icon">💻</span>
@@ -362,93 +329,82 @@ function attachEventListeners() {
 }
 
 /**
+ * Find item from array by button's data-id attribute
+ */
+function findItemByButtonId(target, selector, array) {
+  const btn = target.closest(selector);
+  if (!btn) return null;
+  const id = parseInt(btn.dataset.id);
+  return array.find(item => item.id === id) || null;
+}
+
+/**
  * Handle delegated click events
  */
 function handleDelegatedClick(e) {
   const target = e.target;
+  let item;
 
-  // Account edit button
-  if (target.closest('.account-edit-btn')) {
-    const accountId = parseInt(target.closest('.account-edit-btn').dataset.id);
-    const account = accounts.find(a => a.id === accountId);
-    if (account) showAccountModal(account);
+  // Account buttons
+  if ((item = findItemByButtonId(target, '.account-edit-btn', accounts))) {
+    showAccountModal(item);
+    return;
+  }
+  if ((item = findItemByButtonId(target, '.account-delete-btn', accounts))) {
+    confirmDeleteAccount(item);
     return;
   }
 
-  // Account delete button
-  if (target.closest('.account-delete-btn')) {
-    const accountId = parseInt(target.closest('.account-delete-btn').dataset.id);
-    const account = accounts.find(a => a.id === accountId);
-    if (account) confirmDeleteAccount(account);
+  // Category buttons
+  if ((item = findItemByButtonId(target, '.category-edit-btn', categories))) {
+    showCategoryModal(item);
+    return;
+  }
+  if ((item = findItemByButtonId(target, '.category-delete-btn', categories))) {
+    confirmDeleteCategory(item);
     return;
   }
 
-  // Category edit button
-  if (target.closest('.category-edit-btn')) {
-    const categoryId = parseInt(target.closest('.category-edit-btn').dataset.id);
-    const category = categories.find(c => c.id === categoryId);
-    if (category) showCategoryModal(category);
+  // Rule buttons
+  if ((item = findItemByButtonId(target, '.rule-edit-btn', categoryRules))) {
+    showRuleModal(item);
+    return;
+  }
+  if ((item = findItemByButtonId(target, '.rule-delete-btn', categoryRules))) {
+    confirmDeleteRule(item);
     return;
   }
 
-  // Category delete button
-  if (target.closest('.category-delete-btn')) {
-    const categoryId = parseInt(target.closest('.category-delete-btn').dataset.id);
-    const category = categories.find(c => c.id === categoryId);
-    if (category) confirmDeleteCategory(category);
+  // Recurring pattern buttons
+  if ((item = findItemByButtonId(target, '.recurring-edit-btn', recurringPatterns))) {
+    showRecurringModal(item);
+    return;
+  }
+  if ((item = findItemByButtonId(target, '.recurring-delete-btn', recurringPatterns))) {
+    confirmDeleteRecurring(item);
     return;
   }
 
-  // Rule edit button
-  if (target.closest('.rule-edit-btn')) {
-    const ruleId = parseInt(target.closest('.rule-edit-btn').dataset.id);
-    const rule = categoryRules.find(r => r.id === ruleId);
-    if (rule) showRuleModal(rule);
-    return;
-  }
-
-  // Rule delete button
-  if (target.closest('.rule-delete-btn')) {
-    const ruleId = parseInt(target.closest('.rule-delete-btn').dataset.id);
-    const rule = categoryRules.find(r => r.id === ruleId);
-    if (rule) confirmDeleteRule(rule);
-    return;
-  }
-
-  // Recurring pattern edit button
-  if (target.closest('.recurring-edit-btn')) {
-    const patternId = parseInt(target.closest('.recurring-edit-btn').dataset.id);
-    const pattern = recurringPatterns.find(p => p.id === patternId);
-    if (pattern) showRecurringModal(pattern);
-    return;
-  }
-
-  // Recurring pattern delete button
-  if (target.closest('.recurring-delete-btn')) {
-    const patternId = parseInt(target.closest('.recurring-delete-btn').dataset.id);
-    const pattern = recurringPatterns.find(p => p.id === patternId);
-    if (pattern) confirmDeleteRecurring(pattern);
-    return;
-  }
-
-  // Confirm detected pattern button
-  if (target.closest('.confirm-pattern-btn')) {
-    const index = parseInt(target.closest('.confirm-pattern-btn').dataset.index);
+  // Detected pattern buttons (use index instead of id)
+  const confirmBtn = target.closest('.confirm-pattern-btn');
+  if (confirmBtn) {
+    const index = parseInt(confirmBtn.dataset.index);
     const pattern = detectedPatterns[index];
     if (pattern) confirmDetectedPattern(pattern, index);
     return;
   }
 
-  // Reject detected pattern button
-  if (target.closest('.reject-pattern-btn')) {
-    const index = parseInt(target.closest('.reject-pattern-btn').dataset.index);
+  const rejectBtn = target.closest('.reject-pattern-btn');
+  if (rejectBtn) {
+    const index = parseInt(rejectBtn.dataset.index);
     rejectDetectedPattern(index);
     return;
   }
 
   // Import row click
-  if (target.closest('.import-row')) {
-    const batchId = parseInt(target.closest('.import-row').dataset.id);
+  const importRow = target.closest('.import-row');
+  if (importRow) {
+    const batchId = parseInt(importRow.dataset.id);
     showImportDetails(batchId);
     return;
   }

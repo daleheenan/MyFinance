@@ -6,47 +6,30 @@
 import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml } from '../../core/utils.js';
 
-// Private state
 let container = null;
 let cleanupFunctions = [];
-
-// Page data
 let current = null;
 let history = [];
 let breakdown = null;
 
-/**
- * Register a cleanup function to run on unmount
- * @param {function} fn - Cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- * @param {HTMLElement} el - Container element
- * @param {URLSearchParams} params - Route parameters
- */
 export function mount(el, params) {
   container = el;
   cleanupFunctions = [];
 
-  // Reset state
   current = null;
   history = [];
   breakdown = null;
 
-  // Load CSS
   loadStyles();
 
   render();
   loadData();
 }
 
-/**
- * Unmount the page and cleanup resources
- */
 export function unmount() {
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
@@ -61,9 +44,6 @@ export function unmount() {
   breakdown = null;
 }
 
-/**
- * Load page-specific CSS
- */
 function loadStyles() {
   const styleId = 'networth-styles';
   if (!document.getElementById(styleId)) {
@@ -75,13 +55,9 @@ function loadStyles() {
   }
 }
 
-/**
- * Render the page structure
- */
 function render() {
   container.innerHTML = `
     <div class="page networth-page">
-      <!-- Current Net Worth -->
       <div class="networth-summary" id="summary-container">
         <div class="loading">
           <div class="spinner"></div>
@@ -89,7 +65,6 @@ function render() {
         </div>
       </div>
 
-      <!-- Historical Chart -->
       <div class="card chart-card">
         <div class="card-header">
           <h3 class="card-title">Net Worth Trend</h3>
@@ -108,9 +83,7 @@ function render() {
         </div>
       </div>
 
-      <!-- Breakdown Section -->
       <div class="breakdown-grid">
-        <!-- Assets Card -->
         <div class="card breakdown-card breakdown-card--assets">
           <div class="card-header">
             <h3 class="card-title">Assets</h3>
@@ -123,7 +96,6 @@ function render() {
           </div>
         </div>
 
-        <!-- Liabilities Card -->
         <div class="card breakdown-card breakdown-card--liabilities">
           <div class="card-header">
             <h3 class="card-title">Liabilities</h3>
@@ -137,7 +109,6 @@ function render() {
         </div>
       </div>
 
-      <!-- History Table -->
       <div class="card history-card">
         <div class="card-header">
           <h3 class="card-title">Snapshot History</h3>
@@ -155,18 +126,7 @@ function render() {
   attachEventListeners();
 }
 
-/**
- * Handle snapshot button click
- */
-async function handleSnapshot() {
-  await takeSnapshot();
-}
-
-/**
- * Attach event listeners with cleanup
- */
 function attachEventListeners() {
-  // Period selector
   const periodBtns = container.querySelectorAll('.period-btn');
   periodBtns.forEach(btn => {
     const handler = () => {
@@ -179,9 +139,6 @@ function attachEventListeners() {
   });
 }
 
-/**
- * Load all page data
- */
 async function loadData() {
   try {
     const [currentData, historyData, breakdownData] = await Promise.all([
@@ -203,9 +160,6 @@ async function loadData() {
   }
 }
 
-/**
- * Load history for a specific period
- */
 async function loadHistory(months) {
   try {
     const chartContainer = container.querySelector('#chart-container');
@@ -228,9 +182,6 @@ async function loadHistory(months) {
   }
 }
 
-/**
- * Take a new snapshot
- */
 async function takeSnapshot() {
   const btn = container.querySelector('#snapshot-btn');
   btn.disabled = true;
@@ -247,9 +198,6 @@ async function takeSnapshot() {
   }
 }
 
-/**
- * Render the net worth summary
- */
 function renderSummary() {
   const summaryContainer = container.querySelector('#summary-container');
 
@@ -265,10 +213,9 @@ function renderSummary() {
       </div>
     `;
 
-    // Attach snapshot button handler even for empty state
     const snapshotBtn = summaryContainer.querySelector('#snapshot-btn');
     if (snapshotBtn) {
-      snapshotBtn.addEventListener('click', handleSnapshot);
+      snapshotBtn.addEventListener('click', takeSnapshot);
     }
     return;
   }
@@ -309,16 +256,12 @@ function renderSummary() {
     </div>
   `;
 
-  // Re-attach snapshot button handler
   const snapshotBtn = summaryContainer.querySelector('#snapshot-btn');
   if (snapshotBtn) {
-    snapshotBtn.addEventListener('click', handleSnapshot);
+    snapshotBtn.addEventListener('click', takeSnapshot);
   }
 }
 
-/**
- * Render the net worth trend chart
- */
 function renderChart() {
   const chartContainer = container.querySelector('#chart-container');
 
@@ -440,17 +383,11 @@ function renderChart() {
   `;
 }
 
-/**
- * Format date for chart labels
- */
 function formatShortDate(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 }
 
-/**
- * Render the breakdown section
- */
 function renderBreakdown() {
   const assetsContainer = container.querySelector('#assets-container');
   const liabilitiesContainer = container.querySelector('#liabilities-container');
@@ -514,9 +451,6 @@ function renderBreakdown() {
   }
 }
 
-/**
- * Render the history table
- */
 function renderHistory() {
   const historyContainer = container.querySelector('#history-container');
 
@@ -569,9 +503,6 @@ function renderHistory() {
   `;
 }
 
-/**
- * Show error message
- */
 function showError(message) {
   const summaryContainer = container.querySelector('#summary-container');
   summaryContainer.innerHTML = `

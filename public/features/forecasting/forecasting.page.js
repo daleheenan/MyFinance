@@ -6,33 +6,19 @@
 import { api } from '../../core/api.js';
 import { formatCurrency, escapeHtml } from '../../core/utils.js';
 
-// Private state
 let container = null;
 let cleanupFunctions = [];
-
-// Page data
 let cashflow = null;
 let averages = null;
 let scenarios = null;
 let seasonal = null;
 let categories = [];
-
-// Selected forecast period
 let forecastMonths = 12;
 
-/**
- * Register a cleanup function to run on unmount
- * @param {function} fn - Cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- * @param {HTMLElement} el - Container element
- * @param {URLSearchParams} params - Route parameters
- */
 export function mount(el, params) {
   container = el;
   cleanupFunctions = [];
@@ -52,9 +38,6 @@ export function mount(el, params) {
   loadData();
 }
 
-/**
- * Unmount the page and cleanup resources
- */
 export function unmount() {
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
@@ -71,9 +54,6 @@ export function unmount() {
   categories = [];
 }
 
-/**
- * Load page-specific CSS
- */
 function loadStyles() {
   const styleId = 'forecasting-styles';
   if (!document.getElementById(styleId)) {
@@ -85,9 +65,6 @@ function loadStyles() {
   }
 }
 
-/**
- * Render the page structure
- */
 function render() {
   container.innerHTML = `
     <div class="page forecasting-page">
@@ -172,11 +149,7 @@ function render() {
   attachEventListeners();
 }
 
-/**
- * Attach event listeners with cleanup
- */
 function attachEventListeners() {
-  // Forecast period selector
   const periodSelect = container.querySelector('#forecast-months');
   const periodHandler = async (e) => {
     forecastMonths = parseInt(e.target.value, 10);
@@ -185,7 +158,6 @@ function attachEventListeners() {
   periodSelect.addEventListener('change', periodHandler);
   onCleanup(() => periodSelect.removeEventListener('change', periodHandler));
 
-  // Seasonal category selector
   const categorySelect = container.querySelector('#seasonal-category');
   const categoryHandler = async (e) => {
     await loadSeasonalData(e.target.value || null);
@@ -194,9 +166,6 @@ function attachEventListeners() {
   onCleanup(() => categorySelect.removeEventListener('change', categoryHandler));
 }
 
-/**
- * Load all page data
- */
 async function loadData() {
   try {
     const [averagesData, categoriesData] = await Promise.all([
@@ -218,9 +187,6 @@ async function loadData() {
   }
 }
 
-/**
- * Load forecast-specific data
- */
 async function loadForecastData() {
   try {
     // Show loading states
@@ -253,9 +219,6 @@ async function loadForecastData() {
   }
 }
 
-/**
- * Load seasonal data
- */
 async function loadSeasonalData(categoryId) {
   try {
     const seasonalContainer = container.querySelector('#seasonal-container');
@@ -277,9 +240,6 @@ async function loadSeasonalData(categoryId) {
   }
 }
 
-/**
- * Populate category select
- */
 function populateCategorySelect() {
   const select = container.querySelector('#seasonal-category');
   const expenseCategories = categories.filter(c => c.type === 'expense');
@@ -292,9 +252,6 @@ function populateCategorySelect() {
   `;
 }
 
-/**
- * Render the monthly averages
- */
 function renderAverages() {
   const container_el = container.querySelector('#averages-container');
 
@@ -344,9 +301,6 @@ function renderAverages() {
   `;
 }
 
-/**
- * Render scenarios comparison
- */
 function renderScenarios() {
   const scenariosContainer = container.querySelector('#scenarios-container');
 
@@ -461,9 +415,6 @@ function renderScenarios() {
   `;
 }
 
-/**
- * Render cash flow chart
- */
 function renderCashFlowChart() {
   const chartContainer = container.querySelector('#cashflow-container');
 
@@ -563,18 +514,12 @@ function renderCashFlowChart() {
   `;
 }
 
-/**
- * Format date for short display
- */
 function formatShortDate(monthStr) {
   const [year, month] = monthStr.split('-');
   const date = new Date(year, parseInt(month, 10) - 1);
   return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 }
 
-/**
- * Render cash flow table
- */
 function renderCashFlowTable() {
   const tableContainer = container.querySelector('#cashflow-table-container');
 
@@ -617,18 +562,12 @@ function renderCashFlowTable() {
   `;
 }
 
-/**
- * Format month label
- */
 function formatMonthLabel(monthStr) {
   const [year, month] = monthStr.split('-');
   const date = new Date(year, parseInt(month, 10) - 1);
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
-/**
- * Render seasonal patterns
- */
 function renderSeasonal() {
   const seasonalContainer = container.querySelector('#seasonal-container');
 
@@ -685,9 +624,6 @@ function renderSeasonal() {
   `;
 }
 
-/**
- * Get month with highest spending
- */
 function getHighestMonth(patterns, months) {
   let maxIdx = 0;
   patterns.forEach((p, i) => {
@@ -698,9 +634,6 @@ function getHighestMonth(patterns, months) {
   return `${months[maxIdx]} (${formatCurrency(patterns[maxIdx].average_spending)} avg)`;
 }
 
-/**
- * Get month with lowest spending
- */
 function getLowestMonth(patterns, months) {
   let minIdx = 0;
   patterns.forEach((p, i) => {
@@ -711,9 +644,6 @@ function getLowestMonth(patterns, months) {
   return `${months[minIdx]} (${formatCurrency(patterns[minIdx].average_spending)} avg)`;
 }
 
-/**
- * Show error message
- */
 function showError(message) {
   const averagesContainer = container.querySelector('#averages-container');
   averagesContainer.innerHTML = `

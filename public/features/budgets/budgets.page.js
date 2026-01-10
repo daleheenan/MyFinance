@@ -6,35 +6,19 @@
 import { api } from '../../core/api.js';
 import { formatCurrency, escapeHtml } from '../../core/utils.js';
 
-// Private state
 let container = null;
 let cleanupFunctions = [];
-
-// Page data
 let budgets = [];
 let categories = [];
 let unbudgetedCategories = [];
 let summary = null;
-
-// Current month state (YYYY-MM format)
 let currentMonth = new Date().toISOString().slice(0, 7);
-
-// Modal state
 let editingBudget = null;
 
-/**
- * Register a cleanup function to run on unmount
- * @param {function} fn - Cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- * @param {HTMLElement} el - Container element
- * @param {URLSearchParams} params - Route parameters
- */
 export function mount(el, params) {
   container = el;
   cleanupFunctions = [];
@@ -61,9 +45,6 @@ export function mount(el, params) {
   loadData();
 }
 
-/**
- * Unmount the page and cleanup resources
- */
 export function unmount() {
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
@@ -80,9 +61,6 @@ export function unmount() {
   editingBudget = null;
 }
 
-/**
- * Load page-specific CSS
- */
 function loadStyles() {
   const styleId = 'budgets-styles';
   if (!document.getElementById(styleId)) {
@@ -94,9 +72,6 @@ function loadStyles() {
   }
 }
 
-/**
- * Render the page structure
- */
 function render() {
   const monthDisplay = formatMonthDisplay(currentMonth);
 
@@ -206,11 +181,7 @@ function render() {
   attachEventListeners();
 }
 
-/**
- * Attach event listeners with cleanup
- */
 function attachEventListeners() {
-  // Month navigation
   const prevBtn = container.querySelector('#prev-month-btn');
   const nextBtn = container.querySelector('#next-month-btn');
   const todayBtn = container.querySelector('#today-btn');
@@ -230,29 +201,24 @@ function attachEventListeners() {
   onCleanup(() => nextBtn.removeEventListener('click', nextHandler));
   onCleanup(() => todayBtn.removeEventListener('click', todayHandler));
 
-  // Add budget button
   const addBtn = container.querySelector('#add-budget-btn');
   const addHandler = () => openBudgetModal(null);
   addBtn.addEventListener('click', addHandler);
   onCleanup(() => addBtn.removeEventListener('click', addHandler));
 
-  // Budgets container event delegation
   const budgetsContainer = container.querySelector('#budgets-container');
   const budgetsClickHandler = (e) => handleBudgetsClick(e);
   budgetsContainer.addEventListener('click', budgetsClickHandler);
   onCleanup(() => budgetsContainer.removeEventListener('click', budgetsClickHandler));
 
-  // Quick add container event delegation
   const quickAddContainer = container.querySelector('#quick-add-container');
   const quickAddHandler = (e) => handleQuickAddClick(e);
   quickAddContainer.addEventListener('click', quickAddHandler);
   onCleanup(() => quickAddContainer.removeEventListener('click', quickAddHandler));
 
-  // Modal events
   setupBudgetModalEvents();
   setupDeleteModalEvents();
 
-  // Global Escape key handler for modals
   const escapeHandler = (e) => {
     if (e.key === 'Escape') {
       const budgetModal = container.querySelector('#budget-modal');
@@ -271,9 +237,6 @@ function attachEventListeners() {
   onCleanup(() => document.removeEventListener('keydown', escapeHandler));
 }
 
-/**
- * Load all page data
- */
 async function loadData() {
   try {
     const [budgetsData, categoriesData, unbudgetedData, summaryData] = await Promise.all([
@@ -296,9 +259,6 @@ async function loadData() {
   }
 }
 
-/**
- * Navigate to previous or next month
- */
 function navigateMonth(delta) {
   const [year, month] = currentMonth.split('-').map(Number);
   const date = new Date(year, month - 1 + delta, 1);
@@ -307,9 +267,6 @@ function navigateMonth(delta) {
   loadData();
 }
 
-/**
- * Update month display in UI
- */
 function updateMonthDisplay() {
   const monthLabel = container.querySelector('.month-label');
   if (monthLabel) {
@@ -327,18 +284,12 @@ function updateMonthDisplay() {
   history.replaceState(null, '', `#${newHash}`);
 }
 
-/**
- * Format month for display (e.g., "January 2025")
- */
 function formatMonthDisplay(month) {
   const [year, monthNum] = month.split('-');
   const date = new Date(year, parseInt(monthNum, 10) - 1, 1);
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
-/**
- * Render the summary card
- */
 function renderSummary() {
   const summaryContainer = container.querySelector('#summary-container');
 
@@ -399,9 +350,6 @@ function renderSummary() {
   `;
 }
 
-/**
- * Render the budgets list
- */
 function renderBudgets() {
   const budgetsContainer = container.querySelector('#budgets-container');
 
@@ -480,9 +428,6 @@ function renderBudgets() {
   budgetsContainer.appendChild(fragment);
 }
 
-/**
- * Render quick add section for unbudgeted categories
- */
 function renderQuickAdd() {
   const quickAddContainer = container.querySelector('#quick-add-container');
 
@@ -531,9 +476,6 @@ function renderQuickAdd() {
   `;
 }
 
-/**
- * Handle clicks in the budgets container
- */
 function handleBudgetsClick(e) {
   const editBtn = e.target.closest('.edit-budget-btn');
   if (editBtn) {
@@ -556,9 +498,6 @@ function handleBudgetsClick(e) {
   }
 }
 
-/**
- * Handle clicks in quick add container
- */
 function handleQuickAddClick(e) {
   const addBtn = e.target.closest('.quick-add-btn');
   if (addBtn) {
@@ -570,9 +509,6 @@ function handleQuickAddClick(e) {
   }
 }
 
-/**
- * Open the budget modal for add/edit
- */
 function openBudgetModal(budget, preselectedCategory = null) {
   editingBudget = budget;
 
@@ -609,9 +545,6 @@ function openBudgetModal(budget, preselectedCategory = null) {
   amountInput.focus();
 }
 
-/**
- * Setup budget modal events
- */
 function setupBudgetModalEvents() {
   const modal = container.querySelector('#budget-modal');
   const closeBtn = container.querySelector('#modal-close');
@@ -680,12 +613,8 @@ function setupBudgetModalEvents() {
   onCleanup(() => form.removeEventListener('submit', formHandler));
 }
 
-// Delete modal state
 let deletingBudget = null;
 
-/**
- * Open delete confirmation modal
- */
 function openDeleteModal(budget) {
   deletingBudget = budget;
 
@@ -696,9 +625,6 @@ function openDeleteModal(budget) {
   modal.classList.remove('hidden');
 }
 
-/**
- * Setup delete modal events
- */
 function setupDeleteModalEvents() {
   const modal = container.querySelector('#delete-modal');
   const closeBtn = container.querySelector('#delete-modal-close');
@@ -740,9 +666,6 @@ function setupDeleteModalEvents() {
   onCleanup(() => confirmBtn.removeEventListener('click', confirmHandler));
 }
 
-/**
- * Show error message
- */
 function showError(message) {
   const budgetsContainer = container.querySelector('#budgets-container');
   budgetsContainer.innerHTML = `
