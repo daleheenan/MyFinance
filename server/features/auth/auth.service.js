@@ -7,6 +7,50 @@ const SESSION_DURATION_HOURS = 24;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
 
+// Password complexity requirements
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_REQUIREMENTS = {
+  minLength: PASSWORD_MIN_LENGTH,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumber: true,
+  requireSpecial: false // Not required but allowed
+};
+
+/**
+ * Validate password complexity
+ * @param {string} password
+ * @returns {{valid: boolean, errors: string[]}}
+ */
+export function validatePassword(password) {
+  const errors = [];
+
+  if (!password || password.length < PASSWORD_REQUIREMENTS.minLength) {
+    errors.push(`Password must be at least ${PASSWORD_REQUIREMENTS.minLength} characters`);
+  }
+
+  if (PASSWORD_REQUIREMENTS.requireUppercase && !/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+
+  if (PASSWORD_REQUIREMENTS.requireLowercase && !/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+
+  if (PASSWORD_REQUIREMENTS.requireNumber && !/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+
+  if (PASSWORD_REQUIREMENTS.requireSpecial && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 /**
  * Generate a secure random session token
  */
@@ -15,10 +59,28 @@ function generateSessionToken() {
 }
 
 /**
- * Generate a random password for initial setup
+ * Generate a random password for initial setup that meets complexity requirements
  */
 function generateRandomPassword() {
-  return crypto.randomBytes(8).toString('base64').slice(0, 12);
+  // Generate a password that meets complexity requirements
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const all = lower + upper + numbers;
+
+  // Ensure at least one of each required type
+  let password = '';
+  password += lower[Math.floor(Math.random() * lower.length)];
+  password += upper[Math.floor(Math.random() * upper.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+
+  // Fill rest with random characters
+  for (let i = 0; i < 9; i++) {
+    password += all[Math.floor(Math.random() * all.length)];
+  }
+
+  // Shuffle the password
+  return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
 /**
@@ -184,14 +246,16 @@ export function verifySession(sessionToken) {
  * @param {number} userId
  * @param {string} currentPassword
  * @param {string} newPassword
+ * @param {string} [currentSessionToken] - Current session to keep active
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function changePassword(userId, currentPassword, newPassword) {
+export async function changePassword(userId, currentPassword, newPassword, currentSessionToken = null) {
   const db = getDb();
 
-  // Validate new password
-  if (!newPassword || newPassword.length < 8) {
-    return { success: false, error: 'New password must be at least 8 characters' };
+  // Validate new password complexity
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.valid) {
+    return { success: false, error: passwordValidation.errors.join('. ') };
   }
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -215,8 +279,15 @@ export async function changePassword(userId, currentPassword, newPassword) {
     WHERE id = ?
   `).run(newHash, userId);
 
-  // Invalidate all other sessions (security measure)
-  // Keep current session active
+  // Invalidate all sessions except the current one (security measure)
+  if (currentSessionToken) {
+    db.prepare(`
+      DELETE FROM sessions WHERE user_id = ? AND session_token != ?
+    `).run(userId, currentSessionToken);
+  } else {
+    // If no current session provided, invalidate all sessions
+    db.prepare(`DELETE FROM sessions WHERE user_id = ?`).run(userId);
+  }
 
   return { success: true };
 }
@@ -290,14 +361,15 @@ export async function createUser(username, password) {
     return { success: false, error: 'Setup already completed' };
   }
 
-  // Validate password
-  if (!password || password.length < 8) {
-    return { success: false, error: 'Password must be at least 8 characters' };
-  }
-
   // Validate username
   if (!username || username.length < 1) {
     return { success: false, error: 'Username is required' };
+  }
+
+  // Validate password complexity
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return { success: false, error: passwordValidation.errors.join('. ') };
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);

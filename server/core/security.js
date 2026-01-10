@@ -7,8 +7,22 @@ import rateLimit from 'express-rate-limit';
 export function setupSecurity(app) {
   // Security headers via Helmet
   app.use(helmet({
-    // Allow inline scripts for SPA
-    contentSecurityPolicy: false,
+    // Content Security Policy - protect against XSS and injection attacks
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for dynamic UI
+        imgSrc: ["'self'", "data:", "blob:"],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+      }
+    },
     // Required for some embedding scenarios
     crossOriginEmbedderPolicy: false,
     // Prevent clickjacking

@@ -472,6 +472,9 @@ rulesRouter.get('/', (req, res) => {
   res.json({ success: true, data: rules });
 });
 
+// Maximum length for category rule patterns (prevent regex DoS)
+const MAX_PATTERN_LENGTH = 500;
+
 /**
  * POST /api/category-rules
  * Creates a new category rule.
@@ -486,6 +489,13 @@ rulesRouter.post('/', (req, res) => {
     return res.status(400).json({
       success: false,
       error: 'Rule pattern is required'
+    });
+  }
+
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      error: `Rule pattern must be ${MAX_PATTERN_LENGTH} characters or less`
     });
   }
 
@@ -523,6 +533,14 @@ rulesRouter.put('/:id', (req, res) => {
   }
 
   const { pattern, categoryId, priority, isActive } = req.body;
+
+  // Validate pattern length if provided
+  if (pattern !== undefined && pattern.length > MAX_PATTERN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      error: `Rule pattern must be ${MAX_PATTERN_LENGTH} characters or less`
+    });
+  }
 
   const updates = {};
   if (pattern !== undefined) updates.pattern = pattern;

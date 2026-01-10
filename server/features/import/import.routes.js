@@ -18,10 +18,37 @@ import { calculateRunningBalances } from '../accounts/balance.service.js';
 
 const router = Router();
 
+// Allowed MIME types for CSV uploads
+const ALLOWED_MIME_TYPES = [
+  'text/csv',
+  'text/plain',
+  'application/csv',
+  'application/vnd.ms-excel' // Some browsers report CSV as Excel
+];
+
+// File filter for CSV validation
+const csvFileFilter = (req, file, cb) => {
+  // Check MIME type
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+    return;
+  }
+
+  // Also check file extension as fallback
+  const ext = file.originalname.toLowerCase().split('.').pop();
+  if (ext === 'csv') {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error('Only CSV files are allowed'), false);
+};
+
 // Configure multer for file uploads (memory storage with 10MB limit)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max file size
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+  fileFilter: csvFileFilter
 });
 
 // =============================================================================
