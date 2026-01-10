@@ -522,22 +522,29 @@ export function getMonthlyExpenseBreakdown(db, months = 3) {
   const today = new Date();
   const monthlyData = [];
 
+  // Get Main Account ID for accurate calculations
+  const mainAccount = db.prepare(`
+    SELECT id FROM accounts WHERE account_name = 'Main Account' LIMIT 1
+  `).get();
+  const mainAccountId = mainAccount?.id || 1;
+
   // Calculate data for each of the last N months (excluding current month which is incomplete)
   for (let i = 1; i <= months; i++) {
     const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Get total expenses and income for this month
+    // Get total expenses and income for this month (Main Account only)
     const totalsResult = db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN debit_amount > 0 THEN debit_amount ELSE 0 END), 0) AS total_expenses,
         COALESCE(SUM(CASE WHEN credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS total_income
       FROM transactions
-      WHERE strftime('%Y-%m', transaction_date) = ?
+      WHERE account_id = ?
+        AND strftime('%Y-%m', transaction_date) = ?
         AND is_transfer = 0
-    `).get(monthStr);
+    `).get(mainAccountId, monthStr);
 
-    // Get category breakdown for this month
+    // Get category breakdown for this month (Main Account only)
     const categoryBreakdown = db.prepare(`
       SELECT
         COALESCE(c.id, 0) AS category_id,
@@ -547,12 +554,13 @@ export function getMonthlyExpenseBreakdown(db, months = 3) {
         COUNT(t.id) AS transaction_count
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE strftime('%Y-%m', t.transaction_date) = ?
+      WHERE t.account_id = ?
+        AND strftime('%Y-%m', t.transaction_date) = ?
         AND t.is_transfer = 0
         AND t.debit_amount > 0
       GROUP BY COALESCE(c.id, 0), COALESCE(c.name, 'Uncategorized'), COALESCE(c.colour, '#8e8e93')
       ORDER BY total DESC
-    `).all(monthStr);
+    `).all(mainAccountId, monthStr);
 
     monthlyData.push({
       month: monthStr,

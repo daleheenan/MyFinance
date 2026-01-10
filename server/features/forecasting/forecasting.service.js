@@ -165,6 +165,7 @@ function getSubscriptionMonthlyTotals(db) {
 
 /**
  * Calculate average income and expenses over the past N months.
+ * Uses ONLY the Main Account (account_id = 1) for accurate calculations.
  * Excludes transfers from calculations.
  *
  * @param {Database} db - The database instance
@@ -176,19 +177,26 @@ export function getMonthlyAverages(db, months = 3) {
   const endMonth = getPastMonth(1); // Start from last month (current month is incomplete)
   const startMonth = getPastMonth(months);
 
-  // Get monthly totals
+  // Get Main Account ID (first account, typically id=1)
+  const mainAccount = db.prepare(`
+    SELECT id FROM accounts WHERE account_name = 'Main Account' LIMIT 1
+  `).get();
+  const mainAccountId = mainAccount?.id || 1;
+
+  // Get monthly totals from Main Account only
   const monthlyData = db.prepare(`
     SELECT
       strftime('%Y-%m', transaction_date) AS month,
       COALESCE(SUM(CASE WHEN credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS income,
       COALESCE(SUM(CASE WHEN debit_amount > 0 THEN debit_amount ELSE 0 END), 0) AS expenses
     FROM transactions
-    WHERE is_transfer = 0
+    WHERE account_id = ?
+      AND is_transfer = 0
       AND strftime('%Y-%m', transaction_date) >= ?
       AND strftime('%Y-%m', transaction_date) <= ?
     GROUP BY month
     ORDER BY month
-  `).all(startMonth, endMonth);
+  `).all(mainAccountId, startMonth, endMonth);
 
   if (monthlyData.length === 0) {
     return {
