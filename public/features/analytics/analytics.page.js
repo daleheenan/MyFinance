@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml } from '../../core/utils.js';
+import { showWarning } from '../../core/toast.js';
 
 // Private state
 let container = null;
@@ -210,12 +211,12 @@ function attachEventListeners() {
       const endInput = container.querySelector('#end-date');
 
       if (!startInput.value || !endInput.value) {
-        alert('Please select both start and end dates');
+        showWarning('Please select both start and end dates');
         return;
       }
 
       if (startInput.value > endInput.value) {
-        alert('Start date must be before end date');
+        showWarning('Start date must be before end date');
         return;
       }
 

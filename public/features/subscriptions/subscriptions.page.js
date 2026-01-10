@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml } from '../../core/utils.js';
+import { showError as showErrorToast, showWarning as showWarningToast } from '../../core/toast.js';
 
 // Private state
 let container = null;
@@ -887,11 +888,11 @@ function setupModalEvents() {
     const isIncome = type === 'income';
 
     if (!name) {
-      alert(`Please enter a ${isIncome ? 'name' : 'subscription name'}`);
+      showWarningToast(`Please enter a ${isIncome ? 'name' : 'subscription name'}`);
       return;
     }
     if (!pattern) {
-      alert('Please enter a transaction pattern');
+      showWarningToast('Please enter a transaction pattern');
       return;
     }
 
@@ -919,7 +920,7 @@ function setupModalEvents() {
       closeModal();
       await loadData();
     } catch (err) {
-      alert(`Failed to save: ${err.message}`);
+      showErrorToast(`Failed to save: ${err.message}`);
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';
@@ -988,7 +989,7 @@ function setupDeleteModalEvents() {
       closeModal();
       await loadData();
     } catch (err) {
-      alert(`Failed to cancel subscription: ${err.message}`);
+      showErrorToast(`Failed to cancel subscription: ${err.message}`);
     } finally {
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Cancel Subscription';

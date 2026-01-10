@@ -6,6 +6,7 @@
 import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce } from '../../core/utils.js';
 import { router } from '../../core/app.js';
+import { showError } from '../../core/toast.js';
 
 const DEFAULT_ICONS = {
   salary: '💰', income: '💰', wages: '💰',
@@ -750,7 +751,7 @@ function startInlineEdit(element) {
         element.textContent = newValue;
       } catch (err) {
         element.textContent = currentValue;
-        alert(`Failed to save: ${err.message}`);
+        showError(`Failed to save: ${err.message}`);
       }
     } else {
       element.textContent = currentValue;
@@ -908,7 +909,7 @@ function setupCategoryModalEvents() {
 
       closeModal();
     } catch (err) {
-      alert(`Failed to update category: ${err.message}`);
+      showError(`Failed to update category: ${err.message}`);
     }
   };
   list.addEventListener('click', selectHandler);
@@ -967,7 +968,7 @@ function setupDeleteModalEvents() {
       renderTransactionsTable();
       closeModal();
     } catch (err) {
-      alert(`Failed to delete: ${err.message}`);
+      showError(`Failed to delete: ${err.message}`);
     }
   };
   confirmBtn.addEventListener('click', confirmHandler);
@@ -1062,7 +1063,7 @@ function setupImportModalEvents() {
       container.querySelector('#import-step-upload').classList.add('hidden');
       container.querySelector('#import-step-preview').classList.remove('hidden');
     } catch (err) {
-      alert(`Preview failed: ${err.message}`);
+      showError(`Preview failed: ${err.message}`);
     } finally {
       previewBtn.disabled = false;
       previewBtn.textContent = 'Preview Import';
@@ -1107,7 +1108,7 @@ function setupImportModalEvents() {
       container.querySelector('#import-step-preview').classList.add('hidden');
       container.querySelector('#import-step-result').classList.remove('hidden');
     } catch (err) {
-      alert(`Import failed: ${err.message}`);
+      showError(`Import failed: ${err.message}`);
     } finally {
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Confirm Import';

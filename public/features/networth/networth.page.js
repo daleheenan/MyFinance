@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml } from '../../core/utils.js';
+import { showError as showErrorToast } from '../../core/toast.js';
 
 let container = null;
 let cleanupFunctions = [];
@@ -191,7 +192,7 @@ async function takeSnapshot() {
     await api.post('/networth/snapshot');
     await loadData();
   } catch (err) {
-    alert(`Failed to take snapshot: ${err.message}`);
+    showErrorToast(`Failed to take snapshot: ${err.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Take Snapshot';
