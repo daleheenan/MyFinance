@@ -1,0 +1,232 @@
+/**
+ * Shared Modal Styles
+ * Consistent modal design across all pages
+ */
+
+/* ===== BASE MODAL ===== */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+@supports not (backdrop-filter: blur(4px)) {
+  .modal-backdrop {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn var(--transition-base) ease-out;
+  overflow: hidden;
+}
+
+.modal-content.modal-sm {
+  max-width: 400px;
+  max-height: 80vh;
+}
+
+.modal-content.modal-lg {
+  max-width: 800px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== MODAL HEADER ===== */
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  border-bottom: var(--border-light);
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* ===== MODAL BODY ===== */
+
+.modal-body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-tertiary) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* ===== MODAL FOOTER ===== */
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-top: var(--border-light);
+  flex-shrink: 0;
+}
+
+/* ===== MODAL LOADING STATE ===== */
+
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  gap: var(--space-md);
+}
+
+.modal-loading .spinner {
+  width: 24px;
+  height: 24px;
+}
+
+/* ===== SLIDE-OVER PANEL VARIANT ===== */
+
+.modal.slide-over {
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.modal.slide-over .modal-content {
+  max-width: 480px;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  animation: slideOverIn var(--transition-base) ease-out;
+}
+
+@keyframes slideOverIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ===== CONFIRM DIALOG VARIANT ===== */
+
+.modal-content.modal-confirm {
+  max-width: 360px;
+  text-align: center;
+}
+
+.modal-confirm .modal-body {
+  padding: var(--space-xl) var(--space-lg);
+}
+
+.modal-confirm .modal-footer {
+  justify-content: center;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 640px) {
+  .modal {
+    padding: var(--space-sm);
+  }
+
+  .modal-content {
+    max-height: 95vh;
+  }
+
+  .modal-content.modal-sm {
+    max-height: 90vh;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: var(--space-md);
+  }
+
+  /* Full-screen modal on mobile */
+  .modal.slide-over .modal-content {
+    max-width: 100%;
+    border-radius: 0;
+  }
+}

@@ -21,6 +21,74 @@ import * as loginPage from '../features/auth/login.page.js';
 const PUBLIC_ROUTES = ['/login'];
 
 /**
+ * Setup hamburger menu toggle for mobile
+ */
+function setupHamburgerMenu() {
+  const hamburgerBtn = document.querySelector('.hamburger-btn');
+  const navLinks = document.querySelector('.nav-links');
+
+  if (hamburgerBtn && navLinks) {
+    hamburgerBtn.addEventListener('click', () => {
+      const isOpen = navLinks.classList.toggle('open');
+      hamburgerBtn.classList.toggle('active', isOpen);
+      hamburgerBtn.setAttribute('aria-expanded', isOpen);
+    });
+
+    // Close menu when a link is clicked
+    navLinks.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('open');
+        hamburgerBtn.classList.remove('active');
+        hamburgerBtn.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+}
+
+/**
+ * Update active states for both desktop and mobile navigation
+ */
+function updateActiveNavLinks(path) {
+  // Desktop nav
+  document.querySelectorAll('.nav-link[data-route]').forEach(link => {
+    const route = link.getAttribute('data-route');
+    link.classList.toggle('active', route === path);
+  });
+
+  // Mobile bottom nav
+  document.querySelectorAll('.mobile-nav-link[data-route]').forEach(link => {
+    const route = link.getAttribute('data-route');
+    link.classList.toggle('active', route === path);
+  });
+}
+
+/**
+ * Setup keyboard shortcuts for navigation
+ */
+function setupKeyboardShortcuts() {
+  const shortcuts = {
+    '1': '/overview',
+    '2': '/transactions',
+    '3': '/budgets',
+    '4': '/analytics',
+    '5': '/settings'
+  };
+
+  document.addEventListener('keydown', (e) => {
+    // Only trigger if Ctrl/Cmd is held and not in an input
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      const target = e.target;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      if (!isInput && shortcuts[e.key]) {
+        e.preventDefault();
+        window.location.hash = '#' + shortcuts[e.key];
+      }
+    }
+  });
+}
+
+/**
  * Register all application routes
  */
 function registerRoutes() {
@@ -83,6 +151,10 @@ async function init() {
   // Register routes
   registerRoutes();
 
+  // Setup mobile navigation
+  setupHamburgerMenu();
+  setupKeyboardShortcuts();
+
   // Check auth status
   auth.init();
 
@@ -118,7 +190,15 @@ async function init() {
   await router.start();
 
   // Update UI after navigation
-  window.addEventListener('hashchange', updateAuthUI);
+  window.addEventListener('hashchange', () => {
+    updateAuthUI();
+    const path = window.location.hash.replace('#', '') || '/overview';
+    updateActiveNavLinks(path);
+  });
+
+  // Set initial active state
+  const initialPath = window.location.hash.replace('#', '') || '/overview';
+  updateActiveNavLinks(initialPath);
 
   console.log('FinanceFlow initialized');
 }

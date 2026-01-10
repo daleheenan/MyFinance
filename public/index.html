@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FinanceFlow</title>
   <link rel="stylesheet" href="core/styles.css">
+  <link rel="stylesheet" href="core/modal.css">
   <link rel="stylesheet" href="features/overview/overview.css">
   <link rel="stylesheet" href="features/transactions/transactions.css">
   <link rel="stylesheet" href="features/analytics/analytics.css">
@@ -16,20 +17,27 @@
   <link rel="stylesheet" href="features/auth/login.css">
 </head>
 <body>
+  <a href="#app" class="skip-link">Skip to main content</a>
+
   <header class="main-nav">
     <nav class="nav-container">
       <a href="#/overview" class="nav-logo">FinanceFlow</a>
+      <button class="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <ul class="nav-links">
         <li><a href="#/overview" class="nav-link" data-route="/overview">Overview</a></li>
         <li><a href="#/transactions" class="nav-link" data-route="/transactions">Transactions</a></li>
-        <li><a href="#/forecasting" class="nav-link" data-route="/forecasting">Forecasting</a></li>
+        <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
         <li><a href="#/analytics" class="nav-link" data-route="/analytics">Analytics</a></li>
         <li class="nav-dropdown">
           <button class="nav-link nav-dropdown-toggle">More <span class="dropdown-arrow">▼</span></button>
           <ul class="nav-dropdown-menu">
+            <li><a href="#/forecasting" class="nav-link" data-route="/forecasting">Forecasting</a></li>
             <li><a href="#/subscriptions" class="nav-link" data-route="/subscriptions">Subscriptions</a></li>
             <li><a href="#/networth" class="nav-link" data-route="/networth">Net Worth</a></li>
-            <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
           </ul>
         </li>
         <li><a href="#/settings" class="nav-link" data-route="/settings">Settings</a></li>
@@ -37,12 +45,49 @@
     </nav>
   </header>
 
-  <main id="app" class="app-container">
+  <main id="app" class="app-container" role="main" aria-live="polite">
     <div class="loading">
       <div class="spinner"></div>
       <p>Loading...</p>
     </div>
   </main>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <ul class="mobile-bottom-nav-links">
+      <li>
+        <a href="#/overview" class="mobile-nav-link" data-route="/overview">
+          <span class="mobile-nav-icon">📊</span>
+          Overview
+        </a>
+      </li>
+      <li>
+        <a href="#/transactions" class="mobile-nav-link" data-route="/transactions">
+          <span class="mobile-nav-icon">💳</span>
+          Transactions
+        </a>
+      </li>
+      <li>
+        <a href="#/budgets" class="mobile-nav-link" data-route="/budgets">
+          <span class="mobile-nav-icon">📋</span>
+          Budgets
+        </a>
+      </li>
+      <li>
+        <a href="#/analytics" class="mobile-nav-link" data-route="/analytics">
+          <span class="mobile-nav-icon">📈</span>
+          Analytics
+        </a>
+      </li>
+      <li>
+        <a href="#/settings" class="mobile-nav-link" data-route="/settings">
+          <span class="mobile-nav-icon">⚙️</span>
+          More
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div id="toast-container" class="toast-container" aria-live="assertive"></div>
 
   <script type="module" src="core/app.js"></script>
 </body>

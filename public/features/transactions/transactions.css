@@ -132,14 +132,15 @@
   background: rgba(0, 122, 255, 0.08);
 }
 
-/* Column widths - fixed layout */
+/* Column widths - flexible layout with minmax */
 .col-date {
   width: 90px;
   white-space: nowrap;
 }
 
 .col-description {
-  /* Takes remaining space after fixed columns */
+  /* Takes remaining space with minimum 200px */
+  min-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -162,6 +163,18 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Use CSS Grid for flexible table layout on wider screens */
+@media (min-width: 900px) {
+  .transactions-table {
+    table-layout: auto;
+  }
+
+  .col-description {
+    width: auto;
+    min-width: 250px;
+  }
 }
 
 .transactions-table th.col-debit,
