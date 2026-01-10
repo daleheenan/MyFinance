@@ -52,7 +52,7 @@ class Router {
   /**
    * Navigate to the current hash route
    */
-  navigate() {
+  async navigate() {
     const { path, params } = this.parseHash();
     const container = document.getElementById('app');
 
@@ -90,7 +90,20 @@ class Router {
     // Mount new page
     this.currentPage = pageModule;
     container.innerHTML = ''; // Clear container
-    pageModule.mount(container, params);
+
+    // Support async mount functions
+    try {
+      await pageModule.mount(container, params);
+    } catch (err) {
+      console.error('Router: Error mounting page:', err);
+      container.innerHTML = `
+        <div class="error-state">
+          <h1>Error</h1>
+          <p>Failed to load page</p>
+          <a href="#/overview" class="btn btn-primary">Go to Overview</a>
+        </div>
+      `;
+    }
 
     // Update active nav link
     this._updateActiveNav(path);
@@ -130,12 +143,12 @@ class Router {
   /**
    * Start the router (call on DOMContentLoaded)
    */
-  start() {
+  async start() {
     // Set default route if no hash
     if (!window.location.hash) {
       window.location.hash = '/overview';
     } else {
-      this.navigate();
+      await this.navigate();
     }
   }
 

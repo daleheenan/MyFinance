@@ -113,10 +113,10 @@ describe('Forecasting Service', () => {
       const result = getMonthlyAverages(db, 6);
 
       expect(result).toEqual({
-        avgIncome: 0,
-        avgExpenses: 0,
-        avgNet: 0,
-        monthsAnalyzed: 0
+        avg_income: 0,
+        avg_expenses: 0,
+        avg_net: 0,
+        months_analyzed: 0
       });
     });
 
@@ -128,10 +128,10 @@ describe('Forecasting Service', () => {
 
       const result = getMonthlyAverages(db, 6);
 
-      expect(result.avgIncome).toBe(3000);
-      expect(result.avgExpenses).toBe(2000); // (2000+2500+1500)/3
-      expect(result.avgNet).toBe(1000);
-      expect(result.monthsAnalyzed).toBe(3);
+      expect(result.avg_income).toBe(3000);
+      expect(result.avg_expenses).toBe(2000); // (2000+2500+1500)/3
+      expect(result.avg_net).toBe(1000);
+      expect(result.months_analyzed).toBe(3);
     });
 
     it('should respect the months parameter', () => {
@@ -143,9 +143,9 @@ describe('Forecasting Service', () => {
 
       const result = getMonthlyAverages(db, 3);
 
-      expect(result.avgIncome).toBe(3000);
-      expect(result.avgExpenses).toBe(2000);
-      expect(result.monthsAnalyzed).toBe(3);
+      expect(result.avg_income).toBe(3000);
+      expect(result.avg_expenses).toBe(2000);
+      expect(result.months_analyzed).toBe(3);
     });
 
     it('should exclude transfer transactions', () => {
@@ -164,7 +164,7 @@ describe('Forecasting Service', () => {
       const result = getMonthlyAverages(db, 6);
 
       // Transfer should NOT be counted in expenses
-      expect(result.avgExpenses).toBe(1000);
+      expect(result.avg_expenses).toBe(1000);
     });
 
     it('should use penny precision for results', () => {
@@ -176,8 +176,8 @@ describe('Forecasting Service', () => {
       const result = getMonthlyAverages(db, 6);
 
       // Results should be properly rounded
-      expect(Number.isInteger(result.avgIncome * 100)).toBe(true);
-      expect(Number.isInteger(result.avgExpenses * 100)).toBe(true);
+      expect(Number.isInteger(result.avg_income * 100)).toBe(true);
+      expect(Number.isInteger(result.avg_expenses * 100)).toBe(true);
     });
   });
 
@@ -188,10 +188,10 @@ describe('Forecasting Service', () => {
     it('should return empty projection when no data exists', () => {
       const result = getCashFlowForecast(db, { months: 3 });
 
-      expect(result.currentBalance).toBe(0);
+      expect(result.current_balance).toBe(0);
       expect(result.projections).toHaveLength(3);
-      expect(result.projections[0].projectedIncome).toBe(0);
-      expect(result.projections[0].projectedExpenses).toBe(0);
+      expect(result.projections[0].projected_income).toBe(0);
+      expect(result.projections[0].projected_expenses).toBe(0);
     });
 
     it('should project forward for specified number of months', () => {
@@ -216,7 +216,7 @@ describe('Forecasting Service', () => {
       const result = getCashFlowForecast(db, { months: 3 });
 
       // Average income: (3000+3600+3000)/3 = 3200
-      expect(result.projections[0].projectedIncome).toBe(3200);
+      expect(result.projections[0].projected_income).toBe(3200);
     });
 
     it('should calculate projected expenses based on historical average', () => {
@@ -227,7 +227,7 @@ describe('Forecasting Service', () => {
       const result = getCashFlowForecast(db, { months: 3 });
 
       // Average expenses: (2000+2500+3000)/3 = 2500
-      expect(result.projections[0].projectedExpenses).toBe(2500);
+      expect(result.projections[0].projected_expenses).toBe(2500);
     });
 
     it('should calculate running projected balance', () => {
@@ -240,10 +240,10 @@ describe('Forecasting Service', () => {
       const result = getCashFlowForecast(db, { months: 3 });
 
       // Starting: 5000, Net per month: 1000
-      expect(result.currentBalance).toBe(5000);
-      expect(result.projections[0].projectedBalance).toBe(6000);
-      expect(result.projections[1].projectedBalance).toBe(7000);
-      expect(result.projections[2].projectedBalance).toBe(8000);
+      expect(result.current_balance).toBe(5000);
+      expect(result.projections[0].projected_balance).toBe(6000);
+      expect(result.projections[1].projected_balance).toBe(7000);
+      expect(result.projections[2].projected_balance).toBe(8000);
     });
 
     it('should include recurring items in projections', () => {
@@ -263,9 +263,9 @@ describe('Forecasting Service', () => {
       const result = getCashFlowForecast(db, { months: 3 });
 
       // Should have recurring items
-      expect(result.projections[0].recurringItems).toBeDefined();
-      expect(result.projections[0].recurringItems.length).toBeGreaterThanOrEqual(1);
-      expect(result.projections[0].recurringItems[0]).toMatchObject({
+      expect(result.projections[0].recurring_items).toBeDefined();
+      expect(result.projections[0].recurring_items.length).toBeGreaterThanOrEqual(1);
+      expect(result.projections[0].recurring_items[0]).toMatchObject({
         description: 'Netflix',
         amount: 15.99
       });
@@ -285,20 +285,20 @@ describe('Forecasting Service', () => {
 
       const result = getCashFlowForecast(db, { months: 3 });
 
-      const hasOldSub = result.projections[0].recurringItems.some(
+      const hasOldSub = result.projections[0].recurring_items.some(
         item => item.description === 'Old Subscription'
       );
       expect(hasOldSub).toBe(false);
     });
 
-    it('should calculate projectedNet correctly', () => {
+    it('should calculate projected_net correctly', () => {
       insertMonthlyTransactions(1, 3000, 2000);
       insertMonthlyTransactions(2, 3000, 2000);
 
       const result = getCashFlowForecast(db, { months: 3 });
 
       // Net = Income - Expenses = 3000 - 2000 = 1000
-      expect(result.projections[0].projectedNet).toBe(1000);
+      expect(result.projections[0].projected_net).toBe(1000);
     });
 
     it('should aggregate balance across all accounts', () => {
@@ -311,7 +311,7 @@ describe('Forecasting Service', () => {
       const result = getCashFlowForecast(db, { months: 1 });
 
       // Total balance: 3000 + 2000 = 5000
-      expect(result.currentBalance).toBe(5000);
+      expect(result.current_balance).toBe(5000);
     });
 
     it('should default to 12 months if not specified', () => {
@@ -346,9 +346,9 @@ describe('Forecasting Service', () => {
 
       // Expected: income=3000, expenses=2000
       // Optimistic: income=3300 (+10%), expenses=1800 (-10%)
-      expect(result.optimistic.projectedIncome).toBe(3300);
-      expect(result.optimistic.projectedExpenses).toBe(1800);
-      expect(result.optimistic.projectedNet).toBe(1500); // 3300 - 1800
+      expect(result.optimistic.projected_income).toBe(3300);
+      expect(result.optimistic.projected_expenses).toBe(1800);
+      expect(result.optimistic.projected_net).toBe(1500); // 3300 - 1800
     });
 
     it('should calculate expected scenario with average values', () => {
@@ -357,9 +357,9 @@ describe('Forecasting Service', () => {
 
       const result = getScenarios(db);
 
-      expect(result.expected.projectedIncome).toBe(3000);
-      expect(result.expected.projectedExpenses).toBe(2000);
-      expect(result.expected.projectedNet).toBe(1000);
+      expect(result.expected.projected_income).toBe(3000);
+      expect(result.expected.projected_expenses).toBe(2000);
+      expect(result.expected.projected_net).toBe(1000);
     });
 
     it('should calculate conservative scenario with -10% income and +10% expenses', () => {
@@ -369,9 +369,9 @@ describe('Forecasting Service', () => {
       const result = getScenarios(db);
 
       // Conservative: income=2700 (-10%), expenses=2200 (+10%)
-      expect(result.conservative.projectedIncome).toBe(2700);
-      expect(result.conservative.projectedExpenses).toBe(2200);
-      expect(result.conservative.projectedNet).toBe(500); // 2700 - 2200
+      expect(result.conservative.projected_income).toBe(2700);
+      expect(result.conservative.projected_expenses).toBe(2200);
+      expect(result.conservative.projected_net).toBe(500); // 2700 - 2200
     });
 
     it('should project balance forward for each scenario', () => {
@@ -384,19 +384,19 @@ describe('Forecasting Service', () => {
 
       // Starting balance: 5000
       // Optimistic net: 1500/month -> 5000 + (1500*12) = 23000
-      expect(result.optimistic.projectedBalanceEnd).toBe(23000);
+      expect(result.optimistic.projected_balance_end).toBe(23000);
       // Expected net: 1000/month -> 5000 + (1000*12) = 17000
-      expect(result.expected.projectedBalanceEnd).toBe(17000);
+      expect(result.expected.projected_balance_end).toBe(17000);
       // Conservative net: 500/month -> 5000 + (500*12) = 11000
-      expect(result.conservative.projectedBalanceEnd).toBe(11000);
+      expect(result.conservative.projected_balance_end).toBe(11000);
     });
 
     it('should return zeros for all scenarios when no data exists', () => {
       const result = getScenarios(db);
 
-      expect(result.optimistic.projectedIncome).toBe(0);
-      expect(result.expected.projectedIncome).toBe(0);
-      expect(result.conservative.projectedIncome).toBe(0);
+      expect(result.optimistic.projected_income).toBe(0);
+      expect(result.expected.projected_income).toBe(0);
+      expect(result.conservative.projected_income).toBe(0);
     });
 
     it('should use penny precision for all values', () => {
@@ -406,8 +406,8 @@ describe('Forecasting Service', () => {
       const result = getScenarios(db);
 
       // All values should be properly rounded
-      expect(Number.isInteger(result.optimistic.projectedIncome * 100)).toBe(true);
-      expect(Number.isInteger(result.expected.projectedExpenses * 100)).toBe(true);
+      expect(Number.isInteger(result.optimistic.projected_income * 100)).toBe(true);
+      expect(Number.isInteger(result.expected.projected_expenses * 100)).toBe(true);
     });
   });
 
@@ -571,7 +571,7 @@ describe('Forecasting Routes', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('currentBalance');
+      expect(response.body.data).toHaveProperty('current_balance');
       expect(response.body.data).toHaveProperty('projections');
       expect(response.body.data.projections).toHaveLength(12); // Default 12 months
     });
@@ -613,8 +613,8 @@ describe('Forecasting Routes', () => {
         .expect(200);
 
       expect(response.body.data).toHaveProperty('averages');
-      expect(response.body.data.averages).toHaveProperty('avgIncome');
-      expect(response.body.data.averages).toHaveProperty('avgExpenses');
+      expect(response.body.data.averages).toHaveProperty('avg_income');
+      expect(response.body.data.averages).toHaveProperty('avg_expenses');
     });
   });
 
@@ -633,9 +633,9 @@ describe('Forecasting Routes', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toMatchObject({
-        avgIncome: 3000,
-        avgExpenses: 2000,
-        avgNet: 1000
+        avg_income: 3000,
+        avg_expenses: 2000,
+        avg_net: 1000
       });
     });
 
@@ -649,7 +649,7 @@ describe('Forecasting Routes', () => {
         .get('/api/forecasting/averages?months=3')
         .expect(200);
 
-      expect(response.body.data.avgIncome).toBe(3000);
+      expect(response.body.data.avg_income).toBe(3000);
     });
 
     it('should return zeros when no data', async () => {
@@ -658,9 +658,9 @@ describe('Forecasting Routes', () => {
         .expect(200);
 
       expect(response.body.data).toMatchObject({
-        avgIncome: 0,
-        avgExpenses: 0,
-        avgNet: 0
+        avg_income: 0,
+        avg_expenses: 0,
+        avg_net: 0
       });
     });
 
@@ -701,16 +701,16 @@ describe('Forecasting Routes', () => {
         .expect(200);
 
       // Expected: 3000 income, 2000 expenses
-      expect(response.body.data.expected.projectedIncome).toBe(3000);
-      expect(response.body.data.expected.projectedExpenses).toBe(2000);
+      expect(response.body.data.expected.projected_income).toBe(3000);
+      expect(response.body.data.expected.projected_expenses).toBe(2000);
 
       // Optimistic: +10% income, -10% expenses
-      expect(response.body.data.optimistic.projectedIncome).toBe(3300);
-      expect(response.body.data.optimistic.projectedExpenses).toBe(1800);
+      expect(response.body.data.optimistic.projected_income).toBe(3300);
+      expect(response.body.data.optimistic.projected_expenses).toBe(1800);
 
       // Conservative: -10% income, +10% expenses
-      expect(response.body.data.conservative.projectedIncome).toBe(2700);
-      expect(response.body.data.conservative.projectedExpenses).toBe(2200);
+      expect(response.body.data.conservative.projected_income).toBe(2700);
+      expect(response.body.data.conservative.projected_expenses).toBe(2200);
     });
 
     it('should include current balance', async () => {
@@ -722,8 +722,8 @@ describe('Forecasting Routes', () => {
         .get('/api/forecasting/scenarios')
         .expect(200);
 
-      expect(response.body.data).toHaveProperty('currentBalance');
-      expect(response.body.data.currentBalance).toBe(5000);
+      expect(response.body.data).toHaveProperty('current_balance');
+      expect(response.body.data.current_balance).toBe(5000);
     });
 
     it('should accept months parameter for projection period', async () => {
@@ -737,7 +737,7 @@ describe('Forecasting Routes', () => {
         .expect(200);
 
       // Net per month = 1000, 6 months = 6000 added
-      expect(response.body.data.expected.projectedBalanceEnd).toBe(11000);
+      expect(response.body.data.expected.projected_balance_end).toBe(11000);
     });
   });
 

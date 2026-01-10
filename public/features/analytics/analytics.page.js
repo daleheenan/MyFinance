@@ -149,6 +149,16 @@ function render() {
           </div>
         </div>
       </section>
+
+      <!-- Top Merchants -->
+      <section class="merchants-section">
+        <div id="merchants-container" class="card merchants-card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading merchants...</p>
+          </div>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -238,11 +248,12 @@ async function loadData() {
 
   try {
     // Fetch all data in parallel
-    const [categoryData, incomeExpenseData, trendsData, summaryData] = await Promise.all([
+    const [categoryData, incomeExpenseData, trendsData, summaryData, merchantsData] = await Promise.all([
       api.get(`/analytics/spending-by-category?${queryParams}`),
       api.get('/analytics/income-vs-expenses?months=12'),
       api.get(`/analytics/trends?${queryParams}&group_by=day`),
-      api.get(`/analytics/summary?${queryParams}`)
+      api.get(`/analytics/summary?${queryParams}`),
+      api.get('/merchants/top?by=spend&limit=10')
     ]);
 
     // Render each section
@@ -250,6 +261,7 @@ async function loadData() {
     renderCategorySpending(categoryData);
     renderIncomeVsExpenses(incomeExpenseData);
     renderTrends(trendsData);
+    renderTopMerchants(merchantsData);
   } catch (err) {
     showGlobalError(err.message);
   }
@@ -467,15 +479,19 @@ function renderTrends(data) {
   // Show at most 14 days for readability
   const displayTrends = trends.slice(-14);
 
+  // Max bar height in pixels (chart is 120px, need room for labels)
+  const maxBarHeight = 90;
+
   displayTrends.forEach(trend => {
     const barWrapper = document.createElement('div');
     barWrapper.className = 'trend-bar-wrapper';
 
-    const height = (trend.spending / maxSpending) * 100;
+    // Calculate height in pixels for reliable rendering
+    const heightPx = Math.max(4, (trend.spending / maxSpending) * maxBarHeight);
     const dayLabel = formatTrendLabel(trend.period, groupBy);
 
     barWrapper.innerHTML = `
-      <div class="trend-bar" style="height: ${height}%" title="${formatCurrency(trend.spending)}"></div>
+      <div class="trend-bar" style="height: ${heightPx}px" title="${formatCurrency(trend.spending)}"></div>
       <div class="trend-label">${dayLabel}</div>
     `;
 
@@ -548,6 +564,61 @@ function formatTrendLabel(period, groupBy) {
   // Day format: show just day number
   const date = new Date(period);
   return date.getDate().toString();
+}
+
+/**
+ * Render top merchants
+ * @param {Array} data - Top merchants data from API
+ */
+function renderTopMerchants(data) {
+  const merchantsContainer = container.querySelector('#merchants-container');
+
+  merchantsContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Top Merchants</h3>
+      <span class="card-subtitle">By total spending</span>
+    </div>
+  `;
+
+  if (!data || data.length === 0) {
+    merchantsContainer.innerHTML += `
+      <div class="empty-state">
+        <p>No merchant data available</p>
+      </div>
+    `;
+    return;
+  }
+
+  const listElement = document.createElement('div');
+  listElement.className = 'merchants-list';
+
+  const maxSpend = data[0].totalSpend || data[0].total_spent || 1;
+
+  data.forEach((merchant, index) => {
+    const row = document.createElement('div');
+    row.className = 'merchant-item';
+
+    const name = merchant.name || merchant.merchant_name;
+    const totalSpend = merchant.totalSpend || merchant.total_spent || 0;
+    const txCount = merchant.transactionCount || merchant.transaction_count || 0;
+    const barWidth = (totalSpend / maxSpend) * 100;
+
+    row.innerHTML = `
+      <div class="merchant-rank">${index + 1}</div>
+      <div class="merchant-info">
+        <span class="merchant-name">${escapeHtml(name)}</span>
+        <span class="merchant-count">${txCount} transaction${txCount !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="merchant-bar-wrapper">
+        <div class="merchant-bar" style="width: ${barWidth}%"></div>
+      </div>
+      <div class="merchant-amount">${formatCurrency(totalSpend)}</div>
+    `;
+
+    listElement.appendChild(row);
+  });
+
+  merchantsContainer.appendChild(listElement);
 }
 
 /**

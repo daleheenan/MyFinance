@@ -16,6 +16,7 @@ import { getDb } from '../../core/database.js';
 import { ApiError } from '../../core/errors.js';
 import {
   detectSubscriptions,
+  detectRecurringIncome,
   getSubscriptions,
   getSubscriptionSummary,
   getUpcomingCharges,
@@ -29,14 +30,23 @@ const router = Router();
 /**
  * GET /api/subscriptions
  * List all subscriptions (active by default)
- * Query params: active_only (boolean, default true)
+ * Query params:
+ *   - active_only (boolean, default true)
+ *   - type ('expense' | 'income', optional - filters by type)
  */
 router.get('/', (req, res, next) => {
   try {
     const db = getDb();
     const activeOnly = req.query.active_only !== 'false';
+    const type = req.query.type || null;
 
-    const subscriptions = getSubscriptions(db, { active_only: activeOnly });
+    // Validate type if provided
+    const validTypes = ['expense', 'income'];
+    if (type && !validTypes.includes(type)) {
+      throw new ApiError(`Invalid type. Must be one of: ${validTypes.join(', ')}`, 400);
+    }
+
+    const subscriptions = getSubscriptions(db, { active_only: activeOnly, type });
 
     res.json({
       success: true,
@@ -93,11 +103,20 @@ router.get('/upcoming', (req, res, next) => {
 /**
  * GET /api/subscriptions/detect
  * Detect potential subscriptions from transaction history
+ * Query params:
+ *   - type ('expense' | 'income', default 'expense')
  */
 router.get('/detect', (req, res, next) => {
   try {
     const db = getDb();
-    const detected = detectSubscriptions(db);
+    const type = req.query.type || 'expense';
+
+    let detected;
+    if (type === 'income') {
+      detected = detectRecurringIncome(db);
+    } else {
+      detected = detectSubscriptions(db);
+    }
 
     res.json({
       success: true,
@@ -112,7 +131,7 @@ router.get('/detect', (req, res, next) => {
  * POST /api/subscriptions
  * Create a new subscription
  * Body: { merchant_pattern, display_name, category_id?, expected_amount?,
- *         frequency?, billing_day?, next_expected_date?, last_charged_date? }
+ *         frequency?, billing_day?, next_expected_date?, last_charged_date?, type? }
  */
 router.post('/', (req, res, next) => {
   try {
@@ -125,7 +144,8 @@ router.post('/', (req, res, next) => {
       frequency,
       billing_day,
       next_expected_date,
-      last_charged_date
+      last_charged_date,
+      type
     } = req.body;
 
     // Validate required fields
@@ -142,6 +162,12 @@ router.post('/', (req, res, next) => {
       throw new ApiError(`Invalid frequency. Must be one of: ${validFrequencies.join(', ')}`, 400);
     }
 
+    // Validate type if provided
+    const validTypes = ['expense', 'income'];
+    if (type && !validTypes.includes(type)) {
+      throw new ApiError(`Invalid type. Must be one of: ${validTypes.join(', ')}`, 400);
+    }
+
     const subscriptionData = {
       merchant_pattern: merchant_pattern.trim(),
       display_name: display_name.trim(),
@@ -150,7 +176,8 @@ router.post('/', (req, res, next) => {
       frequency: frequency || 'monthly',
       billing_day: billing_day !== undefined ? parseInt(billing_day, 10) : null,
       next_expected_date: next_expected_date || null,
-      last_charged_date: last_charged_date || null
+      last_charged_date: last_charged_date || null,
+      type: type || 'expense'
     };
 
     const subscription = createSubscription(db, subscriptionData);
@@ -172,6 +199,9 @@ router.post('/', (req, res, next) => {
     if (err.message.includes('Invalid frequency')) {
       return next(new ApiError(err.message, 400));
     }
+    if (err.message.includes('Invalid type')) {
+      return next(new ApiError(err.message, 400));
+    }
     next(err);
   }
 });
@@ -180,7 +210,7 @@ router.post('/', (req, res, next) => {
  * PUT /api/subscriptions/:id
  * Update an existing subscription
  * Body: { display_name?, merchant_pattern?, category_id?, expected_amount?,
- *         frequency?, billing_day?, next_expected_date?, last_charged_date?, is_active? }
+ *         frequency?, billing_day?, next_expected_date?, last_charged_date?, is_active?, type? }
  */
 router.put('/:id', (req, res, next) => {
   try {
@@ -202,13 +232,20 @@ router.put('/:id', (req, res, next) => {
       billing_day,
       next_expected_date,
       last_charged_date,
-      is_active
+      is_active,
+      type
     } = req.body;
 
     // Validate frequency if provided
     const validFrequencies = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
     if (frequency !== undefined && !validFrequencies.includes(frequency)) {
       throw new ApiError(`Invalid frequency. Must be one of: ${validFrequencies.join(', ')}`, 400);
+    }
+
+    // Validate type if provided
+    const validTypes = ['expense', 'income'];
+    if (type !== undefined && !validTypes.includes(type)) {
+      throw new ApiError(`Invalid type. Must be one of: ${validTypes.join(', ')}`, 400);
     }
 
     const updateData = {};
@@ -239,6 +276,9 @@ router.put('/:id', (req, res, next) => {
     if (is_active !== undefined) {
       updateData.is_active = is_active ? 1 : 0;
     }
+    if (type !== undefined) {
+      updateData.type = type;
+    }
 
     const subscription = updateSubscription(db, subscriptionId, updateData);
 
@@ -254,6 +294,9 @@ router.put('/:id', (req, res, next) => {
       return next(new ApiError('Category not found', 400));
     }
     if (err.message.includes('Invalid frequency')) {
+      return next(new ApiError(err.message, 400));
+    }
+    if (err.message.includes('Invalid type')) {
       return next(new ApiError(err.message, 400));
     }
     next(err);

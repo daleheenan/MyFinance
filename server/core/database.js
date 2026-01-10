@@ -7,6 +7,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let db = null;
 
+/**
+ * Run database migrations for schema updates.
+ * Safely adds columns that may not exist in older databases.
+ * @param {Database} database - The database instance
+ */
+function runMigrations(database) {
+  // Check if subscriptions.type column exists
+  const columns = database.prepare(`PRAGMA table_info(subscriptions)`).all();
+  const hasTypeColumn = columns.some(col => col.name === 'type');
+
+  if (!hasTypeColumn) {
+    database.exec(`ALTER TABLE subscriptions ADD COLUMN type TEXT DEFAULT 'expense' CHECK(type IN ('expense', 'income'))`);
+  }
+}
+
 export function initDb(dbPath) {
   const path = dbPath || process.env.DATABASE_PATH || './data/financeflow.db';
 
@@ -37,6 +52,9 @@ export function initDb(dbPath) {
     const seeds = readFileSync(seedsPath, 'utf-8');
     db.exec(seeds);
   }
+
+  // Run migrations for existing databases
+  runMigrations(db);
 
   return db;
 }

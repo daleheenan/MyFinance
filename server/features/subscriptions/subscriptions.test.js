@@ -67,10 +67,10 @@ describe('SubscriptionsService', () => {
 
       // Assert
       expect(subscriptions.length).toBeGreaterThanOrEqual(1);
-      const netflix = subscriptions.find(s => s.merchantPattern.includes('NETFLIX'));
+      const netflix = subscriptions.find(s => s.pattern.includes('NETFLIX'));
       expect(netflix).toBeDefined();
-      expect(netflix.displayName).toContain('Netflix');
-      expect(netflix.amount).toBe(9.99);
+      expect(netflix.merchant_name).toContain('Netflix');
+      expect(netflix.typical_amount).toBe(9.99);
       expect(netflix.frequency).toBe('monthly');
       expect(netflix.confidence).toBeGreaterThanOrEqual(0.8);
     });
@@ -89,7 +89,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const single = subscriptions.find(s => s.merchantPattern.includes('SINGLE'));
+      const single = subscriptions.find(s => s.pattern.includes('SINGLE'));
       expect(single).toBeUndefined();
     });
 
@@ -121,7 +121,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const variable = subscriptions.find(s => s.merchantPattern.includes('VARIABLE'));
+      const variable = subscriptions.find(s => s.pattern.includes('VARIABLE'));
       expect(variable).toBeUndefined();
     });
 
@@ -146,7 +146,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const spotify = subscriptions.find(s => s.merchantPattern.includes('SPOTIFY'));
+      const spotify = subscriptions.find(s => s.pattern.includes('SPOTIFY'));
       expect(spotify).toBeDefined();
     });
 
@@ -171,7 +171,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const irregular = subscriptions.find(s => s.merchantPattern.includes('IRREGULAR'));
+      const irregular = subscriptions.find(s => s.pattern.includes('IRREGULAR'));
       expect(irregular).toBeUndefined();
     });
 
@@ -196,9 +196,9 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const disney = subscriptions.find(s => s.merchantPattern.includes('DISNEY'));
+      const disney = subscriptions.find(s => s.pattern.includes('DISNEY'));
       expect(disney).toBeDefined();
-      expect(disney.lastDate).toBe('2025-02-05');
+      expect(disney.last_date).toBe('2025-02-05');
     });
 
     it('should return empty array when no transactions exist', () => {
@@ -233,7 +233,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const transfer = subscriptions.find(s => s.merchantPattern.includes('TRANSFER'));
+      const transfer = subscriptions.find(s => s.pattern.includes('TRANSFER'));
       expect(transfer).toBeUndefined();
     });
   });
@@ -338,7 +338,7 @@ describe('SubscriptionsService', () => {
   // getSubscriptionSummary
   // ==========================================================================
   describe('getSubscriptionSummary', () => {
-    it('should calculate monthlyTotal correctly', () => {
+    it('should calculate monthly_total correctly', () => {
       // Arrange
       createSubscription(db, {
         merchant_pattern: 'NETFLIX',
@@ -357,7 +357,7 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.monthlyTotal).toBeCloseTo(19.98, 2);
+      expect(summary.monthly_total).toBeCloseTo(19.98, 2);
     });
 
     it('should convert yearly subscriptions to monthly equivalent', () => {
@@ -373,7 +373,7 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.monthlyTotal).toBeCloseTo(7.92, 2); // 95/12
+      expect(summary.monthly_total).toBeCloseTo(7.92, 2); // 95/12
     });
 
     it('should convert quarterly subscriptions to monthly equivalent', () => {
@@ -389,10 +389,10 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.monthlyTotal).toBeCloseTo(10.00, 2); // 30/3
+      expect(summary.monthly_total).toBeCloseTo(10.00, 2); // 30/3
     });
 
-    it('should calculate yearlyTotal correctly', () => {
+    it('should calculate yearly_total correctly', () => {
       // Arrange
       createSubscription(db, {
         merchant_pattern: 'NETFLIX',
@@ -405,7 +405,7 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.yearlyTotal).toBeCloseTo(119.88, 2); // 9.99 * 12
+      expect(summary.yearly_total).toBeCloseTo(119.88, 2); // 9.99 * 12
     });
 
     it('should return count of active subscriptions', () => {
@@ -434,10 +434,10 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.count).toBe(2);
+      expect(summary.active_count).toBe(2);
     });
 
-    it('should include upcoming charges in summary', () => {
+    it('should include upcoming_7_days total in summary', () => {
       // Arrange: Use a fixed date for predictable testing
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2025-01-10'));
@@ -454,8 +454,8 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.upcoming).toBeInstanceOf(Array);
-      expect(summary.upcoming.length).toBeGreaterThanOrEqual(0);
+      expect(typeof summary.upcoming_7_days).toBe('number');
+      expect(summary.upcoming_7_days).toBeGreaterThanOrEqual(0);
 
       vi.useRealTimers();
     });
@@ -465,10 +465,10 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert
-      expect(summary.monthlyTotal).toBe(0);
-      expect(summary.yearlyTotal).toBe(0);
-      expect(summary.count).toBe(0);
-      expect(summary.upcoming).toEqual([]);
+      expect(summary.monthly_total).toBe(0);
+      expect(summary.yearly_total).toBe(0);
+      expect(summary.active_count).toBe(0);
+      expect(summary.upcoming_7_days).toBe(0);
     });
   });
 
@@ -912,7 +912,7 @@ describe('SubscriptionsService', () => {
 
       // Assert
       // Weekly = 5 * 52 / 12 = ~21.67 monthly
-      expect(summary.monthlyTotal).toBeCloseTo(21.67, 1);
+      expect(summary.monthly_total).toBeCloseTo(21.67, 1);
     });
 
     it('should handle fortnightly frequency in summary calculations', () => {
@@ -929,7 +929,7 @@ describe('SubscriptionsService', () => {
 
       // Assert
       // Fortnightly = 10 * 26 / 12 = ~21.67 monthly
-      expect(summary.monthlyTotal).toBeCloseTo(21.67, 1);
+      expect(summary.monthly_total).toBeCloseTo(21.67, 1);
     });
 
     it('should handle null expected_amount in summary', () => {
@@ -945,7 +945,7 @@ describe('SubscriptionsService', () => {
       const summary = getSubscriptionSummary(db);
 
       // Assert - should not crash, treat as 0
-      expect(summary.monthlyTotal).toBe(0);
+      expect(summary.monthly_total).toBe(0);
     });
 
     it('should detect subscriptions across multiple accounts', () => {
@@ -969,7 +969,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const multiAcc = subscriptions.find(s => s.merchantPattern.includes('MULTI'));
+      const multiAcc = subscriptions.find(s => s.pattern.includes('MULTI'));
       expect(multiAcc).toBeDefined();
     });
 
@@ -994,7 +994,7 @@ describe('SubscriptionsService', () => {
       const subscriptions = detectSubscriptions(db);
 
       // Assert
-      const consistent = subscriptions.find(s => s.merchantPattern.includes('CONSISTENT'));
+      const consistent = subscriptions.find(s => s.pattern.includes('CONSISTENT'));
       expect(consistent).toBeDefined();
       // The billing day should be detected from the transaction dates
     });

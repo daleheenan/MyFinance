@@ -2,7 +2,8 @@
  * Subscriptions Service
  *
  * Manages subscription detection and CRUD operations:
- * - detectSubscriptions(db) - Find recurring transactions that look like subscriptions
+ * - detectSubscriptions(db, options?) - Find recurring transactions that look like subscriptions
+ * - detectRecurringIncome(db) - Find recurring income patterns
  * - getSubscriptions(db, options?) - Get all/active subscriptions
  * - getSubscriptionSummary(db) - Monthly/yearly totals, count, upcoming
  * - getUpcomingCharges(db, days?) - Get charges expected in next N days
@@ -10,6 +11,8 @@
  * - updateSubscription(db, id, data) - Update a subscription
  * - deleteSubscription(db, id) - Soft delete (set is_active = 0)
  */
+
+const VALID_TYPES = ['expense', 'income'];
 
 const VALID_FREQUENCIES = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
 
@@ -249,14 +252,14 @@ export function detectSubscriptions(db) {
     const confidence = calculateConfidence(amountCV, dateCV, txns.length);
 
     detectedSubscriptions.push({
-      merchantPattern: normalizedDesc,
-      displayName: extractMerchantName(txns[0].original_description || txns[0].description),
-      amount: avgAmount,
+      pattern: normalizedDesc,
+      merchant_name: extractMerchantName(txns[0].original_description || txns[0].description),
+      typical_amount: avgAmount,
       frequency: frequency,
       confidence: confidence,
-      lastDate: lastDate,
-      billingDay: avgDay,
-      occurrences: txns.length
+      last_date: lastDate,
+      billing_day: avgDay,
+      occurrence_count: txns.length
     });
   }
 
@@ -267,17 +270,149 @@ export function detectSubscriptions(db) {
 }
 
 /**
+ * Detect potential recurring income from transaction history.
+ * Looks for credit transactions with:
+ * - Same/similar source pattern
+ * - Similar amounts (within 10% variance)
+ * - Regular intervals (date variance < 5 days from expected)
+ * - At least 2 occurrences
+ *
+ * @param {Database} db - The database instance
+ * @returns {Array<Object>} Array of detected recurring income sources
+ */
+export function detectRecurringIncome(db) {
+  // Get all non-transfer credit transactions
+  const transactions = db.prepare(`
+    SELECT
+      id, account_id, transaction_date, description, original_description,
+      debit_amount, credit_amount
+    FROM transactions
+    WHERE is_transfer = 0
+      AND credit_amount > 0
+    ORDER BY transaction_date ASC
+  `).all();
+
+  if (transactions.length === 0) {
+    return [];
+  }
+
+  // Group transactions by normalized description
+  const groupedByDescription = new Map();
+
+  for (const txn of transactions) {
+    const desc = txn.original_description || txn.description;
+    const normalizedDesc = normalizeDescription(desc);
+
+    if (!normalizedDesc || normalizedDesc.length < 3) continue;
+
+    if (!groupedByDescription.has(normalizedDesc)) {
+      groupedByDescription.set(normalizedDesc, []);
+    }
+    groupedByDescription.get(normalizedDesc).push(txn);
+  }
+
+  const detectedIncome = [];
+
+  // Analyze each group for recurring income patterns
+  for (const [normalizedDesc, txns] of groupedByDescription) {
+    // Need at least 2 occurrences
+    if (txns.length < 2) continue;
+
+    // Get amounts
+    const amounts = txns.map(t => t.credit_amount);
+
+    // Check amount variance (must be < 10%)
+    const amountCV = coefficientOfVariation(amounts);
+    if (amountCV > 10) continue;
+
+    // Calculate intervals between transactions
+    const dates = txns.map(t => new Date(t.transaction_date).getTime());
+    const intervals = [];
+    for (let i = 1; i < dates.length; i++) {
+      intervals.push((dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24));
+    }
+
+    if (intervals.length === 0) continue;
+
+    // Check date regularity
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const frequency = determineFrequency(avgInterval);
+
+    // Calculate expected interval based on frequency
+    let expectedInterval;
+    switch (frequency) {
+      case 'weekly': expectedInterval = 7; break;
+      case 'fortnightly': expectedInterval = 14; break;
+      case 'monthly': expectedInterval = 30; break;
+      case 'quarterly': expectedInterval = 91; break;
+      case 'yearly': expectedInterval = 365; break;
+      default: expectedInterval = 30;
+    }
+
+    // Check if intervals are within reasonable variance
+    const dateVariances = intervals.map(i => Math.abs(i - expectedInterval));
+    const maxDateVariance = Math.max(...dateVariances);
+    if (maxDateVariance > 10 && frequency === 'monthly') continue;
+
+    // Calculate date CV for confidence scoring
+    const dateCV = coefficientOfVariation(intervals);
+
+    // Calculate average amount and typical day
+    const avgAmount = pennyPrecision(amounts.reduce((a, b) => a + b, 0) / amounts.length);
+    const daysOfMonth = txns.map(t => new Date(t.transaction_date).getDate());
+    const avgDay = Math.round(daysOfMonth.reduce((a, b) => a + b, 0) / daysOfMonth.length);
+
+    // Get last transaction date
+    const lastTxn = txns[txns.length - 1];
+    const lastDate = lastTxn.transaction_date;
+
+    // Calculate confidence score
+    const confidence = calculateConfidence(amountCV, dateCV, txns.length);
+
+    detectedIncome.push({
+      pattern: normalizedDesc,
+      source_name: extractMerchantName(txns[0].original_description || txns[0].description),
+      typical_amount: avgAmount,
+      frequency: frequency,
+      confidence: confidence,
+      last_date: lastDate,
+      billing_day: avgDay,
+      occurrence_count: txns.length,
+      type: 'income'
+    });
+  }
+
+  // Sort by confidence (highest first)
+  detectedIncome.sort((a, b) => b.confidence - a.confidence);
+
+  return detectedIncome;
+}
+
+/**
  * Get subscriptions from the database.
  *
  * @param {Database} db - The database instance
  * @param {Object} options - Query options
  * @param {boolean} options.active_only - Only return active subscriptions (default: true)
+ * @param {string} options.type - Filter by type: 'expense', 'income', or null for all (default: null)
  * @returns {Array<Object>} Array of subscriptions with category info
  */
 export function getSubscriptions(db, options = { active_only: true }) {
-  const { active_only = true } = options;
+  const { active_only = true, type = null } = options;
 
-  const whereClause = active_only ? 'WHERE s.is_active = 1' : '';
+  const conditions = [];
+  const params = [];
+
+  if (active_only) {
+    conditions.push('s.is_active = 1');
+  }
+
+  if (type && VALID_TYPES.includes(type)) {
+    conditions.push('s.type = ?');
+    params.push(type);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   return db.prepare(`
     SELECT
@@ -289,7 +424,7 @@ export function getSubscriptions(db, options = { active_only: true }) {
     LEFT JOIN categories c ON s.category_id = c.id
     ${whereClause}
     ORDER BY s.display_name ASC
-  `).all();
+  `).all(...params);
 }
 
 /**
@@ -313,36 +448,79 @@ function toMonthlyAmount(amount, frequency) {
 
 /**
  * Get subscription summary with totals and upcoming charges.
+ * Includes separate totals for expenses and income.
  *
  * @param {Database} db - The database instance
- * @returns {Object} Summary with monthlyTotal, yearlyTotal, count, upcoming
+ * @returns {Object} Summary with expense/income totals, counts, and upcoming
  */
 export function getSubscriptionSummary(db) {
   // Get all active subscriptions
   const subscriptions = db.prepare(`
-    SELECT expected_amount, frequency, next_expected_date, display_name
+    SELECT expected_amount, frequency, next_expected_date, display_name, type
     FROM subscriptions
     WHERE is_active = 1
   `).all();
 
-  // Calculate monthly total
-  let monthlyTotal = 0;
+  // Calculate monthly totals by type
+  let monthlyExpenses = 0;
+  let monthlyIncome = 0;
+  let expenseCount = 0;
+  let incomeCount = 0;
+
   for (const sub of subscriptions) {
-    monthlyTotal += toMonthlyAmount(sub.expected_amount, sub.frequency);
+    const monthlyAmount = toMonthlyAmount(sub.expected_amount, sub.frequency);
+    if (sub.type === 'income') {
+      monthlyIncome += monthlyAmount;
+      incomeCount++;
+    } else {
+      monthlyExpenses += monthlyAmount;
+      expenseCount++;
+    }
   }
-  monthlyTotal = pennyPrecision(monthlyTotal);
 
-  // Calculate yearly total
-  const yearlyTotal = pennyPrecision(monthlyTotal * 12);
+  monthlyExpenses = pennyPrecision(monthlyExpenses);
+  monthlyIncome = pennyPrecision(monthlyIncome);
 
-  // Get upcoming charges (next 30 days)
-  const upcoming = getUpcomingCharges(db, 30);
+  // Calculate net and yearly totals
+  const monthlyNet = pennyPrecision(monthlyIncome - monthlyExpenses);
+  const yearlyExpenses = pennyPrecision(monthlyExpenses * 12);
+  const yearlyIncome = pennyPrecision(monthlyIncome * 12);
+  const yearlyNet = pennyPrecision(monthlyNet * 12);
+
+  // Get upcoming charges (next 7 days for summary) - expenses only
+  const upcoming7Days = getUpcomingCharges(db, 7);
+  const upcoming7DaysTotal = pennyPrecision(
+    upcoming7Days.filter(sub => sub.type !== 'income').reduce((sum, sub) => sum + (sub.expected_amount || 0), 0)
+  );
+
+  // Get upcoming income (next 7 days)
+  const upcoming7DaysIncome = pennyPrecision(
+    upcoming7Days.filter(sub => sub.type === 'income').reduce((sum, sub) => sum + (sub.expected_amount || 0), 0)
+  );
 
   return {
-    monthlyTotal,
-    yearlyTotal,
-    count: subscriptions.length,
-    upcoming
+    // Legacy fields for backwards compatibility
+    monthly_total: monthlyExpenses,
+    yearly_total: yearlyExpenses,
+    active_count: subscriptions.length,
+    upcoming_7_days: upcoming7DaysTotal,
+    // New detailed fields
+    expenses: {
+      monthly: monthlyExpenses,
+      yearly: yearlyExpenses,
+      count: expenseCount,
+      upcoming_7_days: upcoming7DaysTotal
+    },
+    income: {
+      monthly: monthlyIncome,
+      yearly: yearlyIncome,
+      count: incomeCount,
+      upcoming_7_days: upcoming7DaysIncome
+    },
+    net: {
+      monthly: monthlyNet,
+      yearly: yearlyNet
+    }
   };
 }
 
@@ -390,7 +568,8 @@ export function createSubscription(db, data) {
     frequency,
     billing_day,
     next_expected_date,
-    last_charged_date
+    last_charged_date,
+    type
   } = data;
 
   // Validate required fields
@@ -406,6 +585,11 @@ export function createSubscription(db, data) {
     throw new Error(`Invalid frequency. Must be one of: ${VALID_FREQUENCIES.join(', ')}`);
   }
 
+  // Validate type if provided
+  if (type && !VALID_TYPES.includes(type)) {
+    throw new Error(`Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`);
+  }
+
   // Validate category if provided
   if (category_id !== undefined && category_id !== null) {
     const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
@@ -416,8 +600,8 @@ export function createSubscription(db, data) {
 
   const result = db.prepare(`
     INSERT INTO subscriptions
-    (merchant_pattern, display_name, category_id, expected_amount, frequency, billing_day, next_expected_date, last_charged_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (merchant_pattern, display_name, category_id, expected_amount, frequency, billing_day, next_expected_date, last_charged_date, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     merchant_pattern.trim(),
     display_name.trim(),
@@ -426,7 +610,8 @@ export function createSubscription(db, data) {
     frequency || 'monthly',
     billing_day || null,
     next_expected_date || null,
-    last_charged_date || null
+    last_charged_date || null,
+    type || 'expense'
   );
 
   return getSubscriptionById(db, result.lastInsertRowid);
@@ -476,12 +661,18 @@ export function updateSubscription(db, id, data) {
     billing_day,
     next_expected_date,
     last_charged_date,
-    is_active
+    is_active,
+    type
   } = data;
 
   // Validate frequency if provided
   if (frequency !== undefined && !VALID_FREQUENCIES.includes(frequency)) {
     throw new Error(`Invalid frequency. Must be one of: ${VALID_FREQUENCIES.join(', ')}`);
+  }
+
+  // Validate type if provided
+  if (type !== undefined && !VALID_TYPES.includes(type)) {
+    throw new Error(`Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`);
   }
 
   // Validate category if provided
@@ -531,6 +722,10 @@ export function updateSubscription(db, id, data) {
   if (is_active !== undefined) {
     updates.push('is_active = ?');
     params.push(is_active ? 1 : 0);
+  }
+  if (type !== undefined) {
+    updates.push('type = ?');
+    params.push(type);
   }
 
   if (updates.length === 0) {

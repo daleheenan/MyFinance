@@ -99,6 +99,16 @@ function render() {
         </div>
       </section>
 
+      <!-- Alerts Section -->
+      <section class="alerts-section" id="alerts-section">
+        <div id="anomalies-container" class="anomalies-card card hidden">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Checking for alerts...</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Dashboard Grid: Categories + Recent Transactions -->
       <section class="dashboard-grid">
         <div id="categories-container" class="categories-card card">
@@ -124,11 +134,12 @@ function render() {
 async function loadData() {
   try {
     // Fetch all data in parallel
-    const [overviewStats, recentTransactions, categories, mainAccountTrend] = await Promise.all([
+    const [overviewStats, recentTransactions, categories, mainAccountTrend, anomalies] = await Promise.all([
       api.get('/accounts/overview/stats'),
       api.get('/accounts/overview/recent-transactions?limit=10'),
       api.get('/categories?include_totals=true').catch(() => []),
-      api.get('/accounts/1/balance-trend?days=365').catch(() => []) // Main account 12-month trend
+      api.get('/accounts/1/balance-trend?days=365').catch(() => []), // Main account 12-month trend
+      api.get('/analytics/anomalies?dismissed=false&limit=5').catch(() => [])
     ]);
 
     // Render quick stats first
@@ -136,6 +147,9 @@ async function loadData() {
 
     // Render 12-month balance trend for Main Account
     renderBalanceTrend(mainAccountTrend);
+
+    // Render anomaly alerts (before accounts)
+    renderAnomalies(anomalies);
 
     // Fetch sparkline data for each account (90 days for better trend visibility)
     const sparklinePromises = overviewStats.accounts.map(account =>
@@ -762,6 +776,96 @@ function attachEventListeners() {
     transactionsList.addEventListener('click', transactionClickHandler);
     onCleanup(() => transactionsList.removeEventListener('click', transactionClickHandler));
   }
+}
+
+/**
+ * Render anomaly alerts section
+ * @param {Array} anomalies - List of undismissed anomalies
+ */
+function renderAnomalies(anomalies) {
+  const anomaliesContainer = container.querySelector('#anomalies-container');
+
+  if (!anomalies || anomalies.length === 0) {
+    anomaliesContainer.classList.add('hidden');
+    return;
+  }
+
+  anomaliesContainer.classList.remove('hidden');
+
+  const getSeverityIcon = (severity) => {
+    switch (severity) {
+      case 'high': return '🚨';
+      case 'medium': return '⚠️';
+      case 'low': return 'ℹ️';
+      default: return '⚠️';
+    }
+  };
+
+  const getAnomalyTypeLabel = (type) => {
+    switch (type) {
+      case 'unusual_amount': return 'Unusual Amount';
+      case 'duplicate': return 'Possible Duplicate';
+      case 'unusual_merchant': return 'Unusual Merchant';
+      case 'unusual_time': return 'Unusual Timing';
+      case 'large_transaction': return 'Large Transaction';
+      default: return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
+  anomaliesContainer.innerHTML = `
+    <div class="card-header anomalies-header">
+      <div class="anomalies-title-group">
+        <span class="anomalies-icon">🔔</span>
+        <h3 class="card-title">Alerts</h3>
+        <span class="anomalies-count">${anomalies.length}</span>
+      </div>
+      <a href="#/analytics" class="view-all-link">View All</a>
+    </div>
+    <div class="anomalies-list">
+      ${anomalies.map(anomaly => `
+        <div class="anomaly-item anomaly-item--${anomaly.severity}" data-id="${anomaly.id}">
+          <div class="anomaly-item__icon">${getSeverityIcon(anomaly.severity)}</div>
+          <div class="anomaly-item__content">
+            <div class="anomaly-item__type">${getAnomalyTypeLabel(anomaly.anomaly_type)}</div>
+            <div class="anomaly-item__description">${escapeHtml(anomaly.description)}</div>
+            ${anomaly.transaction_date ? `
+              <div class="anomaly-item__date">${formatRelativeDate(anomaly.transaction_date)}</div>
+            ` : ''}
+          </div>
+          <button type="button" class="anomaly-dismiss-btn" data-id="${anomaly.id}" title="Dismiss">×</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Attach dismiss handlers
+  const dismissBtns = anomaliesContainer.querySelectorAll('.anomaly-dismiss-btn');
+  dismissBtns.forEach(btn => {
+    const dismissHandler = async (e) => {
+      e.stopPropagation();
+      const anomalyId = btn.dataset.id;
+      try {
+        await api.put(`/analytics/anomalies/${anomalyId}/dismiss`);
+        const item = btn.closest('.anomaly-item');
+        item.remove();
+        // Check if any anomalies left
+        const remainingItems = anomaliesContainer.querySelectorAll('.anomaly-item');
+        if (remainingItems.length === 0) {
+          anomaliesContainer.classList.add('hidden');
+        } else {
+          // Update count
+          const countEl = anomaliesContainer.querySelector('.anomalies-count');
+          if (countEl) {
+            countEl.textContent = remainingItems.length;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to dismiss anomaly:', err);
+      }
+    };
+    btn.addEventListener('click', dismissHandler);
+    onCleanup(() => btn.removeEventListener('click', dismissHandler));
+  });
 }
 
 /**

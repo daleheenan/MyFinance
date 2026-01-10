@@ -55,10 +55,10 @@ export function getCurrentNetWorth(db) {
     // Add to breakdown
     breakdown.push({
       id: account.id,
-      name: account.account_name,
+      account_name: account.account_name,
       account_number: account.account_number,
-      type: account.account_type,
-      balance: balance
+      account_type: account.account_type,
+      current_balance: balance
     });
 
     // Determine if this account contributes to assets or liabilities
@@ -75,10 +75,25 @@ export function getCurrentNetWorth(db) {
     }
   }
 
+  const netWorth = pennyPrecision(totalAssets - totalLiabilities);
+
+  // Get previous snapshot for comparison
+  const previousSnapshot = db.prepare(`
+    SELECT net_worth
+    FROM net_worth_snapshots
+    ORDER BY snapshot_date DESC
+    LIMIT 1
+  `).get();
+
+  const previousNetWorth = previousSnapshot ? pennyPrecision(previousSnapshot.net_worth) : netWorth;
+  const change = pennyPrecision(netWorth - previousNetWorth);
+
   return {
-    totalAssets: pennyPrecision(totalAssets),
-    totalLiabilities: pennyPrecision(totalLiabilities),
-    netWorth: pennyPrecision(totalAssets - totalLiabilities),
+    total_assets: pennyPrecision(totalAssets),
+    total_liabilities: pennyPrecision(totalLiabilities),
+    net_worth: netWorth,
+    previous_net_worth: previousNetWorth,
+    change: change,
     breakdown
   };
 }
@@ -126,10 +141,10 @@ export function getNetWorthBreakdown(db) {
 
     const accountInfo = {
       id: account.id,
-      name: account.account_name,
+      account_name: account.account_name,
       account_number: account.account_number,
-      type: account.account_type,
-      balance: balance
+      account_type: account.account_type,
+      current_balance: balance
     };
 
     if (account.account_type === 'debit') {
@@ -155,11 +170,9 @@ export function getNetWorthBreakdown(db) {
   return {
     assets,
     liabilities,
-    totals: {
-      assets: totalAssets,
-      liabilities: totalLiabilities,
-      netWorth
-    }
+    total_assets: totalAssets,
+    total_liabilities: totalLiabilities,
+    net_worth: netWorth
   };
 }
 
@@ -189,9 +202,9 @@ export function takeSnapshot(db) {
 
   stmt.run(
     today,
-    current.totalAssets,
-    current.totalLiabilities,
-    current.netWorth,
+    current.total_assets,
+    current.total_liabilities,
+    current.net_worth,
     accountBreakdown
   );
 

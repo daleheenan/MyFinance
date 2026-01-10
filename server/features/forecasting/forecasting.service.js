@@ -6,6 +6,9 @@
  * - getMonthlyAverages: Calculate average income/expenses over past months
  * - getScenarios: Generate optimistic/expected/conservative projections
  * - getSeasonalPatterns: Analyze spending patterns by month of year
+ *
+ * Integrates with subscriptions for more accurate predictions by using
+ * known recurring income and expenses as a baseline.
  */
 
 /**
@@ -78,6 +81,89 @@ function getActiveRecurringPatterns(db) {
 }
 
 /**
+ * Get active subscriptions from the database.
+ * @param {Database} db - The database instance
+ * @returns {Array<Object>} Active subscriptions with category info
+ */
+function getActiveSubscriptions(db) {
+  return db.prepare(`
+    SELECT
+      s.id,
+      s.display_name,
+      s.merchant_pattern,
+      s.expected_amount,
+      s.frequency,
+      s.billing_day,
+      s.type,
+      s.category_id,
+      c.name AS category_name,
+      c.type AS category_type
+    FROM subscriptions s
+    LEFT JOIN categories c ON s.category_id = c.id
+    WHERE s.is_active = 1
+  `).all();
+}
+
+/**
+ * Convert subscription amount to monthly equivalent.
+ * @param {number} amount - The subscription amount
+ * @param {string} frequency - The billing frequency
+ * @returns {number} Monthly equivalent amount
+ */
+function toMonthlyAmount(amount, frequency) {
+  if (!amount) return 0;
+
+  switch (frequency) {
+    case 'weekly': return pennyPrecision(amount * 52 / 12);
+    case 'fortnightly': return pennyPrecision(amount * 26 / 12);
+    case 'monthly': return amount;
+    case 'quarterly': return pennyPrecision(amount / 3);
+    case 'yearly': return pennyPrecision(amount / 12);
+    default: return amount;
+  }
+}
+
+/**
+ * Get monthly totals from subscriptions (income and expenses).
+ * @param {Database} db - The database instance
+ * @returns {{ monthlyIncome: number, monthlyExpenses: number, items: Array }}
+ */
+function getSubscriptionMonthlyTotals(db) {
+  const subscriptions = getActiveSubscriptions(db);
+
+  let monthlyIncome = 0;
+  let monthlyExpenses = 0;
+  const items = [];
+
+  for (const sub of subscriptions) {
+    const monthlyAmount = toMonthlyAmount(sub.expected_amount, sub.frequency);
+
+    if (sub.type === 'income') {
+      monthlyIncome += monthlyAmount;
+    } else {
+      monthlyExpenses += monthlyAmount;
+    }
+
+    items.push({
+      id: sub.id,
+      description: sub.display_name,
+      amount: monthlyAmount,
+      type: sub.type || 'expense',
+      frequency: sub.frequency,
+      category_id: sub.category_id,
+      category_name: sub.category_name,
+      source: 'subscription'
+    });
+  }
+
+  return {
+    monthly_income: pennyPrecision(monthlyIncome),
+    monthly_expenses: pennyPrecision(monthlyExpenses),
+    items
+  };
+}
+
+/**
  * Calculate average income and expenses over the past N months.
  * Excludes transfers from calculations.
  *
@@ -106,10 +192,10 @@ export function getMonthlyAverages(db, months = 6) {
 
   if (monthlyData.length === 0) {
     return {
-      avgIncome: 0,
-      avgExpenses: 0,
-      avgNet: 0,
-      monthsAnalyzed: 0
+      avg_income: 0,
+      avg_expenses: 0,
+      avg_net: 0,
+      months_analyzed: 0
     };
   }
 
@@ -121,16 +207,17 @@ export function getMonthlyAverages(db, months = 6) {
   const avgExpenses = pennyPrecision(totalExpenses / monthCount);
 
   return {
-    avgIncome,
-    avgExpenses,
-    avgNet: pennyPrecision(avgIncome - avgExpenses),
-    monthsAnalyzed: monthCount
+    avg_income: avgIncome,
+    avg_expenses: avgExpenses,
+    avg_net: pennyPrecision(avgIncome - avgExpenses),
+    months_analyzed: monthCount
   };
 }
 
 /**
  * Get cash flow forecast projecting forward for N months.
- * Uses historical averages and known recurring transactions.
+ * Uses subscriptions as a baseline for known recurring income/expenses,
+ * then adds variable spending from historical averages.
  *
  * @param {Database} db - The database instance
  * @param {Object} options - Forecast options
@@ -139,6 +226,7 @@ export function getMonthlyAverages(db, months = 6) {
  * @returns {{
  *   currentBalance: number,
  *   averages: Object,
+ *   subscriptions: Object,
  *   projections: Array<{
  *     month: string,
  *     projectedIncome: number,
@@ -161,19 +249,40 @@ export function getCashFlowForecast(db, options = {}) {
   // Get historical averages
   const averages = getMonthlyAverages(db, historyMonths);
 
-  // Get active recurring patterns
+  // Get subscription-based recurring items (more reliable than patterns)
+  const subscriptionTotals = getSubscriptionMonthlyTotals(db);
+
+  // Get active recurring patterns (as fallback/additional data)
   const recurringPatterns = getActiveRecurringPatterns(db);
 
-  // Build recurring items list (monthly recurring expenses/income)
-  const recurringItems = recurringPatterns
+  // Build recurring items list from patterns (excluding duplicates with subscriptions)
+  const patternItems = recurringPatterns
     .filter(p => p.frequency === 'monthly')
     .map(p => ({
       description: p.merchant_name || p.description_pattern,
       amount: pennyPrecision(p.typical_amount || 0),
       type: p.category_type || 'expense',
-      categoryId: p.category_id,
-      categoryName: p.category_name
+      category_id: p.category_id,
+      category_name: p.category_name,
+      source: 'pattern'
     }));
+
+  // Combine subscription items with pattern items
+  const recurringItems = [...subscriptionTotals.items, ...patternItems];
+
+  // Calculate base monthly projections using subscriptions as ground truth
+  // Then add "variable" spending (historical average minus known recurring)
+  const knownRecurringExpenses = subscriptionTotals.monthly_expenses;
+  const knownRecurringIncome = subscriptionTotals.monthly_income;
+
+  // Variable spending = historical average - known recurring
+  // This captures non-subscription spending like groceries, dining, etc.
+  const variableExpenses = pennyPrecision(
+    Math.max(0, averages.avg_expenses - knownRecurringExpenses)
+  );
+  const variableIncome = pennyPrecision(
+    Math.max(0, averages.avg_income - knownRecurringIncome)
+  );
 
   // Project forward month by month
   const projections = [];
@@ -181,34 +290,49 @@ export function getCashFlowForecast(db, options = {}) {
 
   for (let i = 1; i <= months; i++) {
     const month = getFutureMonth(i);
-    const projectedIncome = averages.avgIncome;
-    const projectedExpenses = averages.avgExpenses;
+
+    // Total projected = known recurring + variable
+    const projectedIncome = pennyPrecision(knownRecurringIncome + variableIncome);
+    const projectedExpenses = pennyPrecision(knownRecurringExpenses + variableExpenses);
     const projectedNet = pennyPrecision(projectedIncome - projectedExpenses);
 
     runningBalance = pennyPrecision(runningBalance + projectedNet);
 
     projections.push({
       month,
-      projectedIncome,
-      projectedExpenses,
-      projectedNet,
-      projectedBalance: runningBalance,
-      recurringItems: recurringItems.map(item => ({ ...item }))
+      projected_income: projectedIncome,
+      projected_expenses: projectedExpenses,
+      projected_net: projectedNet,
+      projected_balance: runningBalance,
+      recurring_items: recurringItems.map(item => ({ ...item })),
+      breakdown: {
+        known_income: knownRecurringIncome,
+        variable_income: variableIncome,
+        known_expenses: knownRecurringExpenses,
+        variable_expenses: variableExpenses
+      }
     });
   }
 
   return {
-    currentBalance,
+    current_balance: currentBalance,
     averages,
+    subscriptions: {
+      monthly_income: knownRecurringIncome,
+      monthly_expenses: knownRecurringExpenses,
+      monthly_net: pennyPrecision(knownRecurringIncome - knownRecurringExpenses),
+      count: subscriptionTotals.items.length
+    },
     projections
   };
 }
 
 /**
  * Get three forecast scenarios: optimistic, expected, and conservative.
- * - Optimistic: +10% income, -10% expenses
+ * Uses subscriptions as a baseline for known recurring amounts.
+ * - Optimistic: +10% variable income, -10% variable expenses (subscriptions stay fixed)
  * - Expected: Average values
- * - Conservative: -10% income, +10% expenses
+ * - Conservative: -10% variable income, +10% variable expenses (subscriptions stay fixed)
  *
  * @param {Database} db - The database instance
  * @param {Object} options - Scenario options
@@ -216,6 +340,7 @@ export function getCashFlowForecast(db, options = {}) {
  * @param {number} options.historyMonths - History period for averages (default: 6)
  * @returns {{
  *   currentBalance: number,
+ *   subscriptions: Object,
  *   optimistic: Object,
  *   expected: Object,
  *   conservative: Object
@@ -233,34 +358,59 @@ export function getScenarios(db, options = {}) {
   // Get historical averages
   const averages = getMonthlyAverages(db, historyMonths);
 
+  // Get subscription-based recurring amounts
+  const subscriptionTotals = getSubscriptionMonthlyTotals(db);
+  const knownRecurringExpenses = subscriptionTotals.monthly_expenses;
+  const knownRecurringIncome = subscriptionTotals.monthly_income;
+
+  // Variable amounts = historical average - known recurring
+  const variableExpenses = pennyPrecision(
+    Math.max(0, averages.avg_expenses - knownRecurringExpenses)
+  );
+  const variableIncome = pennyPrecision(
+    Math.max(0, averages.avg_income - knownRecurringIncome)
+  );
+
+  // Total expected = known recurring + variable
+  const expectedIncome = pennyPrecision(knownRecurringIncome + variableIncome);
+  const expectedExpenses = pennyPrecision(knownRecurringExpenses + variableExpenses);
+
   // Calculate scenarios
+  // Optimistic: Subscriptions stay fixed, variable income +10%, variable expenses -10%
   const optimistic = {
-    projectedIncome: pennyPrecision(averages.avgIncome * 1.10),
-    projectedExpenses: pennyPrecision(averages.avgExpenses * 0.90),
-    projectedNet: 0,
-    projectedBalanceEnd: 0
+    projected_income: pennyPrecision(knownRecurringIncome + (variableIncome * 1.10)),
+    projected_expenses: pennyPrecision(knownRecurringExpenses + (variableExpenses * 0.90)),
+    projected_net: 0,
+    projected_balance_end: 0
   };
-  optimistic.projectedNet = pennyPrecision(optimistic.projectedIncome - optimistic.projectedExpenses);
-  optimistic.projectedBalanceEnd = pennyPrecision(currentBalance + (optimistic.projectedNet * months));
+  optimistic.projected_net = pennyPrecision(optimistic.projected_income - optimistic.projected_expenses);
+  optimistic.projected_balance_end = pennyPrecision(currentBalance + (optimistic.projected_net * months));
 
   const expected = {
-    projectedIncome: averages.avgIncome,
-    projectedExpenses: averages.avgExpenses,
-    projectedNet: averages.avgNet,
-    projectedBalanceEnd: pennyPrecision(currentBalance + (averages.avgNet * months))
+    projected_income: expectedIncome,
+    projected_expenses: expectedExpenses,
+    projected_net: pennyPrecision(expectedIncome - expectedExpenses),
+    projected_balance_end: pennyPrecision(currentBalance + (pennyPrecision(expectedIncome - expectedExpenses) * months))
   };
 
+  // Conservative: Subscriptions stay fixed, variable income -10%, variable expenses +10%
   const conservative = {
-    projectedIncome: pennyPrecision(averages.avgIncome * 0.90),
-    projectedExpenses: pennyPrecision(averages.avgExpenses * 1.10),
-    projectedNet: 0,
-    projectedBalanceEnd: 0
+    projected_income: pennyPrecision(knownRecurringIncome + (variableIncome * 0.90)),
+    projected_expenses: pennyPrecision(knownRecurringExpenses + (variableExpenses * 1.10)),
+    projected_net: 0,
+    projected_balance_end: 0
   };
-  conservative.projectedNet = pennyPrecision(conservative.projectedIncome - conservative.projectedExpenses);
-  conservative.projectedBalanceEnd = pennyPrecision(currentBalance + (conservative.projectedNet * months));
+  conservative.projected_net = pennyPrecision(conservative.projected_income - conservative.projected_expenses);
+  conservative.projected_balance_end = pennyPrecision(currentBalance + (conservative.projected_net * months));
 
   return {
-    currentBalance,
+    current_balance: currentBalance,
+    subscriptions: {
+      monthly_income: knownRecurringIncome,
+      monthly_expenses: knownRecurringExpenses,
+      monthly_net: pennyPrecision(knownRecurringIncome - knownRecurringExpenses),
+      count: subscriptionTotals.items.length
+    },
     optimistic,
     expected,
     conservative

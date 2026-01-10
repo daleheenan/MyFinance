@@ -47,9 +47,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(0);
-      expect(result.totalLiabilities).toBe(0);
-      expect(result.netWorth).toBe(0);
+      expect(result.total_assets).toBe(0);
+      expect(result.total_liabilities).toBe(0);
+      expect(result.net_worth).toBe(0);
     });
 
     it('should calculate total assets from debit accounts', () => {
@@ -62,9 +62,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(1750); // 1000 + 500 + 250
-      expect(result.totalLiabilities).toBe(0);
-      expect(result.netWorth).toBe(1750);
+      expect(result.total_assets).toBe(1750); // 1000 + 500 + 250
+      expect(result.total_liabilities).toBe(0);
+      expect(result.net_worth).toBe(1750);
     });
 
     it('should calculate total liabilities from credit accounts (negative balance = debt)', () => {
@@ -75,9 +75,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(0);
-      expect(result.totalLiabilities).toBe(500); // Debt shown as positive liability
-      expect(result.netWorth).toBe(-500);
+      expect(result.total_assets).toBe(0);
+      expect(result.total_liabilities).toBe(500); // Debt shown as positive liability
+      expect(result.net_worth).toBe(-500);
     });
 
     it('should calculate net worth as assets minus liabilities', () => {
@@ -90,9 +90,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(6000);     // 5000 + 1000
-      expect(result.totalLiabilities).toBe(2000); // Credit card debt
-      expect(result.netWorth).toBe(4000);         // 6000 - 2000
+      expect(result.total_assets).toBe(6000);     // 5000 + 1000
+      expect(result.total_liabilities).toBe(2000); // Credit card debt
+      expect(result.net_worth).toBe(4000);         // 6000 - 2000
     });
 
     it('should handle credit card overpayment (positive balance on credit)', () => {
@@ -104,9 +104,9 @@ describe('NetWorthService', () => {
 
       // Assert
       // Overpayment on credit card is technically an asset (they owe you)
-      expect(result.totalAssets).toBe(100);
-      expect(result.totalLiabilities).toBe(0);
-      expect(result.netWorth).toBe(100);
+      expect(result.total_assets).toBe(100);
+      expect(result.total_liabilities).toBe(0);
+      expect(result.net_worth).toBe(100);
     });
 
     it('should include breakdown of all accounts', () => {
@@ -123,17 +123,17 @@ describe('NetWorthService', () => {
       expect(result.breakdown).toContainEqual(
         expect.objectContaining({
           id: 1,
-          name: 'Main Account',
-          type: 'debit',
-          balance: 1000
+          account_name: 'Main Account',
+          account_type: 'debit',
+          current_balance: 1000
         })
       );
       expect(result.breakdown).toContainEqual(
         expect.objectContaining({
           id: 4,
-          name: 'Credit Card',
-          type: 'credit',
-          balance: -300
+          account_name: 'Credit Card',
+          account_type: 'credit',
+          current_balance: -300
         })
       );
     });
@@ -148,9 +148,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert: 0.1 + 0.2 = 0.3 (not 0.30000000000000004)
-      expect(result.totalAssets).toBe(0.3);
-      expect(result.totalLiabilities).toBe(0.3);
-      expect(result.netWorth).toBe(0); // 0.3 - 0.3 = 0
+      expect(result.total_assets).toBe(0.3);
+      expect(result.total_liabilities).toBe(0.3);
+      expect(result.net_worth).toBe(0); // 0.3 - 0.3 = 0
     });
 
     it('should only include active accounts', () => {
@@ -162,7 +162,7 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(1000); // Only account 1
+      expect(result.total_assets).toBe(1000); // Only account 1
       expect(result.breakdown).toHaveLength(3); // 3 active accounts
     });
 
@@ -175,9 +175,9 @@ describe('NetWorthService', () => {
 
       // Assert: Overdraft reduces assets (or counts as liability depending on business logic)
       // Based on business rules: debit accounts contribute to assets regardless of sign
-      expect(result.totalAssets).toBe(-200);
-      expect(result.totalLiabilities).toBe(0);
-      expect(result.netWorth).toBe(-200);
+      expect(result.total_assets).toBe(-200);
+      expect(result.total_liabilities).toBe(0);
+      expect(result.net_worth).toBe(-200);
     });
   });
 
@@ -300,9 +300,9 @@ describe('NetWorthService', () => {
       const mainAccount = result.assets.find(a => a.id === 1);
       expect(mainAccount).toMatchObject({
         id: 1,
-        name: 'Main Account',
+        account_name: 'Main Account',
         account_number: '17570762',
-        balance: 1000
+        current_balance: 1000
       });
     });
 
@@ -317,9 +317,9 @@ describe('NetWorthService', () => {
       const result = getNetWorthBreakdown(db);
 
       // Assert
-      expect(result.totals.assets).toBe(1750);       // 1000 + 500 + 250
-      expect(result.totals.liabilities).toBe(750);   // Credit card debt
-      expect(result.totals.netWorth).toBe(1000);     // 1750 - 750
+      expect(result.total_assets).toBe(1750);       // 1000 + 500 + 250
+      expect(result.total_liabilities).toBe(750);   // Credit card debt
+      expect(result.net_worth).toBe(1000);     // 1750 - 750
     });
 
     it('should only include active accounts', () => {
@@ -332,7 +332,7 @@ describe('NetWorthService', () => {
 
       // Assert
       expect(result.assets.find(a => a.id === 2)).toBeUndefined();
-      expect(result.totals.assets).toBe(1000);
+      expect(result.total_assets).toBe(1000);
     });
 
     it('should apply penny precision to totals', () => {
@@ -344,7 +344,7 @@ describe('NetWorthService', () => {
       const result = getNetWorthBreakdown(db);
 
       // Assert
-      expect(result.totals.assets).toBe(0.3); // Not 0.30000000000000004
+      expect(result.total_assets).toBe(0.3); // Not 0.30000000000000004
     });
 
     it('should handle credit card with positive balance (overpayment)', () => {
@@ -355,8 +355,8 @@ describe('NetWorthService', () => {
       const result = getNetWorthBreakdown(db);
 
       // Assert: Credit card with positive balance contributes to assets
-      expect(result.totals.assets).toBe(50);
-      expect(result.totals.liabilities).toBe(0);
+      expect(result.total_assets).toBe(50);
+      expect(result.total_liabilities).toBe(0);
     });
   });
 
@@ -423,7 +423,7 @@ describe('NetWorthService', () => {
       const breakdown = JSON.parse(result.account_breakdown);
       expect(breakdown).toBeInstanceOf(Array);
       expect(breakdown).toContainEqual(
-        expect.objectContaining({ id: 1, balance: 1000 })
+        expect.objectContaining({ id: 1, current_balance: 1000 })
       );
     });
 
@@ -470,9 +470,9 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.totalAssets).toBe(1000000.99);
-      expect(result.totalLiabilities).toBe(500000.5);
-      expect(result.netWorth).toBe(500000.49);
+      expect(result.total_assets).toBe(1000000.99);
+      expect(result.total_liabilities).toBe(500000.5);
+      expect(result.net_worth).toBe(500000.49);
     });
 
     it('should handle all accounts having zero balance', () => {
@@ -481,8 +481,8 @@ describe('NetWorthService', () => {
       const breakdown = getNetWorthBreakdown(db);
 
       // Assert
-      expect(netWorth.netWorth).toBe(0);
-      expect(breakdown.totals.netWorth).toBe(0);
+      expect(netWorth.net_worth).toBe(0);
+      expect(breakdown.net_worth).toBe(0);
     });
 
     it('should handle negative net worth', () => {
@@ -494,7 +494,7 @@ describe('NetWorthService', () => {
       const result = getCurrentNetWorth(db);
 
       // Assert
-      expect(result.netWorth).toBe(-1500); // 500 - 2000
+      expect(result.net_worth).toBe(-1500); // 500 - 2000
     });
   });
 });
@@ -533,9 +533,9 @@ describe('NetWorth Routes', () => {
       // Assert
       expect(response.body.success).toBe(true);
       expect(response.body.data).toMatchObject({
-        totalAssets: 5000,
-        totalLiabilities: 1000,
-        netWorth: 4000
+        total_assets: 5000,
+        total_liabilities: 1000,
+        net_worth: 4000
       });
       expect(response.body.data.breakdown).toBeDefined();
     });
@@ -547,9 +547,9 @@ describe('NetWorth Routes', () => {
         .expect(200);
 
       // Assert
-      expect(response.body.data.totalAssets).toBe(0);
-      expect(response.body.data.totalLiabilities).toBe(0);
-      expect(response.body.data.netWorth).toBe(0);
+      expect(response.body.data.total_assets).toBe(0);
+      expect(response.body.data.total_liabilities).toBe(0);
+      expect(response.body.data.net_worth).toBe(0);
     });
   });
 
@@ -644,7 +644,9 @@ describe('NetWorth Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.assets).toBeDefined();
       expect(response.body.data.liabilities).toBeDefined();
-      expect(response.body.data.totals).toBeDefined();
+      expect(response.body.data.total_assets).toBeDefined();
+      expect(response.body.data.total_liabilities).toBeDefined();
+      expect(response.body.data.net_worth).toBeDefined();
     });
 
     it('should include totals in response', async () => {
@@ -659,11 +661,9 @@ describe('NetWorth Routes', () => {
         .expect(200);
 
       // Assert
-      expect(response.body.data.totals).toMatchObject({
-        assets: 3000,
-        liabilities: 500,
-        netWorth: 2500
-      });
+      expect(response.body.data.total_assets).toBe(3000);
+      expect(response.body.data.total_liabilities).toBe(500);
+      expect(response.body.data.net_worth).toBe(2500);
     });
   });
 

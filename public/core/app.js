@@ -11,6 +11,9 @@ import * as transactionsPage from '../features/transactions/transactions.page.js
 import * as analyticsPage from '../features/analytics/analytics.page.js';
 import * as budgetsPage from '../features/budgets/budgets.page.js';
 import * as settingsPage from '../features/settings/settings.page.js';
+import * as subscriptionsPage from '../features/subscriptions/subscriptions.page.js';
+import * as networthPage from '../features/networth/networth.page.js';
+import * as forecastingPage from '../features/forecasting/forecasting.page.js';
 
 /**
  * Register all application routes
@@ -20,6 +23,9 @@ function registerRoutes() {
   router.register('/transactions', transactionsPage);
   router.register('/analytics', analyticsPage);
   router.register('/budgets', budgetsPage);
+  router.register('/subscriptions', subscriptionsPage);
+  router.register('/networth', networthPage);
+  router.register('/forecasting', forecastingPage);
   router.register('/settings', settingsPage);
 }
 

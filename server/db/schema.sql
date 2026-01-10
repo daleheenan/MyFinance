@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS merchants (
 
 CREATE INDEX IF NOT EXISTS idx_merchants_pattern ON merchants(raw_pattern);
 
--- Subscriptions table
+-- Subscriptions table (supports both recurring expenses and recurring income)
 CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     merchant_pattern TEXT NOT NULL,
@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     billing_day INTEGER,
     next_expected_date TEXT,
     last_charged_date TEXT,
+    type TEXT DEFAULT 'expense' CHECK(type IN ('expense', 'income')),
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
@@ -158,6 +159,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_type ON subscriptions(type);
+
+-- Migration: Add type column to existing subscriptions table if it doesn't exist
+-- SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we use a workaround
+-- This will silently fail if the column already exists (which is fine)
 
 -- Net worth snapshots table
 CREATE TABLE IF NOT EXISTS net_worth_snapshots (
