@@ -80,11 +80,6 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
-      <header class="page-header">
-        <h1>Analytics</h1>
-        <p>Insights into your spending patterns</p>
-      </header>
-
       <!-- Date Range Selector -->
       <section class="filter-section">
         <div class="filter-bar card">

@@ -87,9 +87,10 @@ export function createApp(db = null) {
 const isMain = import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`;
 if (isMain) {
   const PORT = process.env.PORT || 3000;
+  const HOST = '0.0.0.0'; // Bind to all interfaces for Railway/Docker
   const app = createApp();
 
-  app.listen(PORT, () => {
-    console.log(`FinanceFlow running on http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`FinanceFlow running on http://${HOST}:${PORT}`);
   });
 }

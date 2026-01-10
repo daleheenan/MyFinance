@@ -96,10 +96,6 @@ export function unmount() {
 function render() {
   container.innerHTML = `
     <div class="page transactions-page">
-      <header class="page-header">
-        <h1>Transactions</h1>
-      </header>
-
       <!-- Account Selector -->
       <div class="card account-selector-card">
         <div class="account-selector">

@@ -100,11 +100,6 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page subscriptions-page">
-      <header class="page-header">
-        <h1>Recurring</h1>
-        <p>Track recurring payments and income</p>
-      </header>
-
       <!-- View Tabs -->
       <div class="view-tabs" id="view-tabs">
         <button type="button" class="view-tab active" data-view="expense">
