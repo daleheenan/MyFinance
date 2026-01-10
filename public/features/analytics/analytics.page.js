@@ -719,9 +719,19 @@ function renderExpenseBreakdown(data) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const categoryId = btn.dataset.categoryId;
-      const categoryName = btn.dataset.categoryName;
-      // Navigate to transactions filtered by category
-      window.location.hash = `/transactions?category_id=${categoryId}`;
+      // Navigate to transactions filtered by category and date range
+      const params = new URLSearchParams();
+      params.set('category', categoryId);
+      if (data.period.start) {
+        params.set('start_date', data.period.start + '-01'); // First day of start month
+      }
+      if (data.period.end) {
+        // Last day of end month
+        const [year, month] = data.period.end.split('-');
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        params.set('end_date', `${data.period.end}-${lastDay}`);
+      }
+      window.location.hash = `/transactions?${params.toString()}`;
     });
   });
 

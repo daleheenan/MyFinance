@@ -7,6 +7,52 @@ import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce } from '../../core/utils.js';
 import { router } from '../../core/app.js';
 
+// Default icons for categories without icons
+const DEFAULT_ICONS = {
+  salary: '💰', income: '💰', wages: '💰',
+  bills: '📄', utilities: '💡',
+  groceries: '🛒', food: '🛒', supermarket: '🛒',
+  shopping: '🛍️', retail: '🛍️',
+  entertainment: '🎬', streaming: '🎬',
+  transport: '🚗', travel: '✈️', fuel: '⛽',
+  dining: '🍽️', restaurant: '🍽️', cafe: '☕', coffee: '☕',
+  healthcare: '⚕️', medical: '⚕️', pharmacy: '💊',
+  transfer: '↔️',
+  other: '📌',
+  banking: '🏦', bank: '🏦', finance: '💳',
+  political: '🗳️',
+  dog: '🐕', pet: '🐾',
+  house: '🏠', home: '🏠', rent: '🏠', mortgage: '🏠',
+  cleaner: '🧹', cleaning: '🧹',
+  ai: '🤖', tech: '💻', software: '💻',
+  tv: '📺', television: '📺',
+  subscription: '📅', subscriptions: '📅'
+};
+
+/**
+ * Get default icon for a category name
+ * @param {string} name - Category name
+ * @returns {string} Emoji icon
+ */
+function getDefaultIcon(name) {
+  const lowerName = (name || '').toLowerCase();
+
+  // Check for exact match first
+  if (DEFAULT_ICONS[lowerName]) {
+    return DEFAULT_ICONS[lowerName];
+  }
+
+  // Check if any key is contained in the name
+  for (const [key, icon] of Object.entries(DEFAULT_ICONS)) {
+    if (lowerName.includes(key)) {
+      return icon;
+    }
+  }
+
+  // Default fallback
+  return '📁';
+}
+
 // Private state
 let container = null;
 let cleanupFunctions = [];
@@ -522,7 +568,7 @@ function renderTransactionsTable() {
       </td>
       <td class="col-category">
         <span class="category-badge editable-category" data-id="${txn.id}" style="background-color: ${txn.category_colour}20; color: ${txn.category_colour}">
-          ${txn.category_icon || ''} ${escapeHtml(txn.category_name || 'Uncategorised')}
+          ${txn.category_icon || getDefaultIcon(txn.category_name)} ${escapeHtml(txn.category_name || 'Uncategorised')}
         </span>
       </td>
       <td class="col-debit ${txn.debit_amount > 0 ? 'amount-negative' : ''}">
@@ -779,7 +825,7 @@ async function openCategoryPicker(txnId) {
   list.innerHTML = categories.map(cat => `
     <button type="button" class="category-option" data-category-id="${cat.id}">
       <span class="category-badge" style="background-color: ${cat.colour}20; color: ${cat.colour}">
-        ${cat.icon} ${escapeHtml(cat.name)}
+        ${cat.icon || getDefaultIcon(cat.name)} ${escapeHtml(cat.name)}
       </span>
     </button>
   `).join('');

@@ -94,8 +94,12 @@ if (isMain) {
   const app = createApp();
 
   const server = app.listen(PORT, HOST, () => {
-    console.log(`FinanceFlow running on http://${HOST}:${PORT}`);
-    console.log(`Health check available at http://${HOST}:${PORT}/api/health`);
+    console.log(`FinanceFlow server listening on port ${PORT}`);
+    console.log(`Health check available at /api/health`);
+    // In production, the public URL is configured via Railway/custom domain
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+      console.log(`Public URL: https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
   });
 
   // Graceful shutdown
