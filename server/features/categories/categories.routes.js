@@ -44,9 +44,11 @@ const VALID_TYPES = ['income', 'expense', 'neutral'];
 /**
  * GET /api/categories
  * Returns all categories, optionally with spending totals for current month.
+ * Includes both global categories (user_id IS NULL) and user's own categories.
  */
 router.get('/', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const includeTotals = req.query.include_totals === 'true';
 
   let categories;
@@ -69,15 +71,18 @@ router.get('/', (req, res) => {
       FROM categories c
       LEFT JOIN transactions t ON t.category_id = c.id
         AND strftime('%Y-%m', t.transaction_date) = ?
+      LEFT JOIN accounts a ON t.account_id = a.id AND a.user_id = ?
+      WHERE c.user_id = ? OR c.user_id IS NULL
       GROUP BY c.id
       ORDER BY c.sort_order, c.id
-    `).all(currentMonth);
+    `).all(currentMonth, userId, userId);
   } else {
     categories = db.prepare(`
       SELECT id, name, type, colour, icon, parent_group, is_default, sort_order
       FROM categories
+      WHERE user_id = ? OR user_id IS NULL
       ORDER BY sort_order, id
-    `).all();
+    `).all(userId);
   }
 
   res.json({ success: true, data: categories });
@@ -221,9 +226,11 @@ router.post('/apply-to-similar', (req, res) => {
 /**
  * GET /api/categories/:id
  * Returns single category by ID.
+ * Only returns if category is global or belongs to user.
  */
 router.get('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -236,8 +243,8 @@ router.get('/:id', (req, res) => {
   const category = db.prepare(`
     SELECT id, name, type, colour, icon, parent_group, is_default, sort_order
     FROM categories
-    WHERE id = ?
-  `).get(id);
+    WHERE id = ? AND (user_id = ? OR user_id IS NULL)
+  `).get(id, userId);
 
   if (!category) {
     return res.status(404).json({
@@ -251,11 +258,12 @@ router.get('/:id', (req, res) => {
 
 /**
  * POST /api/categories
- * Creates a new category.
+ * Creates a new category for the current user.
  * Body: { name, type, colour, icon?, parent_group? }
  */
 router.post('/', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { name, type, colour, icon, parent_group } = req.body;
 
   // Validation
@@ -280,8 +288,8 @@ router.post('/', (req, res) => {
     });
   }
 
-  // Check for duplicate name
-  const existing = db.prepare('SELECT id FROM categories WHERE name = ?').get(name.trim());
+  // Check for duplicate name (within user's categories and global categories)
+  const existing = db.prepare('SELECT id FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(name.trim(), userId);
   if (existing) {
     return res.status(400).json({
       success: false,
@@ -289,15 +297,15 @@ router.post('/', (req, res) => {
     });
   }
 
-  // Get next sort_order
-  const maxSort = db.prepare('SELECT MAX(sort_order) as max FROM categories').get();
+  // Get next sort_order for this user's categories
+  const maxSort = db.prepare('SELECT MAX(sort_order) as max FROM categories WHERE user_id = ? OR user_id IS NULL').get(userId);
   const sortOrder = (maxSort.max || 0) + 1;
 
   try {
     const result = db.prepare(`
-      INSERT INTO categories (name, type, colour, icon, parent_group, is_default, sort_order)
-      VALUES (?, ?, ?, ?, ?, 0, ?)
-    `).run(name.trim(), type, colour.trim(), icon || null, parent_group || null, sortOrder);
+      INSERT INTO categories (user_id, name, type, colour, icon, parent_group, is_default, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+    `).run(userId, name.trim(), type, colour.trim(), icon || null, parent_group || null, sortOrder);
 
     const newCategory = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
 
@@ -313,10 +321,11 @@ router.post('/', (req, res) => {
 /**
  * PUT /api/categories/:id
  * Updates an existing category.
- * Cannot update default categories (is_default=1).
+ * Cannot update default categories (is_default=1) or global categories.
  */
 router.put('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -326,8 +335,8 @@ router.put('/:id', (req, res) => {
     });
   }
 
-  // Check category exists
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+  // Check category exists and belongs to user (cannot edit global categories)
+  const category = db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(id, userId);
   if (!category) {
     return res.status(404).json({
       success: false,
@@ -404,10 +413,11 @@ router.put('/:id', (req, res) => {
 /**
  * DELETE /api/categories/:id
  * Deletes a category.
- * Cannot delete default categories or categories with transactions.
+ * Cannot delete default categories, global categories, or categories with transactions.
  */
 router.delete('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -417,8 +427,8 @@ router.delete('/:id', (req, res) => {
     });
   }
 
-  // Check category exists
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+  // Check category exists and belongs to user (cannot delete global categories)
+  const category = db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(id, userId);
   if (!category) {
     return res.status(404).json({
       success: false,
@@ -434,8 +444,12 @@ router.delete('/:id', (req, res) => {
     });
   }
 
-  // Check for transactions using this category
-  const txnCount = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE category_id = ?').get(id);
+  // Check for transactions using this category (only user's transactions)
+  const txnCount = db.prepare(`
+    SELECT COUNT(*) as count FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE t.category_id = ? AND a.user_id = ?
+  `).get(id, userId);
   if (txnCount.count > 0) {
     return res.status(400).json({
       success: false,
@@ -443,7 +457,7 @@ router.delete('/:id', (req, res) => {
     });
   }
 
-  db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+  db.prepare('DELETE FROM categories WHERE id = ? AND user_id = ?').run(id, userId);
 
   res.json({
     success: true,
@@ -464,11 +478,12 @@ const rulesRouter = Router();
 
 /**
  * GET /api/category-rules
- * Returns all category rules.
+ * Returns all category rules for the current user.
  */
 rulesRouter.get('/', (req, res) => {
   const db = getDb();
-  const rules = getCategoryRules(db);
+  const userId = req.user.id;
+  const rules = getCategoryRules(db, userId);
   res.json({ success: true, data: rules });
 });
 
@@ -477,11 +492,12 @@ const MAX_PATTERN_LENGTH = 500;
 
 /**
  * POST /api/category-rules
- * Creates a new category rule.
+ * Creates a new category rule for the current user.
  * Body: { pattern, categoryId, priority? }
  */
 rulesRouter.post('/', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { pattern, categoryId, priority } = req.body;
 
   // Validation
@@ -507,7 +523,7 @@ rulesRouter.post('/', (req, res) => {
   }
 
   try {
-    const rule = addCategoryRule(db, pattern, categoryId, priority || 0);
+    const rule = addCategoryRule(db, userId, pattern, categoryId, priority || 0);
     res.status(201).json({ success: true, data: rule });
   } catch (err) {
     res.status(400).json({
@@ -519,10 +535,11 @@ rulesRouter.post('/', (req, res) => {
 
 /**
  * PUT /api/category-rules/:id
- * Updates an existing category rule.
+ * Updates an existing category rule belonging to the current user.
  */
 rulesRouter.put('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -549,7 +566,7 @@ rulesRouter.put('/:id', (req, res) => {
   if (isActive !== undefined) updates.isActive = isActive;
 
   try {
-    const rule = updateCategoryRule(db, id, updates);
+    const rule = updateCategoryRule(db, id, userId, updates);
     res.json({ success: true, data: rule });
   } catch (err) {
     if (err.message === 'Rule not found') {
@@ -567,10 +584,11 @@ rulesRouter.put('/:id', (req, res) => {
 
 /**
  * DELETE /api/category-rules/:id
- * Deletes a category rule.
+ * Deletes a category rule belonging to the current user.
  */
 rulesRouter.delete('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -581,7 +599,7 @@ rulesRouter.delete('/:id', (req, res) => {
   }
 
   try {
-    const result = deleteCategoryRule(db, id);
+    const result = deleteCategoryRule(db, id, userId);
     res.json({ success: true, data: result });
   } catch (err) {
     if (err.message === 'Rule not found') {

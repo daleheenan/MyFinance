@@ -44,10 +44,11 @@ function getCurrentMonth() {
  */
 router.get('/', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const month = req.query.month || getCurrentMonth();
 
   try {
-    const budgets = getBudgetsForMonth(db, month);
+    const budgets = getBudgetsForMonth(db, month, userId);
     res.json({ success: true, data: budgets });
   } catch (err) {
     res.status(400).json({
@@ -65,10 +66,11 @@ router.get('/', (req, res) => {
  */
 router.get('/summary', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const month = req.query.month || getCurrentMonth();
 
   try {
-    const summary = getBudgetSummary(db, month);
+    const summary = getBudgetSummary(db, month, userId);
     res.json({ success: true, data: summary });
   } catch (err) {
     res.status(400).json({
@@ -86,10 +88,11 @@ router.get('/summary', (req, res) => {
  */
 router.get('/unbudgeted', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const month = req.query.month || getCurrentMonth();
 
   try {
-    const categories = getCategoriesWithoutBudget(db, month);
+    const categories = getCategoriesWithoutBudget(db, month, userId);
     res.json({ success: true, data: categories });
   } catch (err) {
     res.status(400).json({
@@ -105,6 +108,7 @@ router.get('/unbudgeted', (req, res) => {
  */
 router.get('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -115,7 +119,7 @@ router.get('/:id', (req, res) => {
   }
 
   try {
-    const budget = getBudgetById(db, id);
+    const budget = getBudgetById(db, id, userId);
 
     if (!budget) {
       return res.status(404).json({
@@ -140,6 +144,7 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { categoryId, month, budgetedAmount, rolloverAmount, notes } = req.body;
 
   // Basic validation
@@ -174,6 +179,7 @@ router.post('/', (req, res) => {
 
   try {
     const budget = upsertBudget(db, {
+      userId,
       categoryId: parseInt(categoryId, 10),
       month,
       budgetedAmount: parsedAmount,
@@ -202,6 +208,7 @@ router.post('/', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -212,7 +219,7 @@ router.delete('/:id', (req, res) => {
   }
 
   try {
-    const result = deleteBudget(db, id);
+    const result = deleteBudget(db, id, userId);
     res.json({ success: true, data: result });
   } catch (err) {
     if (err.message === 'Budget not found') {

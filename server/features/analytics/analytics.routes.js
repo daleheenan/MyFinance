@@ -41,13 +41,14 @@ function parseAccountId(id) {
 }
 
 /**
- * Validate that an account exists.
+ * Validate that an account exists and belongs to user.
  * @param {Database} db - Database instance
  * @param {number} accountId - Account ID
- * @returns {boolean} - True if exists
+ * @param {number} userId - User ID
+ * @returns {boolean} - True if exists and belongs to user
  */
-function accountExists(db, accountId) {
-  const account = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+function accountExists(db, accountId, userId) {
+  const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId);
   return !!account;
 }
 
@@ -57,6 +58,7 @@ function accountExists(db, accountId) {
 router.get('/spending-by-category', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       range = 'this_month',
       start_date: startDate,
@@ -84,8 +86,8 @@ router.get('/spending-by-category', (req, res, next) => {
       });
     }
 
-    // Validate account exists if specified
-    if (accountId && !accountExists(db, accountId)) {
+    // Validate account exists and belongs to user if specified
+    if (accountId && !accountExists(db, accountId, userId)) {
       return res.status(404).json({
         success: false,
         error: 'Account not found'
@@ -96,6 +98,7 @@ router.get('/spending-by-category', (req, res, next) => {
       db,
       dateRange.startDate,
       dateRange.endDate,
+      userId,
       accountId
     );
 
@@ -120,6 +123,7 @@ router.get('/spending-by-category', (req, res, next) => {
 router.get('/income-vs-expenses', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       months = '12',
       account_id: accountIdStr
@@ -143,15 +147,15 @@ router.get('/income-vs-expenses', (req, res, next) => {
       });
     }
 
-    // Validate account exists if specified
-    if (accountId && !accountExists(db, accountId)) {
+    // Validate account exists and belongs to user if specified
+    if (accountId && !accountExists(db, accountId, userId)) {
       return res.status(404).json({
         success: false,
         error: 'Account not found'
       });
     }
 
-    const data = getIncomeVsExpenses(db, monthsNum, accountId);
+    const data = getIncomeVsExpenses(db, monthsNum, userId, accountId);
 
     // Calculate totals
     const totals = data.reduce(
@@ -185,6 +189,7 @@ router.get('/income-vs-expenses', (req, res, next) => {
 router.get('/trends', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       range = 'this_month',
       start_date: startDate,
@@ -221,8 +226,8 @@ router.get('/trends', (req, res, next) => {
       });
     }
 
-    // Validate account exists if specified
-    if (accountId && !accountExists(db, accountId)) {
+    // Validate account exists and belongs to user if specified
+    if (accountId && !accountExists(db, accountId, userId)) {
       return res.status(404).json({
         success: false,
         error: 'Account not found'
@@ -234,6 +239,7 @@ router.get('/trends', (req, res, next) => {
       dateRange.startDate,
       dateRange.endDate,
       groupBy,
+      userId,
       accountId
     );
 
@@ -259,6 +265,7 @@ router.get('/trends', (req, res, next) => {
 router.get('/summary', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       range = 'this_month',
       start_date: startDate,
@@ -286,8 +293,8 @@ router.get('/summary', (req, res, next) => {
       });
     }
 
-    // Validate account exists if specified
-    if (accountId && !accountExists(db, accountId)) {
+    // Validate account exists and belongs to user if specified
+    if (accountId && !accountExists(db, accountId, userId)) {
       return res.status(404).json({
         success: false,
         error: 'Account not found'
@@ -299,6 +306,7 @@ router.get('/summary', (req, res, next) => {
       db,
       dateRange.startDate,
       dateRange.endDate,
+      userId,
       accountId
     );
 
@@ -308,6 +316,7 @@ router.get('/summary', (req, res, next) => {
       dateRange.startDate,
       dateRange.endDate,
       5,
+      userId,
       accountId
     );
 
@@ -334,6 +343,7 @@ router.get('/summary', (req, res, next) => {
 router.get('/monthly-breakdown', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { months: monthsStr = '3' } = req.query;
 
     // Parse months
@@ -345,7 +355,7 @@ router.get('/monthly-breakdown', (req, res, next) => {
       });
     }
 
-    const data = getMonthlyExpenseBreakdown(db, months);
+    const data = getMonthlyExpenseBreakdown(db, months, userId);
 
     res.json({
       success: true,
@@ -363,6 +373,7 @@ router.get('/monthly-breakdown', (req, res, next) => {
 router.get('/yoy', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       year: yearStr,
       category_id: categoryIdStr
@@ -392,7 +403,7 @@ router.get('/yoy', (req, res, next) => {
       }
     }
 
-    const data = getYearOverYearComparison(db, { year, category_id: categoryId });
+    const data = getYearOverYearComparison(db, { year, category_id: categoryId, user_id: userId });
 
     res.json({
       success: true,
@@ -410,6 +421,7 @@ router.get('/yoy', (req, res, next) => {
 router.get('/yoy/monthly', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       month,
       year: yearStr,
@@ -456,7 +468,7 @@ router.get('/yoy/monthly', (req, res, next) => {
       }
     }
 
-    const data = getMonthlyYoYComparison(db, month, { year, category_id: categoryId });
+    const data = getMonthlyYoYComparison(db, month, { year, category_id: categoryId, user_id: userId });
 
     res.json({
       success: true,

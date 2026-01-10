@@ -175,32 +175,33 @@ export function bulkAssignCategories(db, transactionIds = null) {
 }
 
 /**
- * Add a new category rule.
+ * Add a new category rule for a user.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID who owns the rule
  * @param {string} pattern - Pattern to match (case insensitive)
  * @param {number} categoryId - Category ID to assign when matched
  * @param {number} [priority=0] - Rule priority (higher = matched first)
  * @returns {object} Created rule with id, pattern, categoryId, priority
  * @throws {Error} If pattern is empty or category doesn't exist
  */
-export function addCategoryRule(db, pattern, categoryId, priority = 0) {
+export function addCategoryRule(db, userId, pattern, categoryId, priority = 0) {
   // Validate pattern
   const trimmedPattern = (pattern || '').trim();
   if (!trimmedPattern) {
     throw new Error('Pattern cannot be empty');
   }
 
-  // Validate category exists (foreign key will also enforce this)
-  const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(categoryId);
+  // Validate category exists and is accessible to user (user's own or global)
+  const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(categoryId, userId);
   if (!category) {
     throw new Error('Category not found');
   }
 
   const result = db.prepare(`
-    INSERT INTO category_rules (pattern, category_id, priority, is_active)
-    VALUES (?, ?, ?, 1)
-  `).run(trimmedPattern, categoryId, priority);
+    INSERT INTO category_rules (user_id, pattern, category_id, priority, is_active)
+    VALUES (?, ?, ?, ?, 1)
+  `).run(userId, trimmedPattern, categoryId, priority);
 
   return {
     id: result.lastInsertRowid,
@@ -211,14 +212,15 @@ export function addCategoryRule(db, pattern, categoryId, priority = 0) {
 }
 
 /**
- * Get all category rules.
+ * Get all category rules for a user.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter by
  * @param {object} [options={}] - Query options
  * @param {boolean} [options.includeInactive=false] - Include inactive rules
  * @returns {object[]} Array of rules with category information
  */
-export function getCategoryRules(db, options = {}) {
+export function getCategoryRules(db, userId, options = {}) {
   const { includeInactive = false } = options;
 
   let query = `
@@ -232,15 +234,16 @@ export function getCategoryRules(db, options = {}) {
       cr.created_at as createdAt
     FROM category_rules cr
     JOIN categories c ON c.id = cr.category_id
+    WHERE cr.user_id = ?
   `;
 
   if (!includeInactive) {
-    query += ' WHERE cr.is_active = 1';
+    query += ' AND cr.is_active = 1';
   }
 
   query += ' ORDER BY cr.priority DESC, cr.id ASC';
 
-  const rules = db.prepare(query).all();
+  const rules = db.prepare(query).all(userId);
 
   // Convert is_active to boolean
   return rules.map(rule => ({
@@ -250,10 +253,11 @@ export function getCategoryRules(db, options = {}) {
 }
 
 /**
- * Update a category rule.
+ * Update a category rule belonging to a user.
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} ruleId - Rule ID to update
+ * @param {number} userId - User ID to verify ownership
  * @param {object} updates - Fields to update
  * @param {string} [updates.pattern] - New pattern
  * @param {number} [updates.categoryId] - New category ID
@@ -262,9 +266,9 @@ export function getCategoryRules(db, options = {}) {
  * @returns {object} Updated rule
  * @throws {Error} If rule not found or validation fails
  */
-export function updateCategoryRule(db, ruleId, updates) {
-  // Check rule exists
-  const existingRule = db.prepare('SELECT * FROM category_rules WHERE id = ?').get(ruleId);
+export function updateCategoryRule(db, ruleId, userId, updates) {
+  // Check rule exists and belongs to user
+  const existingRule = db.prepare('SELECT * FROM category_rules WHERE id = ? AND user_id = ?').get(ruleId, userId);
   if (!existingRule) {
     throw new Error('Rule not found');
   }
@@ -278,9 +282,9 @@ export function updateCategoryRule(db, ruleId, updates) {
     updates.pattern = trimmedPattern;
   }
 
-  // Validate category if provided
+  // Validate category if provided (must be accessible to user)
   if ('categoryId' in updates) {
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(updates.categoryId);
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(updates.categoryId, userId);
     if (!category) {
       throw new Error('Category not found');
     }
@@ -312,18 +316,19 @@ export function updateCategoryRule(db, ruleId, updates) {
 
   if (setClauses.length === 0) {
     // No updates - return existing
-    return getRuleById(db, ruleId);
+    return getRuleById(db, ruleId, userId);
   }
 
   values.push(ruleId);
+  values.push(userId);
 
   db.prepare(`
     UPDATE category_rules
     SET ${setClauses.join(', ')}
-    WHERE id = ?
+    WHERE id = ? AND user_id = ?
   `).run(...values);
 
-  return getRuleById(db, ruleId);
+  return getRuleById(db, ruleId, userId);
 }
 
 /**
@@ -331,9 +336,10 @@ export function updateCategoryRule(db, ruleId, updates) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} ruleId - Rule ID
+ * @param {number} userId - User ID to verify ownership
  * @returns {object} Rule with category information
  */
-function getRuleById(db, ruleId) {
+function getRuleById(db, ruleId, userId) {
   const rule = db.prepare(`
     SELECT
       cr.id,
@@ -345,8 +351,8 @@ function getRuleById(db, ruleId) {
       cr.created_at as createdAt
     FROM category_rules cr
     JOIN categories c ON c.id = cr.category_id
-    WHERE cr.id = ?
-  `).get(ruleId);
+    WHERE cr.id = ? AND cr.user_id = ?
+  `).get(ruleId, userId);
 
   return {
     ...rule,
@@ -355,30 +361,31 @@ function getRuleById(db, ruleId) {
 }
 
 /**
- * Delete a category rule.
+ * Delete a category rule belonging to a user.
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} ruleId - Rule ID to delete
+ * @param {number} userId - User ID to verify ownership
  * @returns {object} Deleted rule information
  * @throws {Error} If rule not found
  */
-export function deleteCategoryRule(db, ruleId) {
+export function deleteCategoryRule(db, ruleId, userId) {
   if (ruleId == null) {
     throw new Error('Rule ID is required');
   }
 
-  // Get rule before deleting
+  // Get rule before deleting - verify ownership
   const rule = db.prepare(`
     SELECT id, pattern, category_id as categoryId, priority
     FROM category_rules
-    WHERE id = ?
-  `).get(ruleId);
+    WHERE id = ? AND user_id = ?
+  `).get(ruleId, userId);
 
   if (!rule) {
     throw new Error('Rule not found');
   }
 
-  db.prepare('DELETE FROM category_rules WHERE id = ?').run(ruleId);
+  db.prepare('DELETE FROM category_rules WHERE id = ? AND user_id = ?').run(ruleId, userId);
 
   return {
     deleted: true,

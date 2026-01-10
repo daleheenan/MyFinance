@@ -101,13 +101,14 @@ export function calculateDateRange(range, startDate = null, endDate = null) {
  * @param {Database} db - The database instance
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
  * @returns {Array<{ category_id: number, category_name: string, colour: string, icon: string, total: number, percentage: number, transaction_count: number }>}
  */
-export function getSpendingByCategory(db, startDate, endDate, accountId = null) {
-  // Build query with optional account filter
+export function getSpendingByCategory(db, startDate, endDate, userId, accountId = null) {
+  // Build query with user and optional account filter
   let accountFilter = '';
-  const params = [startDate, endDate];
+  const params = [userId, startDate, endDate];
 
   if (accountId) {
     accountFilter = 'AND t.account_id = ?';
@@ -129,11 +130,14 @@ export function getSpendingByCategory(db, startDate, endDate, accountId = null) 
       AND t.is_transfer = 0
       AND t.debit_amount > 0
       ${accountFilter}
+    LEFT JOIN accounts a ON t.account_id = a.id
     WHERE c.type = 'expense'
+      AND (c.user_id = ? OR c.user_id IS NULL)
+      AND (a.user_id = ? OR a.user_id IS NULL OR t.id IS NULL)
     GROUP BY c.id, c.name, c.colour, c.icon
     HAVING total > 0
     ORDER BY total DESC
-  `).all(...params);
+  `).all(...params, userId, userId);
 
   // Calculate total spending for percentages
   const totalSpending = spending.reduce((sum, cat) => sum + cat.total, 0);
@@ -156,19 +160,21 @@ export function getSpendingByCategory(db, startDate, endDate, accountId = null) 
  *
  * @param {Database} db - The database instance
  * @param {number} months - Number of months to retrieve (default 12)
+ * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
  * @returns {Array<{ month: string, income: number, expenses: number, net: number }>}
  */
-export function getIncomeVsExpenses(db, months = 12, accountId = null) {
+export function getIncomeVsExpenses(db, months = 12, userId, accountId = null) {
   const today = new Date();
   const results = [];
 
-  // Build account filter
-  let accountFilter = '';
-  const baseParams = [];
+  // Build account filter - always filter by user
+  let accountFilter = 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  const baseParams = [userId];
 
   if (accountId) {
     accountFilter = 'AND account_id = ?';
+    baseParams.length = 0;
     baseParams.push(accountId);
   }
 
@@ -219,21 +225,23 @@ export function getIncomeVsExpenses(db, months = 12, accountId = null) {
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {string} groupBy - Grouping: 'day' or 'week'
+ * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
  * @returns {Array<{ period: string, spending: number, income: number, transaction_count: number }>}
  */
-export function getSpendingTrends(db, startDate, endDate, groupBy = 'day', accountId = null) {
+export function getSpendingTrends(db, startDate, endDate, groupBy = 'day', userId, accountId = null) {
   // Validate groupBy
   if (!['day', 'week'].includes(groupBy)) {
     throw new Error('Invalid groupBy. Expected: day or week');
   }
 
-  // Build account filter
-  let accountFilter = '';
-  const params = [startDate, endDate];
+  // Build account filter - always filter by user
+  let accountFilter = 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  const params = [startDate, endDate, userId];
 
   if (accountId) {
     accountFilter = 'AND account_id = ?';
+    params.length = 2;
     params.push(accountId);
   }
 
@@ -272,11 +280,12 @@ export function getSpendingTrends(db, startDate, endDate, groupBy = 'day', accou
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {number} limit - Number of top categories to return (default 5)
+ * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
  * @returns {Array<{ category_id: number, category_name: string, colour: string, icon: string, total: number }>}
  */
-export function getTopSpendingCategories(db, startDate, endDate, limit = 5, accountId = null) {
-  const allSpending = getSpendingByCategory(db, startDate, endDate, accountId);
+export function getTopSpendingCategories(db, startDate, endDate, limit = 5, userId, accountId = null) {
+  const allSpending = getSpendingByCategory(db, startDate, endDate, userId, accountId);
   return allSpending.slice(0, limit);
 }
 
@@ -286,16 +295,18 @@ export function getTopSpendingCategories(db, startDate, endDate, limit = 5, acco
  * @param {Database} db - The database instance
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
  * @returns {{ totalIncome: number, totalExpenses: number, net: number, transactionCount: number, avgDailySpending: number }}
  */
-export function getSummaryStats(db, startDate, endDate, accountId = null) {
-  // Build account filter
-  let accountFilter = '';
-  const params = [startDate, endDate];
+export function getSummaryStats(db, startDate, endDate, userId, accountId = null) {
+  // Build account filter - always filter by user
+  let accountFilter = 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  const params = [startDate, endDate, userId];
 
   if (accountId) {
     accountFilter = 'AND account_id = ?';
+    params.length = 2;
     params.push(accountId);
   }
 
@@ -353,19 +364,31 @@ export function getSummaryStats(db, startDate, endDate, accountId = null) {
  * }}
  */
 export function getYearOverYearComparison(db, options = {}) {
-  const { year = new Date().getFullYear(), category_id = null } = options;
+  const { year = new Date().getFullYear(), category_id = null, user_id = null } = options;
   const lastYear = year - 1;
 
-  // Build category filter
+  // Build category and user filters
   let categoryFilter = '';
+  let userFilter = '';
   const baseParams = [];
   if (category_id) {
     categoryFilter = 'AND c.id = ?';
     baseParams.push(category_id);
   }
+  if (user_id) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  }
 
   // Query spending by category for both years
   // Only include expense categories
+  const queryParams = [
+    String(year), String(year),
+    String(lastYear), String(lastYear),
+    String(year), String(lastYear),
+    ...baseParams
+  ];
+  if (user_id) queryParams.push(user_id);
+
   const categoryData = db.prepare(`
     SELECT
       c.id AS category_id,
@@ -380,17 +403,13 @@ export function getYearOverYearComparison(db, options = {}) {
       AND t.is_transfer = 0
       AND t.debit_amount > 0
       AND (strftime('%Y', t.transaction_date) = ? OR strftime('%Y', t.transaction_date) = ?)
+      ${userFilter}
     WHERE c.type = 'expense'
       ${categoryFilter}
     GROUP BY c.id, c.name, c.colour
     HAVING this_year_total > 0 OR last_year_total > 0
     ORDER BY this_year_total DESC
-  `).all(
-    String(year), String(year),
-    String(lastYear), String(lastYear),
-    String(year), String(lastYear),
-    ...baseParams
-  );
+  `).all(...queryParams);
 
   // Build categories array with change calculations
   const categories = categoryData.map(cat => {
@@ -426,6 +445,13 @@ export function getYearOverYearComparison(db, options = {}) {
   });
 
   // Calculate totals for both years
+  const totalsParams = [
+    String(year), String(year),
+    String(lastYear), String(lastYear),
+    String(year), String(lastYear)
+  ];
+  if (user_id) totalsParams.push(user_id);
+
   const totalsQuery = db.prepare(`
     SELECT
       COALESCE(SUM(CASE WHEN strftime('%Y', transaction_date) = ? AND credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS this_year_income,
@@ -435,11 +461,8 @@ export function getYearOverYearComparison(db, options = {}) {
     FROM transactions
     WHERE is_transfer = 0
       AND (strftime('%Y', transaction_date) = ? OR strftime('%Y', transaction_date) = ?)
-  `).get(
-    String(year), String(year),
-    String(lastYear), String(lastYear),
-    String(year), String(lastYear)
-  );
+      ${user_id ? 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)' : ''}
+  `).get(...totalsParams);
 
   return {
     thisYear: year,
@@ -518,14 +541,19 @@ export function getYearOverYearComparison(db, options = {}) {
  *   }>
  * }}
  */
-export function getMonthlyExpenseBreakdown(db, months = 3) {
+export function getMonthlyExpenseBreakdown(db, months = 3, userId = null) {
   const today = new Date();
   const monthlyData = [];
 
-  // Get primary account ID - first debit account or fallback to id=1
-  const primaryAccount = db.prepare(`
-    SELECT id FROM accounts WHERE account_type = 'debit' ORDER BY id LIMIT 1
-  `).get();
+  // Get primary account ID for user - first debit account or fallback
+  let accountQuery = `SELECT id FROM accounts WHERE account_type = 'debit'`;
+  const accountParams = [];
+  if (userId) {
+    accountQuery += ' AND user_id = ?';
+    accountParams.push(userId);
+  }
+  accountQuery += ' ORDER BY id LIMIT 1';
+  const primaryAccount = db.prepare(accountQuery).get(...accountParams);
   const mainAccountId = primaryAccount?.id || 1;
 
   // Calculate data for each of the last N months (excluding current month which is incomplete)
@@ -636,21 +664,33 @@ export function getMonthlyYoYComparison(db, month, options = {}) {
     throw new Error('Invalid month format. Expected "01" to "12"');
   }
 
-  const { year = new Date().getFullYear(), category_id = null } = options;
+  const { year = new Date().getFullYear(), category_id = null, user_id = null } = options;
   const lastYear = year - 1;
 
   const thisYearMonth = `${year}-${month}`;
   const lastYearMonth = `${lastYear}-${month}`;
 
-  // Build category filter
+  // Build category and user filters
   let categoryFilter = '';
+  let userFilter = '';
   const baseParams = [];
   if (category_id) {
     categoryFilter = 'AND c.id = ?';
     baseParams.push(category_id);
   }
+  if (user_id) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  }
 
   // Query spending by category for both months
+  const queryParams = [
+    thisYearMonth, thisYearMonth,
+    lastYearMonth, lastYearMonth,
+    thisYearMonth, lastYearMonth,
+    ...baseParams
+  ];
+  if (user_id) queryParams.push(user_id);
+
   const categoryData = db.prepare(`
     SELECT
       c.id AS category_id,
@@ -665,17 +705,13 @@ export function getMonthlyYoYComparison(db, month, options = {}) {
       AND t.is_transfer = 0
       AND t.debit_amount > 0
       AND (strftime('%Y-%m', t.transaction_date) = ? OR strftime('%Y-%m', t.transaction_date) = ?)
+      ${userFilter}
     WHERE c.type = 'expense'
       ${categoryFilter}
     GROUP BY c.id, c.name, c.colour
     HAVING this_year_total > 0 OR last_year_total > 0
     ORDER BY this_year_total DESC
-  `).all(
-    thisYearMonth, thisYearMonth,
-    lastYearMonth, lastYearMonth,
-    thisYearMonth, lastYearMonth,
-    ...baseParams
-  );
+  `).all(...queryParams);
 
   // Build categories array with change calculations
   const categories = categoryData.map(cat => {
@@ -711,6 +747,13 @@ export function getMonthlyYoYComparison(db, month, options = {}) {
   });
 
   // Calculate totals for both months
+  const totalsParams = [
+    thisYearMonth, thisYearMonth,
+    lastYearMonth, lastYearMonth,
+    thisYearMonth, lastYearMonth
+  ];
+  if (user_id) totalsParams.push(user_id);
+
   const totalsQuery = db.prepare(`
     SELECT
       COALESCE(SUM(CASE WHEN strftime('%Y-%m', transaction_date) = ? AND credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS this_year_income,
@@ -720,11 +763,8 @@ export function getMonthlyYoYComparison(db, month, options = {}) {
     FROM transactions
     WHERE is_transfer = 0
       AND (strftime('%Y-%m', transaction_date) = ? OR strftime('%Y-%m', transaction_date) = ?)
-  `).get(
-    thisYearMonth, thisYearMonth,
-    lastYearMonth, lastYearMonth,
-    thisYearMonth, lastYearMonth
-  );
+      ${user_id ? 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)' : ''}
+  `).get(...totalsParams);
 
   return {
     thisYear: year,
