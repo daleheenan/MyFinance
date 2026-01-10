@@ -144,11 +144,23 @@ class Router {
    * Start the router (call on DOMContentLoaded)
    */
   async start() {
+    // Ensure the #app container exists before starting
+    const container = document.getElementById('app');
+    if (!container) {
+      console.error('Router: #app container not found on start');
+      return;
+    }
+
     // Set default route if no hash - use replaceState to avoid triggering hashchange
     if (!window.location.hash || window.location.hash === '#') {
       const newUrl = window.location.pathname + window.location.search + '#/overview';
       window.history.replaceState(null, '', newUrl);
     }
+
+    // Use requestAnimationFrame to ensure browser has painted the initial state
+    // This helps prevent race conditions where DOM isn't fully ready
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
     // Always call navigate on start to ensure the page renders
     await this.navigate();
   }

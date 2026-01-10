@@ -203,7 +203,7 @@ function attachEventListeners() {
 async function loadData() {
   try {
     const [averagesData, categoriesData] = await Promise.all([
-      api.get('/forecasting/averages?months=6'),
+      api.get('/forecasting/averages?months=3'),
       api.get('/categories')
     ]);
 
