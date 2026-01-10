@@ -13,23 +13,32 @@ let db = null;
  * @param {Database} database - The database instance
  */
 function runMigrations(database) {
-  // Check if subscriptions table exists (won't exist on fresh databases)
-  const tableCheck = database.prepare(`
+  // Migration 1: Add subscriptions.type column
+  const subscriptionsTableCheck = database.prepare(`
     SELECT name FROM sqlite_master WHERE type='table' AND name='subscriptions'
   `).get();
 
-  if (!tableCheck) {
-    // Table doesn't exist yet, schema.sql will create it with the type column
-    return;
+  if (subscriptionsTableCheck) {
+    const subColumns = database.prepare(`PRAGMA table_info(subscriptions)`).all();
+    const hasTypeColumn = subColumns.some(col => col.name === 'type');
+
+    if (!hasTypeColumn) {
+      database.exec(`ALTER TABLE subscriptions ADD COLUMN type TEXT DEFAULT 'expense'`);
+    }
   }
 
-  // Check if subscriptions.type column exists
-  const columns = database.prepare(`PRAGMA table_info(subscriptions)`).all();
-  const hasTypeColumn = columns.some(col => col.name === 'type');
+  // Migration 2: Add transactions.sequence column for same-date ordering
+  const transactionsTableCheck = database.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'
+  `).get();
 
-  if (!hasTypeColumn) {
-    // SQLite doesn't support CHECK constraints in ALTER TABLE, so just add the column
-    database.exec(`ALTER TABLE subscriptions ADD COLUMN type TEXT DEFAULT 'expense'`);
+  if (transactionsTableCheck) {
+    const txnColumns = database.prepare(`PRAGMA table_info(transactions)`).all();
+    const hasSequenceColumn = txnColumns.some(col => col.name === 'sequence');
+
+    if (!hasSequenceColumn) {
+      database.exec(`ALTER TABLE transactions ADD COLUMN sequence INTEGER DEFAULT 0`);
+    }
   }
 }
 

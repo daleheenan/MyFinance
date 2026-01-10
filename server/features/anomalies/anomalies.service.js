@@ -8,6 +8,8 @@
  * 4. category_spike - Category spending 200%+ above monthly average
  */
 
+import { getDaysAgo, getCurrentMonthUTC, parseDateUTC, getMonthString } from '../../core/dates.js';
+
 /**
  * Round to penny precision (2 decimal places).
  * @param {number} amount - Amount to round
@@ -24,9 +26,8 @@ export function pennyPrecision(amount) {
  * @returns {string} Date in YYYY-MM-DD format
  */
 function getDateDaysAgo(days, referenceDate = null) {
-  const date = referenceDate ? new Date(referenceDate) : new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  const refDate = referenceDate ? parseDateUTC(referenceDate) : null;
+  return getDaysAgo(days, refDate);
 }
 
 /**
@@ -35,8 +36,10 @@ function getDateDaysAgo(days, referenceDate = null) {
  * @returns {string} Month string
  */
 function getMonth(referenceDate = null) {
-  const date = referenceDate ? new Date(referenceDate) : new Date();
-  return date.toISOString().slice(0, 7);
+  if (!referenceDate) {
+    return getCurrentMonthUTC();
+  }
+  return getMonthString(parseDateUTC(referenceDate));
 }
 
 /**

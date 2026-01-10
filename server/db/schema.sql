@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
     transaction_date TEXT NOT NULL,
+    sequence INTEGER DEFAULT 0,
     transaction_type TEXT,
     description TEXT NOT NULL,
     original_description TEXT,
@@ -72,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_account_date ON transactions(account
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_description ON transactions(description);
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(transaction_date);
+CREATE INDEX IF NOT EXISTS idx_transactions_date_sequence ON transactions(transaction_date, sequence);
 
 -- Category rules table
 CREATE TABLE IF NOT EXISTS category_rules (

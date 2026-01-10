@@ -522,11 +522,11 @@ export function getMonthlyExpenseBreakdown(db, months = 3) {
   const today = new Date();
   const monthlyData = [];
 
-  // Get Main Account ID for accurate calculations
-  const mainAccount = db.prepare(`
-    SELECT id FROM accounts WHERE account_name = 'Main Account' LIMIT 1
+  // Get primary account ID - first debit account or fallback to id=1
+  const primaryAccount = db.prepare(`
+    SELECT id FROM accounts WHERE account_type = 'debit' ORDER BY id LIMIT 1
   `).get();
-  const mainAccountId = mainAccount?.id || 1;
+  const mainAccountId = primaryAccount?.id || 1;
 
   // Calculate data for each of the last N months (excluding current month which is incomplete)
   for (let i = 1; i <= months; i++) {

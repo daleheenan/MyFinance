@@ -38,7 +38,7 @@ export function getBudgetsForMonth(db, month) {
       c.icon as category_icon,
       c.type as category_type,
       COALESCE(
-        (SELECT SUM(t.debit_amount)
+        (SELECT SUM(t.debit_amount) - SUM(COALESCE(t.credit_amount, 0))
          FROM transactions t
          WHERE t.category_id = b.category_id
            AND strftime('%Y-%m', t.transaction_date) = b.month
@@ -94,7 +94,7 @@ export function getBudgetById(db, budgetId) {
       c.icon as category_icon,
       c.type as category_type,
       COALESCE(
-        (SELECT SUM(t.debit_amount)
+        (SELECT SUM(t.debit_amount) - SUM(COALESCE(t.credit_amount, 0))
          FROM transactions t
          WHERE t.category_id = b.category_id
            AND strftime('%Y-%m', t.transaction_date) = b.month
@@ -242,7 +242,7 @@ export function getCategoriesWithoutBudget(db, month) {
       c.icon,
       c.type,
       COALESCE(
-        (SELECT SUM(t.debit_amount)
+        (SELECT SUM(t.debit_amount) - SUM(COALESCE(t.credit_amount, 0))
          FROM transactions t
          WHERE t.category_id = c.id
            AND strftime('%Y-%m', t.transaction_date) = ?

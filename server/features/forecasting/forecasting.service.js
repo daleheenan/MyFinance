@@ -11,6 +11,8 @@
  * known recurring income and expenses as a baseline.
  */
 
+import { getMonthsAhead, getMonthsAgo, getMonthString } from '../../core/dates.js';
+
 /**
  * Apply penny precision rounding to avoid floating point errors.
  * @param {number} amount - The amount to round
@@ -26,9 +28,7 @@ export function pennyPrecision(amount) {
  * @returns {string} Month in YYYY-MM format
  */
 function getFutureMonth(monthsAhead) {
-  const date = new Date();
-  date.setMonth(date.getMonth() + monthsAhead);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return getMonthString(getMonthsAhead(monthsAhead));
 }
 
 /**
@@ -37,9 +37,7 @@ function getFutureMonth(monthsAhead) {
  * @returns {string} Month in YYYY-MM format
  */
 function getPastMonth(monthsBack) {
-  const date = new Date();
-  date.setMonth(date.getMonth() - monthsBack);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return getMonthString(getMonthsAgo(monthsBack));
 }
 
 /**

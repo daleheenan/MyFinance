@@ -8,6 +8,8 @@
  * - takeSnapshot(db) - Create a point-in-time snapshot of net worth
  */
 
+import { getTodayUTC, getMonthsAgo, formatDateUTC } from '../../core/dates.js';
+
 /**
  * Apply penny precision rounding to avoid floating point errors.
  * @param {number} amount - The amount to round
@@ -15,14 +17,6 @@
  */
 function pennyPrecision(amount) {
   return Math.round(amount * 100) / 100;
-}
-
-/**
- * Get today's date in YYYY-MM-DD format.
- * @returns {string} Today's date
- */
-function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -77,16 +71,35 @@ export function getCurrentNetWorth(db) {
 
   const netWorth = pennyPrecision(totalAssets - totalLiabilities);
 
-  // Get previous snapshot for comparison
+  // Get snapshot from approximately 1 month ago for comparison
+  // This provides a meaningful month-over-month change
+  const today = getTodayUTC();
+  const oneMonthAgo = getMonthsAgo(1);
+  const comparisonDate = formatDateUTC(oneMonthAgo);
+
+  // Find the closest snapshot to one month ago (within 7 days)
   const previousSnapshot = db.prepare(`
-    SELECT net_worth
+    SELECT net_worth, snapshot_date
     FROM net_worth_snapshots
+    WHERE snapshot_date <= ?
+      AND snapshot_date != ?
     ORDER BY snapshot_date DESC
     LIMIT 1
-  `).get();
+  `).get(comparisonDate, today);
 
-  const previousNetWorth = previousSnapshot ? pennyPrecision(previousSnapshot.net_worth) : netWorth;
+  // Fall back to most recent snapshot if no month-old snapshot exists
+  const fallbackSnapshot = !previousSnapshot ? db.prepare(`
+    SELECT net_worth, snapshot_date
+    FROM net_worth_snapshots
+    WHERE snapshot_date < ?
+    ORDER BY snapshot_date DESC
+    LIMIT 1
+  `).get(today) : null;
+
+  const comparisonSnapshot = previousSnapshot || fallbackSnapshot;
+  const previousNetWorth = comparisonSnapshot ? pennyPrecision(comparisonSnapshot.net_worth) : netWorth;
   const change = pennyPrecision(netWorth - previousNetWorth);
+  const comparisonPeriod = comparisonSnapshot ? comparisonSnapshot.snapshot_date : null;
 
   return {
     total_assets: pennyPrecision(totalAssets),
@@ -94,6 +107,7 @@ export function getCurrentNetWorth(db) {
     net_worth: netWorth,
     previous_net_worth: previousNetWorth,
     change: change,
+    comparison_date: comparisonPeriod,
     breakdown
   };
 }
@@ -184,7 +198,7 @@ export function getNetWorthBreakdown(db) {
  * @returns {Object} The created/updated snapshot
  */
 export function takeSnapshot(db) {
-  const today = getTodayDate();
+  const today = getTodayUTC();
   const current = getCurrentNetWorth(db);
   const accountBreakdown = JSON.stringify(current.breakdown);
 

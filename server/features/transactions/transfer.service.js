@@ -6,17 +6,36 @@
  * 1. Same absolute amount (debit in one = credit in other)
  * 2. Opposite direction (one debit, one credit)
  * 3. Within 3 calendar days
- * 4. Between valid account pairs: Main <-> Daily Spend, Main <-> Theo
+ * 4. Between any two different accounts
  */
 
-// Account numbers for transfer detection
-const MAIN_ACCOUNT_NUMBER = '17570762';
-const DAILY_SPEND_NUMBER = '00393366';
-const THEO_ACCOUNT_NUMBER = '55128841';
+// Category IDs - looked up dynamically, with fallbacks
+const DEFAULT_TRANSFER_CATEGORY_ID = 10;
+const DEFAULT_OTHER_CATEGORY_ID = 11;
 
-// Category IDs
-const TRANSFER_CATEGORY_ID = 10;
-const OTHER_CATEGORY_ID = 11;
+/**
+ * Get the Transfer category ID from the database
+ * @param {Database} db - better-sqlite3 database instance
+ * @returns {number} Category ID for transfers
+ */
+function getTransferCategoryId(db) {
+  const category = db.prepare(
+    "SELECT id FROM categories WHERE name = 'Transfer' LIMIT 1"
+  ).get();
+  return category ? category.id : DEFAULT_TRANSFER_CATEGORY_ID;
+}
+
+/**
+ * Get the Other/Uncategorized category ID from the database
+ * @param {Database} db - better-sqlite3 database instance
+ * @returns {number} Category ID for uncategorized
+ */
+function getOtherCategoryId(db) {
+  const category = db.prepare(
+    "SELECT id FROM categories WHERE name IN ('Other', 'Uncategorized') LIMIT 1"
+  ).get();
+  return category ? category.id : DEFAULT_OTHER_CATEGORY_ID;
+}
 
 /**
  * Detect potential transfer pairs that haven't been linked yet
@@ -24,29 +43,8 @@ const OTHER_CATEGORY_ID = 11;
  * @returns {{ detected: number, pairs: Array<{ debitTxnId: number, creditTxnId: number, amount: number }> }}
  */
 export function detectTransfers(db) {
-  // Get valid account IDs for transfer detection
-  const mainAccount = db.prepare(
-    'SELECT id FROM accounts WHERE account_number = ?'
-  ).get(MAIN_ACCOUNT_NUMBER);
-
-  const dailySpendAccount = db.prepare(
-    'SELECT id FROM accounts WHERE account_number = ?'
-  ).get(DAILY_SPEND_NUMBER);
-
-  const theoAccount = db.prepare(
-    'SELECT id FROM accounts WHERE account_number = ?'
-  ).get(THEO_ACCOUNT_NUMBER);
-
-  if (!mainAccount || !dailySpendAccount || !theoAccount) {
-    return { detected: 0, pairs: [] };
-  }
-
-  const mainId = mainAccount.id;
-  const dailyId = dailySpendAccount.id;
-  const theoId = theoAccount.id;
-
-  // Build valid account pairs (Main <-> Daily, Main <-> Theo)
-  // We need to find debit transactions in one account matching credit transactions in another
+  // Detect transfers between any two different accounts
+  // Criteria: same amount, opposite direction, within 3 days
   const query = `
     SELECT
       t1.id AS debit_id,
@@ -65,27 +63,13 @@ export function detectTransfers(db) {
       -- Neither is already marked as transfer
       AND t1.is_transfer = 0
       AND t2.is_transfer = 0
-    )
-    WHERE (
-      -- Valid pairs: Main <-> Daily OR Main <-> Theo
-      (t1.account_id = ? AND t2.account_id = ?)
-      OR (t1.account_id = ? AND t2.account_id = ?)
-      OR (t1.account_id = ? AND t2.account_id = ?)
-      OR (t1.account_id = ? AND t2.account_id = ?)
+      -- Avoid duplicate pairs (only match where t1.id < t2.id for one direction)
+      AND t1.id < t2.id
     )
     ORDER BY t1.transaction_date, t1.id
   `;
 
-  const pairs = db.prepare(query).all(
-    // Main -> Daily
-    mainId, dailyId,
-    // Daily -> Main
-    dailyId, mainId,
-    // Main -> Theo
-    mainId, theoId,
-    // Theo -> Main
-    theoId, mainId
-  );
+  const pairs = db.prepare(query).all();
 
   // Format the result
   const formattedPairs = pairs.map(p => ({
@@ -116,6 +100,8 @@ export function linkTransferPair(db, txn1Id, txn2Id) {
     throw new Error('Transaction not found');
   }
 
+  const transferCategoryId = getTransferCategoryId(db);
+
   // Use transaction for atomicity
   const linkTransaction = db.transaction(() => {
     const updateStmt = db.prepare(`
@@ -128,10 +114,10 @@ export function linkTransferPair(db, txn1Id, txn2Id) {
     `);
 
     // Link txn1 -> txn2
-    updateStmt.run(txn2Id, TRANSFER_CATEGORY_ID, txn1Id);
+    updateStmt.run(txn2Id, transferCategoryId, txn1Id);
 
     // Link txn2 -> txn1
-    updateStmt.run(txn1Id, TRANSFER_CATEGORY_ID, txn2Id);
+    updateStmt.run(txn1Id, transferCategoryId, txn2Id);
   });
 
   linkTransaction();
@@ -159,6 +145,7 @@ export function unlinkTransfer(db, txnId) {
   }
 
   const linkedId = txn.linked_transaction_id;
+  const otherCategoryId = getOtherCategoryId(db);
 
   // Use transaction for atomicity
   const unlinkTransaction = db.transaction(() => {
@@ -172,8 +159,8 @@ export function unlinkTransfer(db, txnId) {
     `);
 
     // Unlink both transactions
-    updateStmt.run(OTHER_CATEGORY_ID, txnId);
-    updateStmt.run(OTHER_CATEGORY_ID, linkedId);
+    updateStmt.run(otherCategoryId, txnId);
+    updateStmt.run(otherCategoryId, linkedId);
   });
 
   unlinkTransaction();
