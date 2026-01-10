@@ -61,11 +61,14 @@ export function initDb(dbPath) {
     db.exec(schema);
   }
 
-  // Run seeds
-  const seedsPath = join(__dirname, '../db/seeds.sql');
-  if (existsSync(seedsPath)) {
-    const seeds = readFileSync(seedsPath, 'utf-8');
-    db.exec(seeds);
+  // Run seeds only in development (not in production)
+  // Production databases should be set up manually or via migration scripts
+  if (process.env.NODE_ENV !== 'production') {
+    const seedsPath = join(__dirname, '../db/seeds.sql');
+    if (existsSync(seedsPath)) {
+      const seeds = readFileSync(seedsPath, 'utf-8');
+      db.exec(seeds);
+    }
   }
 
   return db;
