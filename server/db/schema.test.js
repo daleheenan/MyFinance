@@ -79,7 +79,11 @@ describe('Database Schema', () => {
       expect(tables).toContain('subscriptions');
       expect(tables).toContain('net_worth_snapshots');
       expect(tables).toContain('anomalies');
-      expect(tables).toHaveLength(12);
+      // Auth tables
+      expect(tables).toContain('users');
+      expect(tables).toContain('sessions');
+      expect(tables).toContain('login_attempts');
+      expect(tables).toHaveLength(15);
     });
   });
 

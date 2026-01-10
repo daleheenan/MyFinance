@@ -3,6 +3,8 @@
  * Fetch wrapper with automatic JSON parsing and error handling
  */
 
+import { auth } from './auth.js';
+
 const BASE_URL = '/api';
 
 /**
@@ -14,11 +16,19 @@ const BASE_URL = '/api';
  * @throws {Error} - On request failure or !success response
  */
 async function request(method, path, data = null) {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  // Add auth token if available
+  const token = auth.getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const options = {
     method,
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers
   };
 
   if (data && (method === 'POST' || method === 'PUT')) {
@@ -32,6 +42,14 @@ async function request(method, path, data = null) {
     response = await fetch(url, options);
   } catch (err) {
     throw new Error(`Network error: ${err.message}`);
+  }
+
+  // Handle 401 - session expired or invalid
+  if (response.status === 401) {
+    // Clear auth state and redirect to login
+    await auth.logout();
+    window.location.hash = '#/login';
+    throw new Error('Session expired. Please log in again.');
   }
 
   let json;

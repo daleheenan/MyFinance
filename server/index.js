@@ -5,6 +5,10 @@ import { readdirSync, existsSync } from 'fs';
 import { initDb, getDb, setDb } from './core/database.js';
 import { errorHandler, notFoundHandler } from './core/errors.js';
 import { setupMiddleware } from './core/middleware.js';
+import { setupSecurity, setupTrustProxy } from './core/security.js';
+import { requireAuth } from './features/auth/auth.middleware.js';
+import { createInitialUser, cleanupExpiredSessions } from './features/auth/auth.service.js';
+import authRouter from './features/auth/auth.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,8 +43,12 @@ async function preloadRoutes() {
 // Preload routes immediately
 await preloadRoutes();
 
-export function createApp(db = null) {
+export function createApp(db = null, options = {}) {
   const app = express();
+  const { skipAuth = false } = options; // Allow tests to skip auth
+
+  // Trust proxy for Railway/reverse proxies
+  setupTrustProxy(app);
 
   // Use provided db or initialize
   if (db) {
@@ -49,13 +57,16 @@ export function createApp(db = null) {
     initDb();
   }
 
-  // Setup middleware
+  // Setup security middleware (helmet, rate limiting)
+  setupSecurity(app);
+
+  // Setup other middleware (json parsing, CORS)
   setupMiddleware(app);
 
   // Serve static files
   app.use(express.static(join(__dirname, '../public')));
 
-  // Health check
+  // Health check (public)
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
@@ -64,7 +75,16 @@ export function createApp(db = null) {
     });
   });
 
-  // Register pre-loaded feature routes
+  // Auth routes (public - handles its own auth for protected endpoints)
+  app.use('/api/auth', authRouter);
+  console.log('Registered: /api/auth');
+
+  // Apply authentication middleware to all other API routes
+  if (!skipAuth) {
+    app.use('/api', requireAuth);
+  }
+
+  // Register pre-loaded feature routes (now protected)
   for (const [feature, router] of featureRouters) {
     app.use(`/api/${feature}`, router);
     console.log(`Registered: /api/${feature}`);
@@ -93,12 +113,42 @@ if (isMain) {
   const HOST = '0.0.0.0'; // Bind to all interfaces for Railway/Docker
   const app = createApp();
 
-  const server = app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, async () => {
     console.log(`FinanceFlow server listening on port ${PORT}`);
     console.log(`Health check available at /api/health`);
+
     // In production, the public URL is configured via Railway/custom domain
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
       console.log(`Public URL: https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+
+    // Create initial admin user if none exists
+    try {
+      const result = await createInitialUser();
+      if (result.created) {
+        console.log('');
+        console.log('========================================');
+        console.log('  INITIAL ADMIN USER CREATED');
+        console.log('========================================');
+        console.log(`  Username: ${result.username}`);
+        console.log(`  Password: ${result.password}`);
+        console.log('');
+        console.log('  Please change this password immediately!');
+        console.log('========================================');
+        console.log('');
+      }
+    } catch (err) {
+      console.error('Failed to create initial user:', err.message);
+    }
+
+    // Clean up expired sessions on startup
+    try {
+      const cleanup = cleanupExpiredSessions();
+      if (cleanup.cleaned > 0) {
+        console.log(`Cleaned up ${cleanup.cleaned} expired sessions`);
+      }
+    } catch (err) {
+      console.error('Session cleanup failed:', err.message);
     }
   });
 

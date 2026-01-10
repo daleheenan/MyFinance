@@ -4,6 +4,7 @@
  */
 
 import { router } from './router.js';
+import { auth } from './auth.js';
 
 // Import page modules
 import * as overviewPage from '../features/overview/overview.page.js';
@@ -14,11 +15,19 @@ import * as settingsPage from '../features/settings/settings.page.js';
 import * as subscriptionsPage from '../features/subscriptions/subscriptions.page.js';
 import * as networthPage from '../features/networth/networth.page.js';
 import * as forecastingPage from '../features/forecasting/forecasting.page.js';
+import * as loginPage from '../features/auth/login.page.js';
+
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = ['/login'];
 
 /**
  * Register all application routes
  */
 function registerRoutes() {
+  // Public routes
+  router.register('/login', loginPage);
+
+  // Protected routes
   router.register('/overview', overviewPage);
   router.register('/transactions', transactionsPage);
   router.register('/analytics', analyticsPage);
@@ -30,14 +39,86 @@ function registerRoutes() {
 }
 
 /**
+ * Update UI based on auth state
+ */
+function updateAuthUI() {
+  const nav = document.querySelector('.nav-container');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  if (auth.isAuthenticated()) {
+    // Show logout button
+    if (!logoutBtn) {
+      const logoutLi = document.createElement('li');
+      logoutLi.innerHTML = `<button id="logout-btn" class="nav-link logout-btn">Logout</button>`;
+      const navLinks = nav.querySelector('.nav-links');
+      navLinks.appendChild(logoutLi);
+
+      logoutLi.querySelector('#logout-btn').addEventListener('click', async () => {
+        await auth.logout();
+        window.location.hash = '#/login';
+        updateAuthUI();
+      });
+    }
+
+    // Show nav
+    nav.style.display = '';
+  } else {
+    // Remove logout button if it exists
+    if (logoutBtn) {
+      logoutBtn.closest('li').remove();
+    }
+
+    // Hide nav on login page
+    const currentPath = window.location.hash.replace('#', '') || '/overview';
+    if (PUBLIC_ROUTES.includes(currentPath)) {
+      nav.style.display = 'none';
+    }
+  }
+}
+
+/**
  * Initialize the application
  */
 async function init() {
   // Register routes
   registerRoutes();
 
+  // Check auth status
+  auth.init();
+
+  // Verify session if we have a token
+  if (auth.getToken()) {
+    const isValid = await auth.verify();
+    if (!isValid) {
+      // Token invalid, redirect to login
+      window.location.hash = '#/login';
+    }
+  }
+
+  // Add auth check before navigation
+  router.setAuthCheck(async (path) => {
+    // Allow public routes
+    if (PUBLIC_ROUTES.includes(path)) {
+      return true;
+    }
+
+    // Check if authenticated
+    if (!auth.isAuthenticated()) {
+      window.location.hash = '#/login';
+      return false;
+    }
+
+    return true;
+  });
+
+  // Update UI based on auth state
+  updateAuthUI();
+
   // Start the router (await to ensure first page renders)
   await router.start();
+
+  // Update UI after navigation
+  window.addEventListener('hashchange', updateAuthUI);
 
   console.log('FinanceFlow initialized');
 }

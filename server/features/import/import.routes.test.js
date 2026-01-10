@@ -18,7 +18,7 @@ describe('Import Routes', () => {
 
   beforeEach(() => {
     db = createTestDb();
-    app = createApp(db);
+    app = createApp(db, { skipAuth: true });
   });
 
   afterEach(() => {

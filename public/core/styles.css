@@ -253,6 +253,20 @@ p {
   background: rgba(0, 122, 255, 0.1);
 }
 
+/* Logout button style */
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--red);
+}
+
+.logout-btn:hover {
+  color: #d32f2f;
+  background: rgba(255, 59, 48, 0.1);
+}
+
 /* ===== NAV DROPDOWN ===== */
 
 .nav-dropdown {

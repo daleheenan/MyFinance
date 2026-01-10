@@ -8,10 +8,19 @@ class Router {
     this.routes = new Map();
     this.currentPage = null;
     this.notFoundHandler = null;
+    this.authCheck = null;
 
     // Bind hashchange event
     this._onHashChange = this._onHashChange.bind(this);
     window.addEventListener('hashchange', this._onHashChange);
+  }
+
+  /**
+   * Set authentication check callback
+   * @param {function} checkFn - Async function that returns true if navigation should proceed
+   */
+  setAuthCheck(checkFn) {
+    this.authCheck = checkFn;
   }
 
   /**
@@ -59,6 +68,14 @@ class Router {
     if (!container) {
       console.error('Router: #app container not found');
       return;
+    }
+
+    // Run auth check if set
+    if (this.authCheck) {
+      const allowed = await this.authCheck(path);
+      if (!allowed) {
+        return; // Auth check will handle redirect
+      }
     }
 
     // Unmount current page

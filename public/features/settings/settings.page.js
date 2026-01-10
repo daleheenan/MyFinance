@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { escapeHtml, formatCurrency, formatDate } from '../../core/utils.js';
+import { auth } from '../../core/auth.js';
 
 // Private state
 let container = null;
@@ -194,6 +195,78 @@ function render() {
           </button>
         </div>
       </section>
+
+      <!-- User Management Section -->
+      <section class="settings-section" id="user-section">
+        <div class="settings-section-header">
+          <div>
+            <h2 class="settings-section-title">User Management</h2>
+            <p class="settings-section-description">Manage your account security and view login activity</p>
+          </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="user-management-card">
+          <div class="user-management-header">
+            <span class="user-management-icon">🔒</span>
+            <div>
+              <h3 class="user-management-title">Change Password</h3>
+              <p class="user-management-description">Update your login password</p>
+            </div>
+          </div>
+          <form id="change-password-form" class="change-password-form">
+            <div class="form-group">
+              <label class="form-label" for="current-password">Current Password</label>
+              <input type="password" class="form-input" id="current-password" required autocomplete="current-password">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="new-password">New Password</label>
+              <input type="password" class="form-input" id="new-password" required autocomplete="new-password" minlength="8">
+              <small class="text-secondary">Minimum 8 characters</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="confirm-password">Confirm New Password</label>
+              <input type="password" class="form-input" id="confirm-password" required autocomplete="new-password">
+            </div>
+            <div id="password-error" class="form-error" style="display: none;"></div>
+            <button type="submit" class="btn btn-primary" id="change-password-btn">Change Password</button>
+          </form>
+        </div>
+
+        <!-- Login History -->
+        <div class="user-management-card">
+          <div class="user-management-header">
+            <span class="user-management-icon">📋</span>
+            <div>
+              <h3 class="user-management-title">Login History</h3>
+              <p class="user-management-description">Recent login attempts to your account</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="refresh-login-history">Refresh</button>
+          </div>
+          <div id="login-history-container" class="login-history-container">
+            <div class="section-loading">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Sessions -->
+        <div class="user-management-card">
+          <div class="user-management-header">
+            <span class="user-management-icon">💻</span>
+            <div>
+              <h3 class="user-management-title">Active Sessions</h3>
+              <p class="user-management-description">Devices currently logged into your account</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="refresh-sessions">Refresh</button>
+          </div>
+          <div id="sessions-container" class="sessions-container">
+            <div class="section-loading">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   `;
 
@@ -257,6 +330,30 @@ function attachEventListeners() {
     const clickHandler = (e) => handleDelegatedClick(e);
     settingsPage.addEventListener('click', clickHandler);
     onCleanup(() => settingsPage.removeEventListener('click', clickHandler));
+  }
+
+  // Change password form
+  const changePasswordForm = container.querySelector('#change-password-form');
+  if (changePasswordForm) {
+    const handler = (e) => handleChangePassword(e);
+    changePasswordForm.addEventListener('submit', handler);
+    onCleanup(() => changePasswordForm.removeEventListener('submit', handler));
+  }
+
+  // Refresh login history button
+  const refreshHistoryBtn = container.querySelector('#refresh-login-history');
+  if (refreshHistoryBtn) {
+    const handler = () => loadLoginHistory();
+    refreshHistoryBtn.addEventListener('click', handler);
+    onCleanup(() => refreshHistoryBtn.removeEventListener('click', handler));
+  }
+
+  // Refresh sessions button
+  const refreshSessionsBtn = container.querySelector('#refresh-sessions');
+  if (refreshSessionsBtn) {
+    const handler = () => loadActiveSessions();
+    refreshSessionsBtn.addEventListener('click', handler);
+    onCleanup(() => refreshSessionsBtn.removeEventListener('click', handler));
   }
 }
 
@@ -362,7 +459,9 @@ async function loadAllData() {
     loadCategories(),
     loadCategoryRules(),
     loadImportBatches(),
-    loadRecurringPatterns()
+    loadRecurringPatterns(),
+    loadLoginHistory(),
+    loadActiveSessions()
   ]);
 }
 
@@ -1569,4 +1668,225 @@ function showToast(message, type = 'info') {
       setTimeout(() => toast.remove(), 300);
     }
   }, 5000);
+}
+
+// ============= USER MANAGEMENT SECTION =============
+
+/**
+ * Handle password change form submission
+ */
+async function handleChangePassword(e) {
+  e.preventDefault();
+
+  const currentPassword = document.getElementById('current-password').value;
+  const newPassword = document.getElementById('new-password').value;
+  const confirmPassword = document.getElementById('confirm-password').value;
+  const errorDiv = document.getElementById('password-error');
+  const submitBtn = document.getElementById('change-password-btn');
+
+  // Clear previous error
+  errorDiv.style.display = 'none';
+
+  // Validate
+  if (newPassword.length < 8) {
+    errorDiv.textContent = 'New password must be at least 8 characters';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    errorDiv.textContent = 'New passwords do not match';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Changing...';
+
+  const result = await auth.changePassword(currentPassword, newPassword);
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Change Password';
+
+  if (result.success) {
+    showToast('Password changed successfully', 'success');
+    // Clear form
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+  } else {
+    errorDiv.textContent = result.error || 'Failed to change password';
+    errorDiv.style.display = 'block';
+  }
+}
+
+/**
+ * Load login history
+ */
+async function loadLoginHistory() {
+  const container = document.getElementById('login-history-container');
+  if (!container) return;
+
+  try {
+    const history = await auth.getLoginHistory(20);
+    renderLoginHistory(history);
+  } catch (err) {
+    container.innerHTML = `
+      <div class="section-error">
+        <p>Failed to load login history: ${escapeHtml(err.message)}</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Render login history table
+ */
+function renderLoginHistory(history) {
+  const container = document.getElementById('login-history-container');
+  if (!history || !history.length) {
+    container.innerHTML = `
+      <div class="section-empty">
+        <p>No login history available</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="login-history-table">
+      <thead>
+        <tr>
+          <th>Date & Time</th>
+          <th>Status</th>
+          <th>IP Address</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${history.map(entry => `
+          <tr class="${entry.success ? 'success' : 'failed'}">
+            <td>${formatDate(entry.timestamp)}</td>
+            <td>
+              <span class="login-status ${entry.success ? 'success' : 'failed'}">
+                ${entry.success ? '✓ Success' : '✕ Failed'}
+              </span>
+            </td>
+            <td><code>${escapeHtml(entry.ip_address || 'Unknown')}</code></td>
+            <td>${entry.failure_reason ? escapeHtml(entry.failure_reason) : '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Load active sessions
+ */
+async function loadActiveSessions() {
+  const container = document.getElementById('sessions-container');
+  if (!container) return;
+
+  try {
+    const sessions = await auth.getActiveSessions();
+    renderActiveSessions(sessions);
+  } catch (err) {
+    container.innerHTML = `
+      <div class="section-error">
+        <p>Failed to load sessions: ${escapeHtml(err.message)}</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Render active sessions list
+ */
+function renderActiveSessions(sessions) {
+  const container = document.getElementById('sessions-container');
+  if (!sessions || !sessions.length) {
+    container.innerHTML = `
+      <div class="section-empty">
+        <p>No active sessions</p>
+      </div>
+    `;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  sessions.forEach(session => {
+    const item = document.createElement('div');
+    item.className = 'session-item';
+    item.innerHTML = `
+      <div class="session-info">
+        <div class="session-device">
+          ${getDeviceIcon(session.user_agent)} ${getDeviceName(session.user_agent)}
+        </div>
+        <div class="session-details">
+          <span>IP: <code>${escapeHtml(session.ip_address || 'Unknown')}</code></span>
+          <span>Last active: ${formatDate(session.last_activity)}</span>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm session-revoke-btn" data-id="${session.id}">Revoke</button>
+    `;
+
+    // Add revoke handler
+    const revokeBtn = item.querySelector('.session-revoke-btn');
+    revokeBtn.addEventListener('click', async () => {
+      revokeBtn.disabled = true;
+      const success = await auth.revokeSession(session.id);
+      if (success) {
+        showToast('Session revoked', 'success');
+        await loadActiveSessions();
+      } else {
+        showToast('Failed to revoke session', 'error');
+        revokeBtn.disabled = false;
+      }
+    });
+
+    fragment.appendChild(item);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(fragment);
+}
+
+/**
+ * Get device icon from user agent
+ */
+function getDeviceIcon(userAgent) {
+  if (!userAgent) return '💻';
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) return '📱';
+  if (ua.includes('tablet') || ua.includes('ipad')) return '📱';
+  if (ua.includes('mac')) return '🖥️';
+  if (ua.includes('windows')) return '💻';
+  if (ua.includes('linux')) return '🐧';
+  return '💻';
+}
+
+/**
+ * Get device name from user agent
+ */
+function getDeviceName(userAgent) {
+  if (!userAgent) return 'Unknown Device';
+  const ua = userAgent.toLowerCase();
+
+  // Browser detection
+  let browser = 'Unknown Browser';
+  if (ua.includes('firefox')) browser = 'Firefox';
+  else if (ua.includes('chrome') && !ua.includes('edg')) browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
+  else if (ua.includes('edg')) browser = 'Edge';
+
+  // OS detection
+  let os = '';
+  if (ua.includes('windows')) os = 'Windows';
+  else if (ua.includes('mac')) os = 'macOS';
+  else if (ua.includes('linux')) os = 'Linux';
+  else if (ua.includes('android')) os = 'Android';
+  else if (ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
+
+  return os ? `${browser} on ${os}` : browser;
 }

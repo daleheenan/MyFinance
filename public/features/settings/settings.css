@@ -1081,3 +1081,189 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== USER MANAGEMENT SECTION ===== */
+
+.user-management-card {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+.user-management-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.user-management-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.user-management-header > div {
+  flex: 1;
+}
+
+.user-management-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.user-management-description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Change Password Form */
+.change-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 400px;
+}
+
+.change-password-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-error {
+  color: var(--red);
+  font-size: var(--text-sm);
+  padding: var(--space-sm);
+  background: rgba(255, 59, 48, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+/* Login History Table */
+.login-history-container {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.login-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.login-history-table th,
+.login-history-table td {
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  border-bottom: var(--border-light);
+}
+
+.login-history-table th {
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+}
+
+.login-history-table tr.failed {
+  background: rgba(255, 59, 48, 0.05);
+}
+
+.login-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+.login-status.success {
+  background: rgba(52, 199, 89, 0.15);
+  color: var(--green);
+}
+
+.login-status.failed {
+  background: rgba(255, 59, 48, 0.15);
+  color: var(--red);
+}
+
+/* Sessions Container */
+.sessions-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: var(--border-light);
+}
+
+.session-info {
+  flex: 1;
+}
+
+.session-device {
+  font-weight: var(--font-medium);
+  margin-bottom: var(--space-xs);
+}
+
+.session-details {
+  display: flex;
+  gap: var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.session-details code {
+  font-size: var(--text-xs);
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .user-management-header {
+    flex-wrap: wrap;
+  }
+
+  .user-management-header > button {
+    width: 100%;
+    margin-top: var(--space-sm);
+  }
+
+  .session-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .session-item .btn {
+    width: 100%;
+  }
+
+  .session-details {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .login-history-table {
+    font-size: var(--text-xs);
+  }
+
+  .login-history-table th,
+  .login-history-table td {
+    padding: var(--space-xs) var(--space-sm);
+  }
+}

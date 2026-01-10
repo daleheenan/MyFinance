@@ -516,7 +516,7 @@ describe('Forecasting Routes', () => {
 
   beforeEach(() => {
     db = createTestDb();
-    app = createApp(db);
+    app = createApp(db, { skipAuth: true });
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-15'));
   });
