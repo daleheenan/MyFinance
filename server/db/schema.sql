@@ -4,7 +4,8 @@
 -- Accounts table
 CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_number TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    account_number TEXT,
     account_name TEXT NOT NULL,
     sort_code TEXT,
     account_type TEXT DEFAULT 'debit' CHECK(account_type IN ('debit', 'credit')),
@@ -13,21 +14,30 @@ CREATE TABLE IF NOT EXISTS accounts (
     credit_limit REAL,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, account_number)
 );
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
 
 -- Categories table
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
+    user_id INTEGER,
+    name TEXT NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('income', 'expense', 'neutral')),
     colour TEXT NOT NULL,
     icon TEXT,
     parent_group TEXT,
     is_default INTEGER DEFAULT 0,
     sort_order INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, name)
 );
+
+CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 
 -- Import batches table (must be created before transactions for FK)
 CREATE TABLE IF NOT EXISTS import_batches (
@@ -78,17 +88,22 @@ CREATE INDEX IF NOT EXISTS idx_transactions_date_sequence ON transactions(transa
 -- Category rules table
 CREATE TABLE IF NOT EXISTS category_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     pattern TEXT NOT NULL,
     category_id INTEGER NOT NULL,
     priority INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_category_rules_user ON category_rules(user_id);
 
 -- Budgets table
 CREATE TABLE IF NOT EXISTS budgets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     category_id INTEGER NOT NULL,
     month TEXT NOT NULL,
     budgeted_amount REAL NOT NULL,
@@ -96,15 +111,18 @@ CREATE TABLE IF NOT EXISTS budgets (
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id),
-    UNIQUE(category_id, month)
+    UNIQUE(user_id, category_id, month)
 );
 
+CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(month);
 
 -- Recurring patterns table
 CREATE TABLE IF NOT EXISTS recurring_patterns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     description_pattern TEXT NOT NULL,
     merchant_name TEXT,
     typical_amount REAL,
@@ -115,36 +133,49 @@ CREATE TABLE IF NOT EXISTS recurring_patterns (
     is_subscription INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
--- Settings table
+CREATE INDEX IF NOT EXISTS idx_recurring_patterns_user ON recurring_patterns(user_id);
+
+-- Settings table (per-user settings)
 CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    key TEXT NOT NULL,
     value TEXT,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, key)
 );
+
+CREATE INDEX IF NOT EXISTS idx_settings_user ON settings(user_id);
 
 -- ===== ADVANCED FEATURES TABLES =====
 
 -- Merchants table
 CREATE TABLE IF NOT EXISTS merchants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    raw_pattern TEXT UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    raw_pattern TEXT NOT NULL,
     display_name TEXT NOT NULL,
     category_id INTEGER,
     logo_url TEXT,
     is_subscription INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    UNIQUE(user_id, raw_pattern)
 );
 
+CREATE INDEX IF NOT EXISTS idx_merchants_user ON merchants(user_id);
 CREATE INDEX IF NOT EXISTS idx_merchants_pattern ON merchants(raw_pattern);
 
 -- Subscriptions table (supports both recurring expenses and recurring income)
 CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     merchant_pattern TEXT NOT NULL,
     display_name TEXT NOT NULL,
     category_id INTEGER,
@@ -157,27 +188,29 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_type ON subscriptions(type);
-
--- Migration: Add type column to existing subscriptions table if it doesn't exist
--- SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we use a workaround
--- This will silently fail if the column already exists (which is fine)
 
 -- Net worth snapshots table
 CREATE TABLE IF NOT EXISTS net_worth_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    snapshot_date TEXT UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    snapshot_date TEXT NOT NULL,
     total_assets REAL NOT NULL DEFAULT 0,
     total_liabilities REAL NOT NULL DEFAULT 0,
     net_worth REAL NOT NULL DEFAULT 0,
     account_breakdown TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, snapshot_date)
 );
 
+CREATE INDEX IF NOT EXISTS idx_net_worth_user ON net_worth_snapshots(user_id);
 CREATE INDEX IF NOT EXISTS idx_net_worth_date ON net_worth_snapshots(snapshot_date);
 
 -- Anomalies log table

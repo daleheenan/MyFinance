@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { formatCurrency, escapeHtml } from '../../core/utils.js';
+import { showError, showWarning } from '../../core/toast.js';
 
 let container = null;
 let cleanupFunctions = [];
@@ -570,12 +571,12 @@ function setupBudgetModalEvents() {
     const notes = container.querySelector('#budget-notes').value;
 
     if (!categoryId) {
-      alert('Please select a category');
+      showWarning('Please select a category');
       return;
     }
 
     if (!amount || parseFloat(amount) < 0) {
-      alert('Please enter a valid budget amount');
+      showWarning('Please enter a valid budget amount');
       return;
     }
 
@@ -593,7 +594,7 @@ function setupBudgetModalEvents() {
       closeModal();
       await loadData();
     } catch (err) {
-      alert(`Failed to save budget: ${err.message}`);
+      showError(`Failed to save budget: ${err.message}`);
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save Budget';
@@ -655,7 +656,7 @@ function setupDeleteModalEvents() {
       closeModal();
       await loadData();
     } catch (err) {
-      alert(`Failed to delete budget: ${err.message}`);
+      showError(`Failed to delete budget: ${err.message}`);
     } finally {
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Delete';
@@ -666,7 +667,7 @@ function setupDeleteModalEvents() {
   onCleanup(() => confirmBtn.removeEventListener('click', confirmHandler));
 }
 
-function showError(message) {
+function renderErrorState(message) {
   const budgetsContainer = container.querySelector('#budgets-container');
   budgetsContainer.innerHTML = `
     <div class="error-state">

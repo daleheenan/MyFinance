@@ -16,6 +16,7 @@ const router = Router();
 router.get('/', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       account_id,
       page = 1,
@@ -29,6 +30,12 @@ router.get('/', (req, res, next) => {
     // Validate required param
     if (!account_id) {
       throw new ApiError('account_id is required', 400);
+    }
+
+    // Verify account belongs to user
+    const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId);
+    if (!account) {
+      throw new ApiError('Account not found', 404);
     }
 
     const pageNum = parseInt(page, 10);
@@ -107,9 +114,10 @@ router.get('/', (req, res, next) => {
 router.get('/uncategorized', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const limit = parseInt(req.query.limit, 10) || 50;
 
-    const transactions = getUncategorizedTransactions(db, limit);
+    const transactions = getUncategorizedTransactions(db, limit, userId);
 
     res.json({
       success: true,
@@ -130,11 +138,12 @@ router.get('/uncategorized', (req, res, next) => {
 router.post('/auto-categorize', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { transaction_ids } = req.body;
 
     // Pass null if not provided, otherwise pass the array
     const ids = transaction_ids !== undefined ? transaction_ids : null;
-    const result = autoCategorize(db, ids);
+    const result = autoCategorize(db, ids, userId);
 
     res.json({
       success: true,
@@ -152,8 +161,10 @@ router.post('/auto-categorize', (req, res, next) => {
 router.get('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
+    // Join with accounts to verify ownership
     const stmt = db.prepare(`
       SELECT
         t.*,
@@ -162,11 +173,12 @@ router.get('/:id', (req, res, next) => {
         c.icon AS category_icon,
         c.type AS category_type
       FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.id = ?
+      WHERE t.id = ? AND a.user_id = ?
     `);
 
-    const transaction = stmt.get(id);
+    const transaction = stmt.get(id, userId);
 
     if (!transaction) {
       throw new ApiError('Transaction not found', 404);
@@ -189,11 +201,16 @@ router.get('/:id', (req, res, next) => {
 router.put('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
     const { description, category_id, notes } = req.body;
 
-    // Check if transaction exists
-    const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    // Check if transaction exists and belongs to user's account
+    const existing = db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      WHERE t.id = ? AND a.user_id = ?
+    `).get(id, userId);
     if (!existing) {
       throw new ApiError('Transaction not found', 404);
     }
@@ -260,10 +277,15 @@ router.put('/:id', (req, res, next) => {
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
-    // Check if transaction exists and get account_id
-    const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    // Check if transaction exists and belongs to user's account
+    const existing = db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      WHERE t.id = ? AND a.user_id = ?
+    `).get(id, userId);
     if (!existing) {
       throw new ApiError('Transaction not found', 404);
     }

@@ -498,7 +498,7 @@ function showAccountModal(account = null) {
   const accountName = account?.account_name || '';
   const openingBalance = account?.opening_balance || 0;
   const accountNumber = account?.account_number || '';
-  const accountType = account?.account_type || 'checking';
+  const accountType = account?.account_type || 'debit';
 
   const dangerZone = isNew ? '' : `
     <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--border-light);">
@@ -519,13 +519,12 @@ function showAccountModal(account = null) {
         <div class="form-group">
           <label class="form-label" for="account-name">Account Name</label>
           <input type="text" class="form-input" id="account-name"
-                 value="${escapeHtml(accountName)}" required placeholder="e.g., Main Checking">
+                 value="${escapeHtml(accountName)}" required placeholder="e.g., Current Account">
         </div>
         <div class="form-group">
           <label class="form-label" for="account-type">Account Type</label>
           <select class="form-select" id="account-type" ${isNew ? '' : 'disabled'}>
-            <option value="checking" ${accountType === 'checking' ? 'selected' : ''}>Checking</option>
-            <option value="savings" ${accountType === 'savings' ? 'selected' : ''}>Savings</option>
+            <option value="debit" ${accountType === 'debit' ? 'selected' : ''}>Debit (Current/Savings)</option>
             <option value="credit" ${accountType === 'credit' ? 'selected' : ''}>Credit Card</option>
           </select>
           ${isNew ? '' : '<small class="text-secondary">Account type cannot be changed</small>'}

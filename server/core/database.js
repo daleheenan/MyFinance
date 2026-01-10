@@ -8,38 +8,48 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 let db = null;
 
 /**
+ * Helper to add a column if it doesn't exist
+ */
+function addColumnIfNotExists(database, table, column, definition) {
+  const tableCheck = database.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name=?
+  `).get(table);
+
+  if (tableCheck) {
+    const columns = database.prepare(`PRAGMA table_info(${table})`).all();
+    const hasColumn = columns.some(col => col.name === column);
+
+    if (!hasColumn) {
+      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Run database migrations for schema updates.
  * Safely adds columns that may not exist in older databases.
  * @param {Database} database - The database instance
  */
 function runMigrations(database) {
   // Migration 1: Add subscriptions.type column
-  const subscriptionsTableCheck = database.prepare(`
-    SELECT name FROM sqlite_master WHERE type='table' AND name='subscriptions'
-  `).get();
-
-  if (subscriptionsTableCheck) {
-    const subColumns = database.prepare(`PRAGMA table_info(subscriptions)`).all();
-    const hasTypeColumn = subColumns.some(col => col.name === 'type');
-
-    if (!hasTypeColumn) {
-      database.exec(`ALTER TABLE subscriptions ADD COLUMN type TEXT DEFAULT 'expense'`);
-    }
-  }
+  addColumnIfNotExists(database, 'subscriptions', 'type', "TEXT DEFAULT 'expense'");
 
   // Migration 2: Add transactions.sequence column for same-date ordering
-  const transactionsTableCheck = database.prepare(`
-    SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'
-  `).get();
+  addColumnIfNotExists(database, 'transactions', 'sequence', 'INTEGER DEFAULT 0');
 
-  if (transactionsTableCheck) {
-    const txnColumns = database.prepare(`PRAGMA table_info(transactions)`).all();
-    const hasSequenceColumn = txnColumns.some(col => col.name === 'sequence');
-
-    if (!hasSequenceColumn) {
-      database.exec(`ALTER TABLE transactions ADD COLUMN sequence INTEGER DEFAULT 0`);
-    }
-  }
+  // Migration 3: Add user_id columns to all user-owned tables for multi-tenant support
+  // All existing data gets assigned to user_id = 1 (the first/admin user)
+  addColumnIfNotExists(database, 'accounts', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'categories', 'user_id', 'INTEGER');
+  addColumnIfNotExists(database, 'category_rules', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'budgets', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'recurring_patterns', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'settings', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'merchants', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'subscriptions', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'net_worth_snapshots', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
 }
 
 export function initDb(dbPath) {
