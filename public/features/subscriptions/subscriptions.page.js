@@ -137,9 +137,9 @@ function render() {
       <!-- Active Items List -->
       <div class="card subscriptions-list-card">
         <div class="card-header">
-          <h3 class="card-title" id="list-title">Active Subscriptions</h3>
+          <h3 class="card-title" id="list-title">Active Bills & Subscriptions</h3>
           <button type="button" class="btn btn-primary btn-sm" id="add-subscription-btn">
-            Add Subscription
+            Add Bill
           </button>
         </div>
         <div id="subscriptions-container">
@@ -153,8 +153,8 @@ function render() {
       <!-- Detected Section -->
       <div class="card detected-card" id="detected-section">
         <div class="card-header">
-          <h3 class="card-title" id="detected-title">Detected Subscriptions</h3>
-          <span class="text-secondary" id="detected-subtitle">Patterns found in your transactions</span>
+          <h3 class="card-title" id="detected-title">Detected Bills</h3>
+          <span class="text-secondary" id="detected-subtitle">Recurring payments found in your transactions</span>
         </div>
         <div id="detected-container">
           <div class="loading">
@@ -496,7 +496,7 @@ function renderSubscriptions() {
   if (filteredSubs.length === 0) {
     subsContainer.innerHTML = `
       <div class="empty-state">
-        <p>No ${isIncome ? 'recurring income' : 'subscriptions'} yet</p>
+        <p>No ${isIncome ? 'recurring income' : 'bills or subscriptions'} yet</p>
         <p class="text-secondary">Add your first ${isIncome ? 'income source' : 'subscription'} or check detected patterns below</p>
       </div>
     `;
