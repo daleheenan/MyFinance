@@ -323,6 +323,72 @@ router.get('/:id/summary', (req, res, next) => {
 });
 
 // ==========================================================================
+// DELETE /api/accounts/:id - Delete an account and all its transactions
+// ==========================================================================
+router.delete('/:id', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists first
+    const account = db.prepare('SELECT id, account_name FROM accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Use transaction to ensure atomicity
+    const deleteAccount = db.transaction(() => {
+      // 1. Delete anomalies that reference transactions in this account
+      db.prepare(`
+        DELETE FROM anomalies
+        WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id = ?)
+      `).run(accountId);
+
+      // 2. Clear linked_transaction_id references (for transfers)
+      db.prepare(`
+        UPDATE transactions
+        SET linked_transaction_id = NULL
+        WHERE linked_transaction_id IN (SELECT id FROM transactions WHERE account_id = ?)
+      `).run(accountId);
+
+      // 3. Delete all transactions for this account
+      const txnResult = db.prepare('DELETE FROM transactions WHERE account_id = ?').run(accountId);
+
+      // 4. Delete import batches for this account
+      db.prepare('DELETE FROM import_batches WHERE account_id = ?').run(accountId);
+
+      // 5. Delete the account itself
+      db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
+
+      return txnResult;
+    });
+
+    const result = deleteAccount();
+
+    res.json({
+      success: true,
+      data: {
+        deleted_transactions: result.changes,
+        message: `Deleted account "${account.account_name}" and ${result.changes} transactions`
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
 // DELETE /api/accounts/:id/transactions - Clear all transactions from an account
 // ==========================================================================
 router.delete('/:id/transactions', (req, res, next) => {

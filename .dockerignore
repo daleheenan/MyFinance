@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Data files
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Test files
+tests/
+*.test.js
+coverage/
+playwright-report/
+
+# Development files
+.git
+.gitignore
+.env.local
+.env.development
+*.md
+*.log
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

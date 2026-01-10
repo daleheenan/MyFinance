@@ -274,6 +274,14 @@ function handleDelegatedClick(e) {
     return;
   }
 
+  // Account delete button
+  if (target.closest('.account-delete-btn')) {
+    const accountId = parseInt(target.closest('.account-delete-btn').dataset.id);
+    const account = accounts.find(a => a.id === accountId);
+    if (account) confirmDeleteAccount(account);
+    return;
+  }
+
   // Category edit button
   if (target.closest('.category-edit-btn')) {
     const categoryId = parseInt(target.closest('.category-edit-btn').dataset.id);
@@ -413,6 +421,7 @@ function renderAccounts() {
       </div>
       <div class="account-card-actions">
         <button class="btn btn-secondary btn-sm account-edit-btn" data-id="${account.id}">Edit</button>
+        <button class="btn btn-danger btn-sm account-delete-btn" data-id="${account.id}">Delete</button>
       </div>
     `;
     fragment.appendChild(card);
@@ -520,6 +529,27 @@ function confirmClearTransactions(account) {
         await loadAccounts();
       } catch (err) {
         showToast(`Failed to clear transactions: ${err.message}`, 'error');
+      }
+    }
+  });
+}
+
+/**
+ * Confirm deletion of an account
+ */
+function confirmDeleteAccount(account) {
+  showConfirmDialog({
+    title: 'Delete Account',
+    message: `Are you sure you want to delete <strong>${escapeHtml(account.account_name)}</strong>?<br><br>This will permanently delete the account and ALL its transactions. This action cannot be undone.`,
+    type: 'danger',
+    confirmText: 'Delete Account',
+    onConfirm: async () => {
+      try {
+        await api.delete(`/accounts/${account.id}`);
+        showToast(`Account "${account.account_name}" deleted successfully`, 'success');
+        await loadAccounts();
+      } catch (err) {
+        showToast(`Failed to delete account: ${err.message}`, 'error');
       }
     }
   });
