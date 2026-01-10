@@ -207,6 +207,14 @@ function render() {
           </div>
           <div class="modal-body">
             <div id="category-picker-list" class="category-picker"></div>
+            <div id="similar-transactions-section" class="similar-section hidden">
+              <div class="similar-header">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="apply-to-similar-checkbox" checked>
+                  <span id="similar-count-label">Apply to similar transactions</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -748,11 +756,25 @@ function startInlineEdit(element) {
  * Open category picker modal
  */
 let categoryPickerTxnId = null;
+let similarTransactionsCount = 0;
+let currentTxnDescription = '';
 
-function openCategoryPicker(txnId) {
+async function openCategoryPicker(txnId) {
   categoryPickerTxnId = txnId;
+  similarTransactionsCount = 0;
+  currentTxnDescription = '';
+
   const modal = container.querySelector('#category-modal');
   const list = container.querySelector('#category-picker-list');
+  const similarSection = container.querySelector('#similar-transactions-section');
+  const similarLabel = container.querySelector('#similar-count-label');
+  const applyCheckbox = container.querySelector('#apply-to-similar-checkbox');
+
+  // Get the transaction description
+  const txn = transactions.find(t => t.id === txnId);
+  if (txn) {
+    currentTxnDescription = txn.description || txn.original_description;
+  }
 
   list.innerHTML = categories.map(cat => `
     <button type="button" class="category-option" data-category-id="${cat.id}">
@@ -761,6 +783,34 @@ function openCategoryPicker(txnId) {
       </span>
     </button>
   `).join('');
+
+  // Find similar transactions
+  if (currentTxnDescription) {
+    try {
+      const response = await fetch('/api/categories/find-similar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: currentTxnDescription,
+          exclude_id: txnId
+        })
+      });
+      const json = await response.json();
+
+      if (json.success && json.data.count > 0) {
+        similarTransactionsCount = json.data.count;
+        similarLabel.textContent = `Also apply to ${similarTransactionsCount} similar transaction${similarTransactionsCount !== 1 ? 's' : ''}`;
+        applyCheckbox.checked = true;
+        similarSection.classList.remove('hidden');
+      } else {
+        similarSection.classList.add('hidden');
+      }
+    } catch {
+      similarSection.classList.add('hidden');
+    }
+  } else {
+    similarSection.classList.add('hidden');
+  }
 
   modal.classList.remove('hidden');
 }
@@ -790,9 +840,13 @@ function setupCategoryModalEvents() {
     if (!option || !categoryPickerTxnId) return;
 
     const categoryId = parseInt(option.dataset.categoryId, 10);
+    const applyToSimilar = container.querySelector('#apply-to-similar-checkbox')?.checked;
+
     try {
+      // Update the current transaction
       await api.put(`/transactions/${categoryPickerTxnId}`, { category_id: categoryId });
-      // Update local data and re-render
+
+      // Update local data
       const txn = transactions.find(t => t.id === categoryPickerTxnId);
       if (txn) {
         const cat = categories.find(c => c.id === categoryId);
@@ -801,7 +855,34 @@ function setupCategoryModalEvents() {
         txn.category_colour = cat?.colour || '#636366';
         txn.category_icon = cat?.icon || '';
       }
-      renderTransactionsTable();
+
+      // Apply to similar transactions if checkbox is checked
+      if (applyToSimilar && similarTransactionsCount > 0 && currentTxnDescription) {
+        try {
+          const response = await fetch('/api/categories/apply-to-similar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              description: currentTxnDescription,
+              category_id: categoryId,
+              exclude_id: categoryPickerTxnId
+            })
+          });
+          const json = await response.json();
+          if (json.success && json.data.updated > 0) {
+            // Reload transactions to show updated categories
+            await loadTransactions();
+          } else {
+            renderTransactionsTable();
+          }
+        } catch {
+          // Still render even if apply-to-similar fails
+          renderTransactionsTable();
+        }
+      } else {
+        renderTransactionsTable();
+      }
+
       closeModal();
     } catch (err) {
       alert(`Failed to update category: ${err.message}`);

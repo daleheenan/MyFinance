@@ -332,6 +332,139 @@ export function autoCategorize(db, transactionIds = null) {
 }
 
 /**
+ * Find similar transactions that match the same pattern.
+ * Used to show how many transactions would be affected by a category rule.
+ *
+ * @param {Database} db - better-sqlite3 database instance
+ * @param {string} description - Transaction description to extract pattern from
+ * @param {number} excludeId - Optional transaction ID to exclude (the one being categorized)
+ * @returns {object} Object with pattern, count, and matching transactions
+ */
+export function findSimilarTransactions(db, description, excludeId = null) {
+  const pattern = extractPattern(description);
+  if (!pattern) {
+    return { pattern: null, count: 0, transactions: [] };
+  }
+
+  // Strip % wildcards for LIKE query
+  const cleanPattern = pattern.replace(/%/g, '');
+
+  // Find transactions with similar descriptions (case insensitive)
+  let query = `
+    SELECT
+      t.id,
+      t.description,
+      t.original_description,
+      t.debit_amount,
+      t.credit_amount,
+      t.transaction_date,
+      t.category_id,
+      c.name as category_name
+    FROM transactions t
+    LEFT JOIN categories c ON c.id = t.category_id
+    WHERE UPPER(t.description) LIKE ?
+  `;
+  const params = [`%${cleanPattern}%`];
+
+  if (excludeId !== null) {
+    query += ' AND t.id != ?';
+    params.push(excludeId);
+  }
+
+  query += ' ORDER BY t.transaction_date DESC LIMIT 100';
+
+  const transactions = db.prepare(query).all(...params);
+
+  return {
+    pattern,
+    cleanPattern,
+    count: transactions.length,
+    transactions
+  };
+}
+
+/**
+ * Apply a category to all transactions matching a pattern.
+ * This is used for the "apply to similar" feature.
+ *
+ * @param {Database} db - better-sqlite3 database instance
+ * @param {string} description - Description to extract pattern from
+ * @param {number} categoryId - Category to apply
+ * @param {object} options - Options
+ * @param {boolean} options.onlyUncategorized - Only update transactions that are uncategorized (category_id = 11 "Other")
+ * @param {number} options.excludeId - Transaction ID to exclude
+ * @returns {object} Result with updated count and pattern
+ */
+export function applyToSimilarTransactions(db, description, categoryId, options = {}) {
+  const { onlyUncategorized = false, excludeId = null } = options;
+  const OTHER_CATEGORY_ID = 11;
+
+  // Validate category exists
+  const category = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(categoryId);
+  if (!category) {
+    throw new Error('Category not found');
+  }
+
+  const pattern = extractPattern(description);
+  if (!pattern) {
+    throw new Error('Could not extract pattern from description');
+  }
+
+  const cleanPattern = pattern.replace(/%/g, '');
+
+  // Build update query
+  let whereClause = `WHERE UPPER(description) LIKE ?`;
+  const params = [`%${cleanPattern}%`];
+
+  if (onlyUncategorized) {
+    whereClause += ` AND category_id = ?`;
+    params.push(OTHER_CATEGORY_ID);
+  }
+
+  if (excludeId !== null) {
+    whereClause += ` AND id != ?`;
+    params.push(excludeId);
+  }
+
+  // Count how many will be affected
+  const countResult = db.prepare(`SELECT COUNT(*) as count FROM transactions ${whereClause}`).get(...params);
+  const affectedCount = countResult.count;
+
+  if (affectedCount === 0) {
+    return {
+      pattern,
+      categoryId,
+      categoryName: category.name,
+      updated: 0,
+      message: 'No similar transactions found to update'
+    };
+  }
+
+  // Perform the update - need to build SET clause properly
+  const updateQuery = `
+    UPDATE transactions
+    SET category_id = ?, updated_at = datetime('now')
+    ${whereClause}
+  `;
+  const result = db.prepare(updateQuery).run(categoryId, ...params);
+
+  // Also learn this pattern as a rule for future imports
+  try {
+    learnFromCategorization(db, description, categoryId);
+  } catch {
+    // Ignore if rule already exists or pattern extraction fails
+  }
+
+  return {
+    pattern,
+    categoryId,
+    categoryName: category.name,
+    updated: result.changes,
+    message: `Updated ${result.changes} similar transaction${result.changes !== 1 ? 's' : ''}`
+  };
+}
+
+/**
  * Get uncategorized transactions with suggestions.
  *
  * @param {Database} db - better-sqlite3 database instance

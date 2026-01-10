@@ -13,7 +13,9 @@ import {
   autoCategorize,
   getUncategorizedTransactions,
   extractPattern,
-  levenshteinDistance
+  levenshteinDistance,
+  findSimilarTransactions,
+  applyToSimilarTransactions
 } from './categorization.service.js';
 
 describe('CategorizationService', () => {
@@ -475,6 +477,152 @@ describe('CategorizationService', () => {
       expect(result[0].description).toBe('NEW');
       expect(result[1].description).toBe('MID');
       expect(result[2].description).toBe('OLD');
+    });
+  });
+
+  // ==========================================================================
+  // findSimilarTransactions
+  // ==========================================================================
+  describe('findSimilarTransactions', () => {
+    it('should find transactions with similar descriptions', () => {
+      const id1 = insertTestTransaction(db, { description: 'TESCO STORES 1234', category_id: 3 });
+      const id2 = insertTestTransaction(db, { description: 'TESCO EXPRESS 5678', category_id: 3 });
+      const id3 = insertTestTransaction(db, { description: 'TESCO METRO LONDON', category_id: null });
+      const id4 = insertTestTransaction(db, { description: 'AMAZON ORDER', category_id: 4 });
+
+      const result = findSimilarTransactions(db, 'TESCO STORES 9999');
+
+      expect(result.pattern).toBe('%TESCO%');
+      expect(result.count).toBe(3); // id1, id2, id3
+      expect(result.transactions.map(t => t.id)).toEqual(expect.arrayContaining([id1, id2, id3]));
+      expect(result.transactions.map(t => t.id)).not.toContain(id4);
+    });
+
+    it('should exclude specific transaction ID when provided', () => {
+      const id1 = insertTestTransaction(db, { description: 'TESCO STORES 1234', category_id: 3 });
+      const id2 = insertTestTransaction(db, { description: 'TESCO EXPRESS 5678', category_id: 3 });
+
+      const result = findSimilarTransactions(db, 'TESCO STORES 1234', id1);
+
+      expect(result.count).toBe(1);
+      expect(result.transactions[0].id).toBe(id2);
+    });
+
+    it('should return empty for descriptions with no extractable pattern', () => {
+      insertTestTransaction(db, { description: 'TESCO STORES', category_id: 3 });
+
+      const result = findSimilarTransactions(db, '123 456');
+
+      expect(result.pattern).toBeNull();
+      expect(result.count).toBe(0);
+      expect(result.transactions).toEqual([]);
+    });
+
+    it('should be case insensitive', () => {
+      insertTestTransaction(db, { description: 'TESCO STORES', category_id: 3 });
+      insertTestTransaction(db, { description: 'tesco express', category_id: 3 });
+
+      const result = findSimilarTransactions(db, 'Tesco Metro');
+
+      expect(result.count).toBe(2);
+    });
+
+    it('should return count of 0 when no similar transactions exist', () => {
+      insertTestTransaction(db, { description: 'AMAZON ORDER', category_id: 4 });
+
+      const result = findSimilarTransactions(db, 'TESCO STORES');
+
+      expect(result.count).toBe(0);
+    });
+  });
+
+  // ==========================================================================
+  // applyToSimilarTransactions
+  // ==========================================================================
+  describe('applyToSimilarTransactions', () => {
+    it('should apply category to all similar transactions', () => {
+      const id1 = insertTestTransaction(db, { description: 'TESCO STORES 1234', category_id: 11 }); // Other
+      const id2 = insertTestTransaction(db, { description: 'TESCO EXPRESS 5678', category_id: 11 }); // Other
+      const id3 = insertTestTransaction(db, { description: 'AMAZON ORDER', category_id: 4 });
+
+      const result = applyToSimilarTransactions(db, 'TESCO METRO', 3); // Groceries
+
+      expect(result.updated).toBe(2);
+      expect(result.categoryName).toBe('Groceries');
+
+      // Verify updates
+      const txn1 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id1);
+      const txn2 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id2);
+      const txn3 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id3);
+
+      expect(txn1.category_id).toBe(3);
+      expect(txn2.category_id).toBe(3);
+      expect(txn3.category_id).toBe(4); // Unchanged
+    });
+
+    it('should only update uncategorized when onlyUncategorized is true', () => {
+      const id1 = insertTestTransaction(db, { description: 'TESCO STORES 1234', category_id: 11 }); // Other
+      const id2 = insertTestTransaction(db, { description: 'TESCO EXPRESS 5678', category_id: 4 }); // Shopping
+
+      const result = applyToSimilarTransactions(db, 'TESCO METRO', 3, { onlyUncategorized: true });
+
+      expect(result.updated).toBe(1);
+
+      const txn1 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id1);
+      const txn2 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id2);
+
+      expect(txn1.category_id).toBe(3);
+      expect(txn2.category_id).toBe(4); // Unchanged
+    });
+
+    it('should exclude specific transaction ID', () => {
+      const id1 = insertTestTransaction(db, { description: 'TESCO STORES 1234', category_id: 11 });
+      const id2 = insertTestTransaction(db, { description: 'TESCO EXPRESS 5678', category_id: 11 });
+
+      const result = applyToSimilarTransactions(db, 'TESCO METRO', 3, { excludeId: id1 });
+
+      expect(result.updated).toBe(1);
+
+      const txn1 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id1);
+      const txn2 = db.prepare('SELECT category_id FROM transactions WHERE id = ?').get(id2);
+
+      expect(txn1.category_id).toBe(11); // Unchanged
+      expect(txn2.category_id).toBe(3);
+    });
+
+    it('should return 0 updated when no similar transactions found', () => {
+      insertTestTransaction(db, { description: 'AMAZON ORDER', category_id: 4 });
+
+      const result = applyToSimilarTransactions(db, 'TESCO STORES', 3);
+
+      expect(result.updated).toBe(0);
+      expect(result.message).toContain('No similar transactions');
+    });
+
+    it('should throw error for invalid category ID', () => {
+      insertTestTransaction(db, { description: 'TESCO STORES', category_id: 11 });
+
+      expect(() => applyToSimilarTransactions(db, 'TESCO METRO', 999)).toThrow('Category not found');
+    });
+
+    it('should throw error when pattern cannot be extracted', () => {
+      insertTestTransaction(db, { description: 'TESCO STORES', category_id: 11 });
+
+      expect(() => applyToSimilarTransactions(db, '123 456', 3)).toThrow('Could not extract pattern');
+    });
+
+    it('should learn the pattern as a rule for future imports', () => {
+      insertTestTransaction(db, { description: 'WAITROSE STORE 1234', category_id: 11 });
+
+      applyToSimilarTransactions(db, 'WAITROSE MARKET', 3);
+
+      // Verify rule was created
+      const rule = db.prepare(`
+        SELECT * FROM category_rules WHERE pattern = '%WAITROSE%' AND category_id = 3
+      `).get();
+
+      expect(rule).toBeDefined();
+      expect(rule.is_active).toBe(1);
     });
   });
 

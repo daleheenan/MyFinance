@@ -27,7 +27,9 @@ import {
 } from './categories.service.js';
 import {
   suggestCategory,
-  learnFromCategorization
+  learnFromCategorization,
+  findSimilarTransactions,
+  applyToSimilarTransactions
 } from './categorization.service.js';
 
 const router = Router();
@@ -133,6 +135,78 @@ router.post('/learn', (req, res) => {
   try {
     const result = learnFromCategorization(db, description, category_id);
     res.status(result.existing ? 200 : 201).json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+/**
+ * POST /api/categories/find-similar
+ * Finds transactions with similar descriptions.
+ * Body: { description: string, exclude_id?: number }
+ * Returns: { pattern, count, transactions[] }
+ */
+router.post('/find-similar', (req, res) => {
+  const db = getDb();
+  const { description, exclude_id } = req.body;
+
+  if (!description || typeof description !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Description is required'
+    });
+  }
+
+  try {
+    const result = findSimilarTransactions(db, description, exclude_id || null);
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+/**
+ * POST /api/categories/apply-to-similar
+ * Applies a category to all transactions matching a similar pattern.
+ * Body: { description: string, category_id: number, only_uncategorized?: boolean, exclude_id?: number }
+ * Returns: { pattern, updated, message }
+ */
+router.post('/apply-to-similar', (req, res) => {
+  const db = getDb();
+  const { description, category_id, only_uncategorized, exclude_id } = req.body;
+
+  if (!description || typeof description !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Description is required'
+    });
+  }
+
+  if (category_id === undefined || category_id === null) {
+    return res.status(400).json({
+      success: false,
+      error: 'category_id is required'
+    });
+  }
+
+  try {
+    const result = applyToSimilarTransactions(db, description, category_id, {
+      onlyUncategorized: Boolean(only_uncategorized),
+      excludeId: exclude_id || null
+    });
+    res.json({
       success: true,
       data: result
     });

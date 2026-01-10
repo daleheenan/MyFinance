@@ -487,6 +487,43 @@
   white-space: nowrap;
 }
 
+/* ===== SIMILAR TRANSACTIONS SECTION ===== */
+
+.similar-section {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--border-light);
+}
+
+.similar-section.hidden {
+  display: none;
+}
+
+.similar-header {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.checkbox-label:hover {
+  color: var(--text-primary);
+}
+
 /* ===== IMPORT MODAL ===== */
 
 .import-step {
