@@ -28,16 +28,17 @@ function pennyPrecision(amount) {
  * Net Worth = Assets - Liabilities
  *
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {{ totalAssets: number, totalLiabilities: number, netWorth: number, breakdown: Array }}
  */
-export function getCurrentNetWorth(db) {
-  // Get all active accounts with their balances
+export function getCurrentNetWorth(db, userId) {
+  // Get all active accounts with their balances for this user
   const accounts = db.prepare(`
     SELECT id, account_name, account_number, account_type, current_balance
     FROM accounts
-    WHERE is_active = 1
+    WHERE is_active = 1 AND user_id = ?
     ORDER BY id
-  `).all();
+  `).all(userId);
 
   let totalAssets = 0;
   let totalLiabilities = 0;
@@ -77,24 +78,26 @@ export function getCurrentNetWorth(db) {
   const oneMonthAgo = getMonthsAgo(1);
   const comparisonDate = formatDateUTC(oneMonthAgo);
 
-  // Find the closest snapshot to one month ago (within 7 days)
+  // Find the closest snapshot to one month ago (within 7 days) for this user
   const previousSnapshot = db.prepare(`
     SELECT net_worth, snapshot_date
     FROM net_worth_snapshots
     WHERE snapshot_date <= ?
       AND snapshot_date != ?
+      AND user_id = ?
     ORDER BY snapshot_date DESC
     LIMIT 1
-  `).get(comparisonDate, today);
+  `).get(comparisonDate, today, userId);
 
   // Fall back to most recent snapshot if no month-old snapshot exists
   const fallbackSnapshot = !previousSnapshot ? db.prepare(`
     SELECT net_worth, snapshot_date
     FROM net_worth_snapshots
     WHERE snapshot_date < ?
+      AND user_id = ?
     ORDER BY snapshot_date DESC
     LIMIT 1
-  `).get(today) : null;
+  `).get(today, userId) : null;
 
   const comparisonSnapshot = previousSnapshot || fallbackSnapshot;
   const previousNetWorth = comparisonSnapshot ? pennyPrecision(comparisonSnapshot.net_worth) : netWorth;
@@ -117,15 +120,17 @@ export function getCurrentNetWorth(db) {
  *
  * @param {Database} db - The database instance
  * @param {number} months - Number of snapshots to return (default 12)
+ * @param {number} userId - User ID to filter by
  * @returns {Array} Array of snapshots ordered by date descending
  */
-export function getNetWorthHistory(db, months = 12) {
+export function getNetWorthHistory(db, months = 12, userId) {
   const snapshots = db.prepare(`
     SELECT id, snapshot_date, total_assets, total_liabilities, net_worth, account_breakdown, created_at
     FROM net_worth_snapshots
+    WHERE user_id = ?
     ORDER BY snapshot_date DESC
     LIMIT ?
-  `).all(months);
+  `).all(userId, months);
 
   return snapshots;
 }
@@ -134,16 +139,17 @@ export function getNetWorthHistory(db, months = 12) {
  * Get accounts grouped by type with totals.
  *
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {{ assets: Array, liabilities: Array, totals: { assets: number, liabilities: number, netWorth: number } }}
  */
-export function getNetWorthBreakdown(db) {
-  // Get all active accounts with their balances
+export function getNetWorthBreakdown(db, userId) {
+  // Get all active accounts with their balances for this user
   const accounts = db.prepare(`
     SELECT id, account_name, account_number, account_type, current_balance
     FROM accounts
-    WHERE is_active = 1
+    WHERE is_active = 1 AND user_id = ?
     ORDER BY id
-  `).all();
+  `).all(userId);
 
   const assets = [];
   const liabilities = [];
@@ -195,18 +201,19 @@ export function getNetWorthBreakdown(db) {
  * Uses INSERT OR REPLACE to update if a snapshot for today already exists.
  *
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to create snapshot for
  * @returns {Object} The created/updated snapshot
  */
-export function takeSnapshot(db) {
+export function takeSnapshot(db, userId) {
   const today = getTodayUTC();
-  const current = getCurrentNetWorth(db);
+  const current = getCurrentNetWorth(db, userId);
   const accountBreakdown = JSON.stringify(current.breakdown);
 
-  // UPSERT - insert or update for same date
+  // UPSERT - insert or update for same date and user
   const stmt = db.prepare(`
-    INSERT INTO net_worth_snapshots (snapshot_date, total_assets, total_liabilities, net_worth, account_breakdown)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(snapshot_date) DO UPDATE SET
+    INSERT INTO net_worth_snapshots (user_id, snapshot_date, total_assets, total_liabilities, net_worth, account_breakdown)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, snapshot_date) DO UPDATE SET
       total_assets = excluded.total_assets,
       total_liabilities = excluded.total_liabilities,
       net_worth = excluded.net_worth,
@@ -215,6 +222,7 @@ export function takeSnapshot(db) {
   `);
 
   stmt.run(
+    userId,
     today,
     current.total_assets,
     current.total_liabilities,
@@ -224,8 +232,8 @@ export function takeSnapshot(db) {
 
   // Retrieve and return the saved/updated snapshot
   const snapshot = db.prepare(`
-    SELECT * FROM net_worth_snapshots WHERE snapshot_date = ?
-  `).get(today);
+    SELECT * FROM net_worth_snapshots WHERE snapshot_date = ? AND user_id = ?
+  `).get(today, userId);
 
   return snapshot;
 }

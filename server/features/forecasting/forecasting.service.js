@@ -41,25 +41,27 @@ function getPastMonth(monthsBack) {
 }
 
 /**
- * Get total balance across all accounts.
+ * Get total balance across all accounts for a user.
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {number} Total balance
  */
-function getTotalBalance(db) {
+function getTotalBalance(db, userId) {
   const result = db.prepare(`
     SELECT COALESCE(SUM(current_balance), 0) AS total
     FROM accounts
-    WHERE is_active = 1
-  `).get();
+    WHERE is_active = 1 AND user_id = ?
+  `).get(userId);
   return pennyPrecision(result.total);
 }
 
 /**
- * Get active recurring patterns from the database.
+ * Get active recurring patterns from the database for a user.
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {Array<Object>} Active recurring patterns
  */
-function getActiveRecurringPatterns(db) {
+function getActiveRecurringPatterns(db, userId) {
   return db.prepare(`
     SELECT
       rp.id,
@@ -74,16 +76,17 @@ function getActiveRecurringPatterns(db) {
       c.type AS category_type
     FROM recurring_patterns rp
     LEFT JOIN categories c ON rp.category_id = c.id
-    WHERE rp.is_active = 1
-  `).all();
+    WHERE rp.is_active = 1 AND rp.user_id = ?
+  `).all(userId);
 }
 
 /**
- * Get active subscriptions from the database.
+ * Get active subscriptions from the database for a user.
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {Array<Object>} Active subscriptions with category info
  */
-function getActiveSubscriptions(db) {
+function getActiveSubscriptions(db, userId) {
   return db.prepare(`
     SELECT
       s.id,
@@ -98,8 +101,8 @@ function getActiveSubscriptions(db) {
       c.type AS category_type
     FROM subscriptions s
     LEFT JOIN categories c ON s.category_id = c.id
-    WHERE s.is_active = 1
-  `).all();
+    WHERE s.is_active = 1 AND s.user_id = ?
+  `).all(userId);
 }
 
 /**
@@ -122,12 +125,13 @@ function toMonthlyAmount(amount, frequency) {
 }
 
 /**
- * Get monthly totals from subscriptions (income and expenses).
+ * Get monthly totals from subscriptions (income and expenses) for a user.
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {{ monthlyIncome: number, monthlyExpenses: number, items: Array }}
  */
-function getSubscriptionMonthlyTotals(db) {
-  const subscriptions = getActiveSubscriptions(db);
+function getSubscriptionMonthlyTotals(db, userId) {
+  const subscriptions = getActiveSubscriptions(db, userId);
 
   let monthlyIncome = 0;
   let monthlyExpenses = 0;
@@ -163,38 +167,34 @@ function getSubscriptionMonthlyTotals(db) {
 
 /**
  * Calculate average income and expenses over the past N months.
- * Uses ONLY the Main Account (account_id = 1) for accurate calculations.
+ * Uses all user accounts for accurate calculations.
  * Excludes transfers from calculations.
  *
  * @param {Database} db - The database instance
  * @param {number} months - Number of months to look back (default: 3)
+ * @param {number} userId - User ID to filter by
  * @returns {{ avgIncome: number, avgExpenses: number, avgNet: number, monthsAnalyzed: number }}
  */
-export function getMonthlyAverages(db, months = 3) {
+export function getMonthlyAverages(db, months = 3, userId = null) {
   // Calculate the date range
   const endMonth = getPastMonth(1); // Start from last month (current month is incomplete)
   const startMonth = getPastMonth(months);
 
-  // Get Main Account ID (first account, typically id=1)
-  const mainAccount = db.prepare(`
-    SELECT id FROM accounts WHERE account_name = 'Main Account' LIMIT 1
-  `).get();
-  const mainAccountId = mainAccount?.id || 1;
-
-  // Get monthly totals from Main Account only
+  // Get monthly totals from user's accounts
   const monthlyData = db.prepare(`
     SELECT
-      strftime('%Y-%m', transaction_date) AS month,
-      COALESCE(SUM(CASE WHEN credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS income,
-      COALESCE(SUM(CASE WHEN debit_amount > 0 THEN debit_amount ELSE 0 END), 0) AS expenses
-    FROM transactions
-    WHERE account_id = ?
-      AND is_transfer = 0
-      AND strftime('%Y-%m', transaction_date) >= ?
-      AND strftime('%Y-%m', transaction_date) <= ?
+      strftime('%Y-%m', t.transaction_date) AS month,
+      COALESCE(SUM(CASE WHEN t.credit_amount > 0 THEN t.credit_amount ELSE 0 END), 0) AS income,
+      COALESCE(SUM(CASE WHEN t.debit_amount > 0 THEN t.debit_amount ELSE 0 END), 0) AS expenses
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE a.user_id = ?
+      AND t.is_transfer = 0
+      AND strftime('%Y-%m', t.transaction_date) >= ?
+      AND strftime('%Y-%m', t.transaction_date) <= ?
     GROUP BY month
     ORDER BY month
-  `).all(mainAccountId, startMonth, endMonth);
+  `).all(userId, startMonth, endMonth);
 
   if (monthlyData.length === 0) {
     return {
@@ -229,6 +229,7 @@ export function getMonthlyAverages(db, months = 3) {
  * @param {Object} options - Forecast options
  * @param {number} options.months - Number of months to project (default: 12)
  * @param {number} options.historyMonths - Number of months of history to analyze (default: 3)
+ * @param {number} options.userId - User ID to filter by
  * @returns {{
  *   currentBalance: number,
  *   averages: Object,
@@ -246,20 +247,21 @@ export function getMonthlyAverages(db, months = 3) {
 export function getCashFlowForecast(db, options = {}) {
   const {
     months = 12,
-    historyMonths = 3
+    historyMonths = 3,
+    userId = null
   } = options;
 
   // Get current total balance
-  const currentBalance = getTotalBalance(db);
+  const currentBalance = getTotalBalance(db, userId);
 
   // Get historical averages
-  const averages = getMonthlyAverages(db, historyMonths);
+  const averages = getMonthlyAverages(db, historyMonths, userId);
 
   // Get subscription-based recurring items (more reliable than patterns)
-  const subscriptionTotals = getSubscriptionMonthlyTotals(db);
+  const subscriptionTotals = getSubscriptionMonthlyTotals(db, userId);
 
   // Get active recurring patterns (as fallback/additional data)
-  const recurringPatterns = getActiveRecurringPatterns(db);
+  const recurringPatterns = getActiveRecurringPatterns(db, userId);
 
   // Build recurring items list from patterns (excluding duplicates with subscriptions)
   const patternItems = recurringPatterns
@@ -345,6 +347,7 @@ export function getCashFlowForecast(db, options = {}) {
  * @param {Object} options - Scenario options
  * @param {number} options.months - Projection period in months (default: 12)
  * @param {number} options.historyMonths - History period for averages (default: 3)
+ * @param {number} options.userId - User ID to filter by
  * @returns {{
  *   currentBalance: number,
  *   subscriptions: Object,
@@ -357,17 +360,18 @@ export function getCashFlowForecast(db, options = {}) {
 export function getScenarios(db, options = {}) {
   const {
     months = 12,
-    historyMonths = 3
+    historyMonths = 3,
+    userId = null
   } = options;
 
   // Get current balance
-  const currentBalance = getTotalBalance(db);
+  const currentBalance = getTotalBalance(db, userId);
 
   // Get historical averages
-  const averages = getMonthlyAverages(db, historyMonths);
+  const averages = getMonthlyAverages(db, historyMonths, userId);
 
   // Get subscription-based recurring amounts
-  const subscriptionTotals = getSubscriptionMonthlyTotals(db);
+  const subscriptionTotals = getSubscriptionMonthlyTotals(db, userId);
   const knownRecurringExpenses = subscriptionTotals.monthly_expenses;
   const knownRecurringIncome = subscriptionTotals.monthly_income;
 
@@ -440,28 +444,35 @@ export function getScenarios(db, options = {}) {
  *
  * @param {Database} db - The database instance
  * @param {number|null} categoryId - Optional category ID to filter by
+ * @param {number} userId - User ID to filter by
  * @returns {Object.<string, number>} Object with month keys ("01"-"12") and average spending values
  */
-export function getSeasonalPatterns(db, categoryId = null) {
-  // Build category filter
-  let categoryFilter = '';
+export function getSeasonalPatterns(db, categoryId = null, userId = null) {
+  // Build filters
+  const conditions = ['t.is_transfer = 0', 't.debit_amount > 0'];
   const params = [];
 
   if (categoryId !== null && categoryId !== undefined) {
-    categoryFilter = 'AND category_id = ?';
+    conditions.push('t.category_id = ?');
     params.push(categoryId);
   }
+
+  if (userId) {
+    conditions.push('a.user_id = ?');
+    params.push(userId);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Get spending grouped by calendar month, then average across years
   const monthlySpending = db.prepare(`
     SELECT
-      strftime('%m', transaction_date) AS calendar_month,
-      strftime('%Y', transaction_date) AS year,
-      COALESCE(SUM(debit_amount), 0) AS total_spending
-    FROM transactions
-    WHERE is_transfer = 0
-      AND debit_amount > 0
-      ${categoryFilter}
+      strftime('%m', t.transaction_date) AS calendar_month,
+      strftime('%Y', t.transaction_date) AS year,
+      COALESCE(SUM(t.debit_amount), 0) AS total_spending
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    ${whereClause}
     GROUP BY calendar_month, year
   `).all(...params);
 

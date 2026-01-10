@@ -70,6 +70,7 @@ function parseCategoryId(value) {
 router.get('/cashflow', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { months } = req.query;
 
     // Validate months parameter
@@ -83,7 +84,8 @@ router.get('/cashflow', (req, res, next) => {
 
     // Get cash flow forecast
     const forecast = getCashFlowForecast(db, {
-      months: monthsResult.value
+      months: monthsResult.value,
+      userId
     });
 
     res.json({
@@ -101,6 +103,7 @@ router.get('/cashflow', (req, res, next) => {
 router.get('/averages', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { months } = req.query;
 
     // Validate months parameter
@@ -113,7 +116,7 @@ router.get('/averages', (req, res, next) => {
     }
 
     // Get monthly averages
-    const averages = getMonthlyAverages(db, monthsResult.value);
+    const averages = getMonthlyAverages(db, monthsResult.value, userId);
 
     res.json({
       success: true,
@@ -130,6 +133,7 @@ router.get('/averages', (req, res, next) => {
 router.get('/scenarios', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { months } = req.query;
 
     // Validate months parameter
@@ -143,7 +147,8 @@ router.get('/scenarios', (req, res, next) => {
 
     // Get scenarios
     const scenarios = getScenarios(db, {
-      months: monthsResult.value
+      months: monthsResult.value,
+      userId
     });
 
     res.json({
@@ -161,6 +166,7 @@ router.get('/scenarios', (req, res, next) => {
 router.get('/seasonal', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { category_id: categoryIdStr } = req.query;
 
     // Validate category_id parameter
@@ -173,7 +179,7 @@ router.get('/seasonal', (req, res, next) => {
     }
 
     // Get seasonal patterns
-    const patterns = getSeasonalPatterns(db, categoryResult.value);
+    const patterns = getSeasonalPatterns(db, categoryResult.value, userId);
 
     res.json({
       success: true,

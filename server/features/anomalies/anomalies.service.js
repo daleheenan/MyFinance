@@ -84,13 +84,22 @@ function extractMerchantPattern(description) {
  * @param {object} options - Detection options
  * @param {number} options.days - Number of days to look back (default: 30)
  * @param {string} options.referenceDate - Reference date for testing (YYYY-MM-DD)
+ * @param {number} options.userId - User ID to filter by
  * @returns {object[]} Array of detected anomalies
  */
 export function detectAnomalies(db, options = {}) {
-  const { days = 30, referenceDate = null } = options;
+  const { days = 30, referenceDate = null, userId = null } = options;
   const cutoffDate = getDateDaysAgo(days, referenceDate);
   const currentMonth = getMonth(referenceDate);
   const anomalies = [];
+
+  // Build user filter for accounts
+  let userFilter = '';
+  const params = [cutoffDate];
+  if (userId) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+    params.push(userId);
+  }
 
   // Get recent transactions within window
   const recentTransactions = db.prepare(`
@@ -100,23 +109,24 @@ export function detectAnomalies(db, options = {}) {
     WHERE t.transaction_date >= ?
       AND t.debit_amount > 0
       AND t.is_transfer = 0
+      ${userFilter}
     ORDER BY t.transaction_date DESC
-  `).all(cutoffDate);
+  `).all(...params);
 
   // 1. Detect unusual_amount anomalies
   detectUnusualAmounts(db, recentTransactions, anomalies);
 
   // 2. Detect new_merchant_large anomalies
-  detectNewMerchantLarge(db, recentTransactions, cutoffDate, anomalies);
+  detectNewMerchantLarge(db, recentTransactions, cutoffDate, anomalies, userId);
 
   // 3. Detect potential_duplicate anomalies
   detectPotentialDuplicates(recentTransactions, anomalies);
 
   // 4. Detect category_spike anomalies
-  detectCategorySpikes(db, currentMonth, anomalies);
+  detectCategorySpikes(db, currentMonth, anomalies, userId);
 
   // Insert anomalies into database (avoiding duplicates)
-  insertAnomalies(db, anomalies);
+  insertAnomalies(db, anomalies, userId);
 
   return anomalies;
 }
@@ -175,11 +185,22 @@ function detectUnusualAmounts(db, recentTransactions, anomalies) {
 /**
  * Detect first-time merchants with transactions > 100.
  */
-function detectNewMerchantLarge(db, recentTransactions, cutoffDate, anomalies) {
+function detectNewMerchantLarge(db, recentTransactions, cutoffDate, anomalies, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const baseParams = [];
+  if (userId) {
+    userFilter = 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  }
+
   for (const txn of recentTransactions) {
     if (txn.debit_amount <= 100) continue;
 
     const merchantPattern = extractMerchantPattern(txn.description);
+
+    // Build params for this query
+    const params = [`%${merchantPattern}%`, txn.id, txn.transaction_date];
+    if (userId) params.push(userId);
 
     // Check if merchant has appeared before this transaction
     const previousTxn = db.prepare(`
@@ -187,8 +208,9 @@ function detectNewMerchantLarge(db, recentTransactions, cutoffDate, anomalies) {
       WHERE description LIKE ?
         AND id != ?
         AND transaction_date < ?
+        ${userFilter}
       LIMIT 1
-    `).get(`%${merchantPattern}%`, txn.id, txn.transaction_date);
+    `).get(...params);
 
     if (!previousTxn) {
       anomalies.push({
@@ -248,7 +270,14 @@ function detectPotentialDuplicates(recentTransactions, anomalies) {
 /**
  * Detect categories with spending 200%+ above monthly average.
  */
-function detectCategorySpikes(db, currentMonth, anomalies) {
+function detectCategorySpikes(db, currentMonth, anomalies, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const params = [currentMonth];
+  if (userId) {
+    userFilter = 'AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+    params.push(userId);
+  }
 
   // Get historical monthly spending by category (excluding current month)
   const historicalSpending = db.prepare(`
@@ -260,9 +289,10 @@ function detectCategorySpikes(db, currentMonth, anomalies) {
     WHERE is_transfer = 0
       AND debit_amount > 0
       AND strftime('%Y-%m', transaction_date) < ?
+      ${userFilter}
     GROUP BY category_id, strftime('%Y-%m', transaction_date)
     ORDER BY category_id, month
-  `).all(currentMonth);
+  `).all(...params);
 
   // Calculate average monthly spending per category
   const categoryAverages = new Map();
@@ -277,6 +307,10 @@ function detectCategorySpikes(db, currentMonth, anomalies) {
     categoryMonthCounts.set(row.category_id, categoryMonthCounts.get(row.category_id) + 1);
   }
 
+  // Build params for current month query
+  const currentParams = [currentMonth];
+  if (userId) currentParams.push(userId);
+
   // Get current month spending by category
   const currentSpending = db.prepare(`
     SELECT
@@ -288,8 +322,9 @@ function detectCategorySpikes(db, currentMonth, anomalies) {
     WHERE t.is_transfer = 0
       AND t.debit_amount > 0
       AND strftime('%Y-%m', t.transaction_date) = ?
+      ${userFilter}
     GROUP BY t.category_id
-  `).all(currentMonth);
+  `).all(...currentParams);
 
   // Check for spikes
   for (const current of currentSpending) {
@@ -319,16 +354,17 @@ function detectCategorySpikes(db, currentMonth, anomalies) {
 /**
  * Insert detected anomalies into database, avoiding duplicates.
  */
-function insertAnomalies(db, anomalies) {
+function insertAnomalies(db, anomalies, userId = null) {
   const insertStmt = db.prepare(`
-    INSERT INTO anomalies (transaction_id, anomaly_type, severity, description)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO anomalies (user_id, transaction_id, anomaly_type, severity, description)
+    VALUES (?, ?, ?, ?, ?)
   `);
 
   const checkExistsStmt = db.prepare(`
     SELECT id FROM anomalies
     WHERE transaction_id IS ?
       AND anomaly_type = ?
+      AND (user_id = ? OR (user_id IS NULL AND ? IS NULL))
     LIMIT 1
   `);
 
@@ -337,9 +373,9 @@ function insertAnomalies(db, anomalies) {
       const txnId = anomaly.transaction?.id || null;
 
       // Check if already exists
-      const existing = checkExistsStmt.get(txnId, anomaly.anomalyType);
+      const existing = checkExistsStmt.get(txnId, anomaly.anomalyType, userId, userId);
       if (!existing) {
-        insertStmt.run(txnId, anomaly.anomalyType, anomaly.severity, anomaly.description);
+        insertStmt.run(userId, txnId, anomaly.anomalyType, anomaly.severity, anomaly.description);
       }
     }
   });
@@ -354,12 +390,27 @@ function insertAnomalies(db, anomalies) {
  * @param {object} options - Query options
  * @param {boolean} options.dismissed - Include dismissed anomalies (default: false)
  * @param {number} options.limit - Maximum number to return (default: 50)
+ * @param {number} options.userId - User ID to filter by
  * @returns {object[]} Array of anomalies with transaction details
  */
 export function getAnomalies(db, options = {}) {
-  const { dismissed = false, limit = 50 } = options;
+  const { dismissed = false, limit = 50, userId = null } = options;
 
-  let query = `
+  const conditions = [];
+  const params = [];
+
+  if (!dismissed) {
+    conditions.push('a.is_dismissed = 0');
+  }
+
+  if (userId) {
+    conditions.push('a.user_id = ?');
+    params.push(userId);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const query = `
     SELECT
       a.id,
       a.transaction_id,
@@ -374,15 +425,13 @@ export function getAnomalies(db, options = {}) {
       t.transaction_date
     FROM anomalies a
     LEFT JOIN transactions t ON t.id = a.transaction_id
+    ${whereClause}
+    ORDER BY a.detected_at DESC
+    LIMIT ?
   `;
 
-  if (!dismissed) {
-    query += ' WHERE a.is_dismissed = 0';
-  }
-
-  query += ' ORDER BY a.detected_at DESC LIMIT ?';
-
-  return db.prepare(query).all(limit);
+  params.push(limit);
+  return db.prepare(query).all(...params);
 }
 
 /**
@@ -390,21 +439,22 @@ export function getAnomalies(db, options = {}) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} anomalyId - Anomaly ID to dismiss
+ * @param {number} userId - User ID to verify ownership
  * @returns {object} Result with success and dismissed info
  * @throws {Error} If anomaly not found or ID invalid
  */
-export function dismissAnomaly(db, anomalyId) {
+export function dismissAnomaly(db, anomalyId, userId) {
   if (anomalyId == null) {
     throw new Error('Anomaly ID is required');
   }
 
-  // Check anomaly exists
-  const anomaly = db.prepare('SELECT id FROM anomalies WHERE id = ?').get(anomalyId);
+  // Check anomaly exists and belongs to user
+  const anomaly = db.prepare('SELECT id FROM anomalies WHERE id = ? AND user_id = ?').get(anomalyId, userId);
   if (!anomaly) {
     throw new Error('Anomaly not found');
   }
 
-  db.prepare('UPDATE anomalies SET is_dismissed = 1 WHERE id = ?').run(anomalyId);
+  db.prepare('UPDATE anomalies SET is_dismissed = 1 WHERE id = ? AND user_id = ?').run(anomalyId, userId);
 
   return {
     success: true,
@@ -418,21 +468,22 @@ export function dismissAnomaly(db, anomalyId) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} anomalyId - Anomaly ID to confirm as fraud
+ * @param {number} userId - User ID to verify ownership
  * @returns {object} Result with success and fraud confirmation info
  * @throws {Error} If anomaly not found or ID invalid
  */
-export function confirmFraud(db, anomalyId) {
+export function confirmFraud(db, anomalyId, userId) {
   if (anomalyId == null) {
     throw new Error('Anomaly ID is required');
   }
 
-  // Check anomaly exists
-  const anomaly = db.prepare('SELECT id FROM anomalies WHERE id = ?').get(anomalyId);
+  // Check anomaly exists and belongs to user
+  const anomaly = db.prepare('SELECT id FROM anomalies WHERE id = ? AND user_id = ?').get(anomalyId, userId);
   if (!anomaly) {
     throw new Error('Anomaly not found');
   }
 
-  db.prepare('UPDATE anomalies SET is_confirmed_fraud = 1 WHERE id = ?').run(anomalyId);
+  db.prepare('UPDATE anomalies SET is_confirmed_fraud = 1 WHERE id = ? AND user_id = ?').run(anomalyId, userId);
 
   return {
     success: true,
@@ -445,22 +496,25 @@ export function confirmFraud(db, anomalyId) {
  * Get anomaly statistics - counts by type and severity.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter by
  * @returns {object} Stats object with byType, bySeverity, totals
  */
-export function getAnomalyStats(db) {
+export function getAnomalyStats(db, userId) {
   // Count by type
   const byType = db.prepare(`
     SELECT anomaly_type, COUNT(*) as count
     FROM anomalies
+    WHERE user_id = ?
     GROUP BY anomaly_type
-  `).all();
+  `).all(userId);
 
   // Count by severity
   const bySeverity = db.prepare(`
     SELECT severity, COUNT(*) as count
     FROM anomalies
+    WHERE user_id = ?
     GROUP BY severity
-  `).all();
+  `).all(userId);
 
   // Total counts
   const totals = db.prepare(`
@@ -470,7 +524,8 @@ export function getAnomalyStats(db) {
       SUM(CASE WHEN is_confirmed_fraud = 1 THEN 1 ELSE 0 END) as confirmedFraud,
       SUM(CASE WHEN is_dismissed = 0 AND is_confirmed_fraud = 0 THEN 1 ELSE 0 END) as pending
     FROM anomalies
-  `).get();
+    WHERE user_id = ?
+  `).get(userId);
 
   // Convert to objects
   const byTypeObj = {};
@@ -486,9 +541,9 @@ export function getAnomalyStats(db) {
   return {
     byType: byTypeObj,
     bySeverity: bySeverityObj,
-    total: totals.total,
-    dismissed: totals.dismissed,
-    confirmedFraud: totals.confirmedFraud,
-    pending: totals.pending
+    total: totals?.total || 0,
+    dismissed: totals?.dismissed || 0,
+    confirmedFraud: totals?.confirmedFraud || 0,
+    pending: totals?.pending || 0
   };
 }

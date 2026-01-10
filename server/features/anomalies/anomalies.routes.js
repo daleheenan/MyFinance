@@ -27,11 +27,13 @@ const router = Router();
 router.get('/', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { dismissed = 'false', limit = '50' } = req.query;
 
     const anomalies = getAnomalies(db, {
       dismissed: dismissed === 'true',
-      limit: parseInt(limit, 10) || 50
+      limit: parseInt(limit, 10) || 50,
+      userId
     });
 
     res.json({
@@ -49,7 +51,8 @@ router.get('/', (req, res, next) => {
 router.get('/stats', (req, res, next) => {
   try {
     const db = getDb();
-    const stats = getAnomalyStats(db);
+    const userId = req.user.id;
+    const stats = getAnomalyStats(db, userId);
 
     res.json({
       success: true,
@@ -66,11 +69,13 @@ router.get('/stats', (req, res, next) => {
 router.post('/detect', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { days = 30, referenceDate } = req.body;
 
     const anomalies = detectAnomalies(db, {
       days: parseInt(days, 10) || 30,
-      referenceDate: referenceDate || null
+      referenceDate: referenceDate || null,
+      userId
     });
 
     res.json({
@@ -91,6 +96,7 @@ router.post('/detect', (req, res, next) => {
 router.post('/:id/dismiss', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const id = parseInt(req.params.id, 10);
 
     if (isNaN(id)) {
@@ -100,7 +106,7 @@ router.post('/:id/dismiss', (req, res, next) => {
       });
     }
 
-    const result = dismissAnomaly(db, id);
+    const result = dismissAnomaly(db, id, userId);
 
     res.json({
       success: true,
@@ -123,6 +129,7 @@ router.post('/:id/dismiss', (req, res, next) => {
 router.post('/:id/fraud', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const id = parseInt(req.params.id, 10);
 
     if (isNaN(id)) {
@@ -132,7 +139,7 @@ router.post('/:id/fraud', (req, res, next) => {
       });
     }
 
-    const result = confirmFraud(db, id);
+    const result = confirmFraud(db, id, userId);
 
     res.json({
       success: true,

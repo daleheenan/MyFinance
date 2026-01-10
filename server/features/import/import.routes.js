@@ -286,6 +286,7 @@ router.post('/preview', upload.single('file'), (req, res) => {
 // =============================================================================
 router.post('/', upload.single('file'), (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
 
   try {
     // Validate file
@@ -305,8 +306,8 @@ router.post('/', upload.single('file'), (req, res) => {
       });
     }
 
-    // Validate account exists
-    const account = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+    // Validate account exists and belongs to user
+    const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId);
     if (!account) {
       return res.status(404).json({
         success: false,
@@ -528,8 +529,10 @@ router.post('/', upload.single('file'), (req, res) => {
 // =============================================================================
 router.get('/batches', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
 
   try {
+    // Only show batches for user's accounts
     const batches = db.prepare(`
       SELECT
         ib.id,
@@ -542,8 +545,9 @@ router.get('/batches', (req, res) => {
         ib.imported_at
       FROM import_batches ib
       JOIN accounts a ON a.id = ib.account_id
+      WHERE a.user_id = ?
       ORDER BY ib.imported_at DESC
-    `).all();
+    `).all(userId);
 
     return res.json({
       success: true,
@@ -562,6 +566,7 @@ router.get('/batches', (req, res) => {
 // =============================================================================
 router.get('/batches/:id', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
 
   try {
     const id = parseInt(req.params.id, 10);
@@ -573,7 +578,7 @@ router.get('/batches/:id', (req, res) => {
       });
     }
 
-    // Get batch with account name
+    // Get batch with account name - verify user ownership
     const batch = db.prepare(`
       SELECT
         ib.id,
@@ -586,8 +591,8 @@ router.get('/batches/:id', (req, res) => {
         ib.imported_at
       FROM import_batches ib
       JOIN accounts a ON a.id = ib.account_id
-      WHERE ib.id = ?
-    `).get(id);
+      WHERE ib.id = ? AND a.user_id = ?
+    `).get(id, userId);
 
     if (!batch) {
       return res.status(404).json({

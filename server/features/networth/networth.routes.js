@@ -25,7 +25,8 @@ const router = Router();
 router.get('/current', (req, res, next) => {
   try {
     const db = getDb();
-    const data = getCurrentNetWorth(db);
+    const userId = req.user.id;
+    const data = getCurrentNetWorth(db, userId);
 
     res.json({
       success: true,
@@ -42,6 +43,7 @@ router.get('/current', (req, res, next) => {
 router.get('/history', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { months = '12' } = req.query;
 
     // Parse and validate months parameter
@@ -53,7 +55,7 @@ router.get('/history', (req, res, next) => {
       });
     }
 
-    const data = getNetWorthHistory(db, monthsNum);
+    const data = getNetWorthHistory(db, monthsNum, userId);
 
     res.json({
       success: true,
@@ -70,7 +72,8 @@ router.get('/history', (req, res, next) => {
 router.get('/breakdown', (req, res, next) => {
   try {
     const db = getDb();
-    const data = getNetWorthBreakdown(db);
+    const userId = req.user.id;
+    const data = getNetWorthBreakdown(db, userId);
 
     res.json({
       success: true,
@@ -87,7 +90,8 @@ router.get('/breakdown', (req, res, next) => {
 router.post('/snapshot', (req, res, next) => {
   try {
     const db = getDb();
-    const snapshot = takeSnapshot(db);
+    const userId = req.user.id;
+    const snapshot = takeSnapshot(db, userId);
 
     res.status(201).json({
       success: true,
