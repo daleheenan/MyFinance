@@ -582,7 +582,7 @@
   flex-direction: column;
 }
 
-.transaction-row {
+.overview-page .transaction-row {
   display: grid;
   grid-template-columns: 80px 1fr auto;
   align-items: center;
@@ -593,11 +593,11 @@
   transition: background var(--transition-fast);
 }
 
-.transaction-row:last-child {
+.overview-page .transaction-row:last-child {
   border-bottom: none;
 }
 
-.transaction-row:hover {
+.overview-page .transaction-row:hover {
   background: var(--bg-tertiary);
   margin: 0 calc(-1 * var(--space-lg));
   padding-left: var(--space-lg);
@@ -643,22 +643,22 @@
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
 
 @media (max-width: 480px) {
-  .transaction-row {
+  .overview-page .transaction-row {
     grid-template-columns: 1fr auto;
     gap: var(--space-sm);
   }
 
-  .transaction-row__date {
+  .overview-page .transaction-row__date {
     grid-column: 1;
     font-size: var(--text-xs);
     margin-bottom: calc(-1 * var(--space-xs));
   }
 
-  .transaction-row__main {
+  .overview-page .transaction-row__main {
     grid-column: 1;
   }
 
-  .transaction-row__amount {
+  .overview-page .transaction-row__amount {
     grid-column: 2;
     grid-row: 1 / 3;
     align-self: center;

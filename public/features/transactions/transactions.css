@@ -90,7 +90,7 @@
 .transactions-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
   font-size: var(--text-sm);
 }
 
@@ -132,30 +132,33 @@
   background: rgba(0, 122, 255, 0.08);
 }
 
-/* Column widths - using percentages for better distribution */
+/* Column widths - fixed layout */
 .col-date {
-  width: 10%;
-  min-width: 90px;
+  width: 90px;
   white-space: nowrap;
 }
 
 .col-description {
-  width: 35%;
-  min-width: 150px;
+  /* Takes remaining space after fixed columns */
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .col-category {
-  width: 15%;
-  min-width: 120px;
+  width: 140px;
 }
 
 .col-debit,
-.col-credit,
+.col-credit {
+  width: 100px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .col-balance {
-  width: 12%;
-  min-width: 80px;
+  width: 110px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
