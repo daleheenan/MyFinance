@@ -205,11 +205,11 @@ function render() {
       </div>
 
       <!-- Import Modal -->
-      <div id="import-modal" class="modal hidden">
+      <div id="import-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h2>Import CSV</h2>
+            <h2 id="import-modal-title">Import CSV</h2>
             <button type="button" class="modal-close" id="import-modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
@@ -244,11 +244,11 @@ function render() {
       </div>
 
       <!-- Category Picker Modal -->
-      <div id="category-modal" class="modal hidden">
+      <div id="category-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-sm">
           <div class="modal-header">
-            <h2>Select Category</h2>
+            <h2 id="category-modal-title">Select Category</h2>
             <button type="button" class="modal-close" id="category-modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
@@ -266,11 +266,11 @@ function render() {
       </div>
 
       <!-- Delete Confirm Modal -->
-      <div id="delete-modal" class="modal hidden">
+      <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-sm">
           <div class="modal-header">
-            <h2>Delete Transaction</h2>
+            <h2 id="delete-modal-title">Delete Transaction</h2>
             <button type="button" class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
@@ -388,6 +388,29 @@ function attachEventListeners() {
 
   // Delete modal events
   setupDeleteModalEvents();
+
+  // Global Escape key handler for modals
+  const escapeHandler = (e) => {
+    if (e.key === 'Escape') {
+      // Close any open modal
+      const importModal = container.querySelector('#import-modal');
+      const categoryModal = container.querySelector('#category-modal');
+      const deleteModal = container.querySelector('#delete-modal');
+
+      if (!importModal.classList.contains('hidden')) {
+        importModal.classList.add('hidden');
+        importPreviewData = null;
+      } else if (!categoryModal.classList.contains('hidden')) {
+        categoryModal.classList.add('hidden');
+        categoryPickerTxnId = null;
+      } else if (!deleteModal.classList.contains('hidden')) {
+        deleteModal.classList.add('hidden');
+        deleteTransactionId = null;
+      }
+    }
+  };
+  document.addEventListener('keydown', escapeHandler);
+  onCleanup(() => document.removeEventListener('keydown', escapeHandler));
 }
 
 /**

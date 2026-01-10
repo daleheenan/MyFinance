@@ -25,7 +25,19 @@
 
 /* ===== NET WORTH SUMMARY ===== */
 
+.networth-summary-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
 .networth-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.networth-cards {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   gap: var(--space-md);

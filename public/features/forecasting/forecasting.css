@@ -23,6 +23,12 @@
   gap: var(--space-xs);
 }
 
+.forecast-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-sm);
+}
+
 .forecast-period-selector {
   display: flex;
   align-items: center;

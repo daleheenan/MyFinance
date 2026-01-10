@@ -102,11 +102,6 @@ function render() {
 
   container.innerHTML = `
     <div class="page budgets-page">
-      <header class="page-header">
-        <h1>Budgets</h1>
-        <p>Track your spending against monthly budgets</p>
-      </header>
-
       <!-- Month Navigator -->
       <div class="card month-navigator-card">
         <div class="month-navigator">
@@ -153,12 +148,12 @@ function render() {
       </div>
 
       <!-- Budget Modal -->
-      <div id="budget-modal" class="modal hidden">
+      <div id="budget-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
             <h2 id="modal-title">Add Budget</h2>
-            <button type="button" class="modal-close" id="modal-close">&times;</button>
+            <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
             <form id="budget-form">
@@ -188,12 +183,12 @@ function render() {
       </div>
 
       <!-- Delete Confirm Modal -->
-      <div id="delete-modal" class="modal hidden">
+      <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-sm">
           <div class="modal-header">
-            <h2>Delete Budget</h2>
-            <button type="button" class="modal-close" id="delete-modal-close">&times;</button>
+            <h2 id="delete-modal-title">Delete Budget</h2>
+            <button type="button" class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
             <p>Are you sure you want to delete this budget?</p>
@@ -256,6 +251,24 @@ function attachEventListeners() {
   // Modal events
   setupBudgetModalEvents();
   setupDeleteModalEvents();
+
+  // Global Escape key handler for modals
+  const escapeHandler = (e) => {
+    if (e.key === 'Escape') {
+      const budgetModal = container.querySelector('#budget-modal');
+      const deleteModal = container.querySelector('#delete-modal');
+
+      if (!budgetModal.classList.contains('hidden')) {
+        budgetModal.classList.add('hidden');
+        editingBudget = null;
+      } else if (!deleteModal.classList.contains('hidden')) {
+        deleteModal.classList.add('hidden');
+        deletingBudget = null;
+      }
+    }
+  };
+  document.addEventListener('keydown', escapeHandler);
+  onCleanup(() => document.removeEventListener('keydown', escapeHandler));
 }
 
 /**

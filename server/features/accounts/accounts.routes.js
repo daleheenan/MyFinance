@@ -92,6 +92,47 @@ router.get('/', (req, res, next) => {
 });
 
 // ==========================================================================
+// POST /api/accounts - Create new account
+// ==========================================================================
+router.post('/', (req, res, next) => {
+  try {
+    const { account_name, account_type, account_number, opening_balance } = req.body;
+
+    if (!account_name || !account_name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Account name is required'
+      });
+    }
+
+    const validTypes = ['checking', 'savings', 'credit'];
+    const type = validTypes.includes(account_type) ? account_type : 'checking';
+
+    const db = getDb();
+
+    const result = db.prepare(`
+      INSERT INTO accounts (account_name, account_type, account_number, opening_balance, current_balance)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      account_name.trim(),
+      type,
+      account_number?.trim() || null,
+      opening_balance || 0,
+      opening_balance || 0
+    );
+
+    const newAccount = db.prepare('SELECT * FROM accounts WHERE id = ?').get(result.lastInsertRowid);
+
+    res.status(201).json({
+      success: true,
+      data: newAccount
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
 // GET /api/accounts/:id - Get single account with current month summary
 // ==========================================================================
 router.get('/:id', (req, res, next) => {

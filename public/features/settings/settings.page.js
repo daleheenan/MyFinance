@@ -79,11 +79,6 @@ export function unmount() {
 function render() {
   container.innerHTML = `
     <div class="page settings-page">
-      <header class="page-header">
-        <h1>Settings</h1>
-        <p>Manage your accounts, categories, and preferences</p>
-      </header>
-
       <!-- Accounts Section -->
       <section class="settings-section" id="accounts-section">
         <div class="settings-section-header">
@@ -91,6 +86,7 @@ function render() {
             <h2 class="settings-section-title">Accounts</h2>
             <p class="settings-section-description">Manage your bank accounts and their details</p>
           </div>
+          <button class="btn btn-primary btn-sm" id="add-account-btn">+ Add Account</button>
         </div>
         <div id="accounts-container" class="accounts-grid">
           <div class="section-loading">
@@ -282,6 +278,14 @@ function render() {
  * Attach event listeners with delegation
  */
 function attachEventListeners() {
+  // Add Account button
+  const addAccountBtn = container.querySelector('#add-account-btn');
+  if (addAccountBtn) {
+    const handler = () => showAccountModal();
+    addAccountBtn.addEventListener('click', handler);
+    onCleanup(() => addAccountBtn.removeEventListener('click', handler));
+  }
+
   // Add Category button
   const addCategoryBtn = container.querySelector('#add-category-btn');
   if (addCategoryBtn) {
@@ -531,58 +535,76 @@ function renderAccounts() {
 }
 
 /**
- * Show account edit modal
+ * Show account add/edit modal
  */
-function showAccountModal(account) {
-  const accountName = account.account_name || '';
-  const openingBalance = account.opening_balance || 0;
-  const accountNumber = account.account_number || '';
+function showAccountModal(account = null) {
+  const isNew = !account;
+  const accountName = account?.account_name || '';
+  const openingBalance = account?.opening_balance || 0;
+  const accountNumber = account?.account_number || '';
+  const accountType = account?.account_type || 'checking';
+
+  const dangerZone = isNew ? '' : `
+    <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--border-light);">
+      <label class="form-label">Danger Zone</label>
+      <p class="text-secondary" style="margin-bottom: var(--space-sm); font-size: var(--text-sm);">
+        Clear all transactions from this account. This cannot be undone.
+      </p>
+      <button type="button" class="btn btn-danger btn-sm" id="clear-transactions-btn">
+        Clear All Transactions
+      </button>
+    </div>
+  `;
 
   const modal = createModal({
-    title: 'Edit Account',
+    title: isNew ? 'Add Account' : 'Edit Account',
     content: `
       <form id="account-form" class="account-edit-form">
         <div class="form-group">
           <label class="form-label" for="account-name">Account Name</label>
           <input type="text" class="form-input" id="account-name"
-                 value="${escapeHtml(accountName)}" required>
+                 value="${escapeHtml(accountName)}" required placeholder="e.g., Main Checking">
         </div>
         <div class="form-group">
-          <label class="form-label" for="account-number">Account Number</label>
+          <label class="form-label" for="account-type">Account Type</label>
+          <select class="form-select" id="account-type" ${isNew ? '' : 'disabled'}>
+            <option value="checking" ${accountType === 'checking' ? 'selected' : ''}>Checking</option>
+            <option value="savings" ${accountType === 'savings' ? 'selected' : ''}>Savings</option>
+            <option value="credit" ${accountType === 'credit' ? 'selected' : ''}>Credit Card</option>
+          </select>
+          ${isNew ? '' : '<small class="text-secondary">Account type cannot be changed</small>'}
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="account-number">Account Number (optional)</label>
           <input type="text" class="form-input" id="account-number"
-                 value="${escapeHtml(accountNumber)}">
+                 value="${escapeHtml(accountNumber)}" placeholder="Last 4 digits for reference">
         </div>
         <div class="form-group">
           <label class="form-label" for="account-balance">Opening Balance</label>
           <input type="number" class="form-input" id="account-balance"
-                 value="${openingBalance}" step="0.01">
+                 value="${openingBalance}" step="0.01" placeholder="0.00">
         </div>
-        <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--border-light);">
-          <label class="form-label">Danger Zone</label>
-          <p class="text-secondary" style="margin-bottom: var(--space-sm); font-size: var(--text-sm);">
-            Clear all transactions from this account. This cannot be undone.
-          </p>
-          <button type="button" class="btn btn-danger btn-sm" id="clear-transactions-btn">
-            Clear All Transactions
-          </button>
-        </div>
+        ${dangerZone}
       </form>
     `,
     footer: `
       <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
-      <button type="button" class="btn btn-primary" id="modal-save">Save Changes</button>
+      <button type="button" class="btn btn-primary" id="modal-save">${isNew ? 'Create Account' : 'Save Changes'}</button>
     `,
     onMount: () => {
-      // Add clear transactions button handler
-      const clearBtn = document.getElementById('clear-transactions-btn');
-      if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-          confirmClearTransactions(account);
-        });
+      // Add clear transactions button handler (edit mode only)
+      if (!isNew) {
+        const clearBtn = document.getElementById('clear-transactions-btn');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            confirmClearTransactions(account);
+          });
+        }
       }
     },
     onSave: async () => {
       const name = document.getElementById('account-name').value.trim();
+      const type = document.getElementById('account-type').value;
       const accountNum = document.getElementById('account-number').value.trim();
       const balance = parseFloat(document.getElementById('account-balance').value) || 0;
 
@@ -592,16 +614,26 @@ function showAccountModal(account) {
       }
 
       try {
-        await api.put(`/accounts/${account.id}`, {
-          account_name: name,
-          account_number: accountNum,
-          opening_balance: balance
-        });
-        showToast('Account updated successfully', 'success');
+        if (isNew) {
+          await api.post('/accounts', {
+            account_name: name,
+            account_type: type,
+            account_number: accountNum,
+            opening_balance: balance
+          });
+          showToast('Account created successfully', 'success');
+        } else {
+          await api.put(`/accounts/${account.id}`, {
+            account_name: name,
+            account_number: accountNum,
+            opening_balance: balance
+          });
+          showToast('Account updated successfully', 'success');
+        }
         await loadAccounts();
         return true;
       } catch (err) {
-        showToast(`Failed to update account: ${err.message}`, 'error');
+        showToast(`Failed to ${isNew ? 'create' : 'update'} account: ${err.message}`, 'error');
         return false;
       }
     }

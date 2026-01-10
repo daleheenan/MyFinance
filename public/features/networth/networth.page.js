@@ -81,16 +81,6 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page networth-page">
-      <header class="page-header">
-        <div class="page-header__content">
-          <h1>Net Worth</h1>
-          <p>Track your financial position over time</p>
-        </div>
-        <button type="button" class="btn btn-primary" id="snapshot-btn">
-          Take Snapshot
-        </button>
-      </header>
-
       <!-- Current Net Worth -->
       <div class="networth-summary" id="summary-container">
         <div class="loading">
@@ -166,15 +156,16 @@ function render() {
 }
 
 /**
+ * Handle snapshot button click
+ */
+async function handleSnapshot() {
+  await takeSnapshot();
+}
+
+/**
  * Attach event listeners with cleanup
  */
 function attachEventListeners() {
-  // Snapshot button
-  const snapshotBtn = container.querySelector('#snapshot-btn');
-  const snapshotHandler = () => takeSnapshot();
-  snapshotBtn.addEventListener('click', snapshotHandler);
-  onCleanup(() => snapshotBtn.removeEventListener('click', snapshotHandler));
-
   // Period selector
   const periodBtns = container.querySelectorAll('.period-btn');
   periodBtns.forEach(btn => {
@@ -264,10 +255,21 @@ function renderSummary() {
 
   if (!current) {
     summaryContainer.innerHTML = `
+      <div class="networth-summary-header">
+        <button type="button" class="btn btn-primary" id="snapshot-btn">
+          Take Snapshot
+        </button>
+      </div>
       <div class="empty-state">
         <p>No net worth data available</p>
       </div>
     `;
+
+    // Attach snapshot button handler even for empty state
+    const snapshotBtn = summaryContainer.querySelector('#snapshot-btn');
+    if (snapshotBtn) {
+      snapshotBtn.addEventListener('click', handleSnapshot);
+    }
     return;
   }
 
@@ -278,27 +280,40 @@ function renderSummary() {
     : '0.0';
 
   summaryContainer.innerHTML = `
-    <div class="networth-card networth-card--main">
-      <span class="networth-card__label">Net Worth</span>
-      <span class="networth-card__value ${current.net_worth >= 0 ? 'value--positive' : 'value--negative'}">
-        ${formatCurrency(current.net_worth)}
-      </span>
-      <div class="networth-card__change ${changeClass}">
-        <span class="change-icon">${changeIcon}</span>
-        <span class="change-amount">${formatCurrency(Math.abs(current.change))}</span>
-        <span class="change-percent">(${changePercent}%)</span>
-        <span class="change-period">vs last month</span>
+    <div class="networth-summary-header">
+      <button type="button" class="btn btn-primary" id="snapshot-btn">
+        Take Snapshot
+      </button>
+    </div>
+    <div class="networth-cards">
+      <div class="networth-card networth-card--main">
+        <span class="networth-card__label">Net Worth</span>
+        <span class="networth-card__value ${current.net_worth >= 0 ? 'value--positive' : 'value--negative'}">
+          ${formatCurrency(current.net_worth)}
+        </span>
+        <div class="networth-card__change ${changeClass}">
+          <span class="change-icon">${changeIcon}</span>
+          <span class="change-amount">${formatCurrency(Math.abs(current.change))}</span>
+          <span class="change-percent">(${changePercent}%)</span>
+          <span class="change-period">vs last month</span>
+        </div>
+      </div>
+      <div class="networth-card networth-card--assets">
+        <span class="networth-card__label">Total Assets</span>
+        <span class="networth-card__value value--positive">${formatCurrency(current.total_assets)}</span>
+      </div>
+      <div class="networth-card networth-card--liabilities">
+        <span class="networth-card__label">Total Liabilities</span>
+        <span class="networth-card__value value--negative">${formatCurrency(current.total_liabilities)}</span>
       </div>
     </div>
-    <div class="networth-card networth-card--assets">
-      <span class="networth-card__label">Total Assets</span>
-      <span class="networth-card__value value--positive">${formatCurrency(current.total_assets)}</span>
-    </div>
-    <div class="networth-card networth-card--liabilities">
-      <span class="networth-card__label">Total Liabilities</span>
-      <span class="networth-card__value value--negative">${formatCurrency(current.total_liabilities)}</span>
-    </div>
   `;
+
+  // Re-attach snapshot button handler
+  const snapshotBtn = summaryContainer.querySelector('#snapshot-btn');
+  if (snapshotBtn) {
+    snapshotBtn.addEventListener('click', handleSnapshot);
+  }
 }
 
 /**

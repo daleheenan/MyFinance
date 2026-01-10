@@ -91,11 +91,8 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page forecasting-page">
-      <header class="page-header">
-        <div class="page-header__content">
-          <h1>Cash Flow Forecast</h1>
-          <p>Project your future financial position</p>
-        </div>
+      <!-- Period Selector Toolbar -->
+      <div class="forecast-toolbar">
         <div class="forecast-period-selector">
           <label>Forecast Period:</label>
           <select id="forecast-months" class="form-select">
@@ -105,7 +102,7 @@ function render() {
             <option value="24">24 months</option>
           </select>
         </div>
-      </header>
+      </div>
 
       <!-- Monthly Averages Summary -->
       <div class="averages-grid" id="averages-container">

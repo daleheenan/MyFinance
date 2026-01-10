@@ -7,7 +7,8 @@ import {
   getLoginHistory,
   getActiveSessions,
   revokeSession,
-  hasUsers
+  hasUsers,
+  createUser
 } from './auth.service.js';
 import { requireAuth, getClientIP } from './auth.middleware.js';
 
@@ -223,6 +224,40 @@ router.get('/status', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to check status'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/setup
+ * Initial setup - create first user (only works if no users exist)
+ */
+router.post('/setup', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username and password are required'
+      });
+    }
+
+    const result = await createUser(username, password);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Setup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create account'
     });
   }
 });

@@ -276,6 +276,45 @@ export function revokeSession(sessionId, userId) {
 }
 
 /**
+ * Create a new user (for initial setup)
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function createUser(username, password) {
+  const db = getDb();
+
+  // Check if users already exist
+  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
+  if (userCount.count > 0) {
+    return { success: false, error: 'Setup already completed' };
+  }
+
+  // Validate password
+  if (!password || password.length < 8) {
+    return { success: false, error: 'Password must be at least 8 characters' };
+  }
+
+  // Validate username
+  if (!username || username.length < 1) {
+    return { success: false, error: 'Username is required' };
+  }
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+  try {
+    db.prepare(`
+      INSERT INTO users (username, password_hash)
+      VALUES (?, ?)
+    `).run(username, passwordHash);
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: 'Failed to create user' };
+  }
+}
+
+/**
  * Create initial admin user if no users exist
  * @returns {{created: boolean, username?: string, password?: string}}
  */

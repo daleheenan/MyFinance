@@ -7,7 +7,7 @@ import { errorHandler, notFoundHandler } from './core/errors.js';
 import { setupMiddleware } from './core/middleware.js';
 import { setupSecurity, setupTrustProxy } from './core/security.js';
 import { requireAuth } from './features/auth/auth.middleware.js';
-import { createInitialUser, cleanupExpiredSessions } from './features/auth/auth.service.js';
+import { cleanupExpiredSessions } from './features/auth/auth.service.js';
 import authRouter from './features/auth/auth.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -120,25 +120,6 @@ if (isMain) {
     // In production, the public URL is configured via Railway/custom domain
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
       console.log(`Public URL: https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
-    }
-
-    // Create initial admin user if none exists
-    try {
-      const result = await createInitialUser();
-      if (result.created) {
-        console.log('');
-        console.log('========================================');
-        console.log('  INITIAL ADMIN USER CREATED');
-        console.log('========================================');
-        console.log(`  Username: ${result.username}`);
-        console.log(`  Password: ${result.password}`);
-        console.log('');
-        console.log('  Please change this password immediately!');
-        console.log('========================================');
-        console.log('');
-      }
-    } catch (err) {
-      console.error('Failed to create initial user:', err.message);
     }
 
     // Clean up expired sessions on startup
