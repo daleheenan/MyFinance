@@ -27,7 +27,8 @@ const router = Router();
  */
 router.get('/', (req, res) => {
   const db = getDb();
-  const merchants = getAllMerchants(db);
+  const userId = req.user.id;
+  const merchants = getAllMerchants(db, userId);
 
   // Transform to new format for consistency
   const data = merchants.map(m => ({
@@ -52,6 +53,7 @@ router.get('/', (req, res) => {
  */
 router.get('/top', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { by = 'spend', limit = '10', month, startDate, endDate } = req.query;
 
   // Validate 'by' parameter
@@ -67,7 +69,8 @@ router.get('/top', (req, res) => {
     limit: parseInt(limit, 10) || 10,
     month,
     startDate,
-    endDate
+    endDate,
+    userId
   };
 
   const merchants = getTopMerchants(db, options);
@@ -81,9 +84,10 @@ router.get('/top', (req, res) => {
  */
 router.get('/:pattern/stats', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { pattern } = req.params;
 
-  const stats = getMerchantStats(db, decodeURIComponent(pattern));
+  const stats = getMerchantStats(db, decodeURIComponent(pattern), userId);
 
   if (!stats) {
     return res.status(404).json({
@@ -103,6 +107,7 @@ router.get('/:pattern/stats', (req, res) => {
  */
 router.get('/:pattern/history', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { pattern } = req.params;
   const { months = '12' } = req.query;
 
@@ -114,7 +119,7 @@ router.get('/:pattern/history', (req, res) => {
     });
   }
 
-  const history = getMerchantHistory(db, decodeURIComponent(pattern), monthsNum);
+  const history = getMerchantHistory(db, decodeURIComponent(pattern), monthsNum, userId);
 
   res.json({ success: true, data: history });
 });

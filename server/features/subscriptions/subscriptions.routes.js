@@ -37,6 +37,7 @@ const router = Router();
 router.get('/', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const activeOnly = req.query.active_only !== 'false';
     const type = req.query.type || null;
 
@@ -46,7 +47,7 @@ router.get('/', (req, res, next) => {
       throw new ApiError(`Invalid type. Must be one of: ${validTypes.join(', ')}`, 400);
     }
 
-    const subscriptions = getSubscriptions(db, { active_only: activeOnly, type });
+    const subscriptions = getSubscriptions(db, { active_only: activeOnly, type, userId });
 
     res.json({
       success: true,
@@ -64,7 +65,8 @@ router.get('/', (req, res, next) => {
 router.get('/summary', (req, res, next) => {
   try {
     const db = getDb();
-    const summary = getSubscriptionSummary(db);
+    const userId = req.user.id;
+    const summary = getSubscriptionSummary(db, userId);
 
     res.json({
       success: true,
@@ -83,13 +85,14 @@ router.get('/summary', (req, res, next) => {
 router.get('/upcoming', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const days = parseInt(req.query.days, 10) || 30;
 
     if (days < 1 || days > 365) {
       throw new ApiError('Days must be between 1 and 365', 400);
     }
 
-    const upcoming = getUpcomingCharges(db, days);
+    const upcoming = getUpcomingCharges(db, days, userId);
 
     res.json({
       success: true,
@@ -109,13 +112,14 @@ router.get('/upcoming', (req, res, next) => {
 router.get('/detect', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const type = req.query.type || 'expense';
 
     let detected;
     if (type === 'income') {
-      detected = detectRecurringIncome(db);
+      detected = detectRecurringIncome(db, userId);
     } else {
-      detected = detectSubscriptions(db);
+      detected = detectSubscriptions(db, userId);
     }
 
     res.json({
@@ -136,6 +140,7 @@ router.get('/detect', (req, res, next) => {
 router.post('/', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       merchant_pattern,
       display_name,
@@ -180,7 +185,7 @@ router.post('/', (req, res, next) => {
       type: type || 'expense'
     };
 
-    const subscription = createSubscription(db, subscriptionData);
+    const subscription = createSubscription(db, subscriptionData, userId);
 
     res.status(201).json({
       success: true,
@@ -215,6 +220,7 @@ router.post('/', (req, res, next) => {
 router.put('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
     // Validate id is a number
@@ -280,7 +286,7 @@ router.put('/:id', (req, res, next) => {
       updateData.type = type;
     }
 
-    const subscription = updateSubscription(db, subscriptionId, updateData);
+    const subscription = updateSubscription(db, subscriptionId, updateData, userId);
 
     res.json({
       success: true,
@@ -310,6 +316,7 @@ router.put('/:id', (req, res, next) => {
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
     // Validate id is a number
@@ -318,7 +325,7 @@ router.delete('/:id', (req, res, next) => {
       throw new ApiError('Invalid subscription ID', 400);
     }
 
-    const result = deleteSubscription(db, subscriptionId);
+    const result = deleteSubscription(db, subscriptionId, userId);
 
     res.json({
       success: true,

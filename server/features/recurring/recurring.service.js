@@ -96,30 +96,41 @@ function determineFrequency(avgDays) {
  * @param {number} options.minOccurrences - Minimum occurrences to be considered recurring (default: 3)
  * @param {number} options.maxAmountVariance - Maximum amount variance percentage (default: 10)
  * @param {number} options.lookbackMonths - Number of months to look back (default: 12, 0 for all)
+ * @param {number} options.userId - User ID to filter by
  * @returns {Array<Object>} Array of detected patterns
  */
 export function detectRecurringPatterns(db, options = {}) {
   const {
     minOccurrences = 3,
     maxAmountVariance = 10,
-    lookbackMonths = 12
+    lookbackMonths = 12,
+    userId = null
   } = options;
 
-  // Build query with optional date filter
+  // Build query with optional date and user filters
   const dateFilter = lookbackMonths > 0
-    ? `AND transaction_date >= date('now', '-${lookbackMonths} months')`
+    ? `AND t.transaction_date >= date('now', '-${lookbackMonths} months')`
     : '';
 
-  // Get all transactions that are not transfers
+  let userFilter = '';
+  const params = [];
+  if (userId) {
+    userFilter = 'AND a.user_id = ?';
+    params.push(userId);
+  }
+
+  // Get all transactions that are not transfers for this user
   const transactions = db.prepare(`
     SELECT
-      id, account_id, transaction_date, description, original_description,
-      debit_amount, credit_amount, category_id, is_recurring, recurring_group_id
-    FROM transactions
-    WHERE is_transfer = 0
+      t.id, t.account_id, t.transaction_date, t.description, t.original_description,
+      t.debit_amount, t.credit_amount, t.category_id, t.is_recurring, t.recurring_group_id
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE t.is_transfer = 0
       ${dateFilter}
-    ORDER BY transaction_date ASC
-  `).all();
+      ${userFilter}
+    ORDER BY t.transaction_date ASC
+  `).all(...params);
 
   // Group transactions by normalized description
   const groupedByDescription = new Map();
@@ -250,12 +261,13 @@ function extractMerchantName(description) {
 }
 
 /**
- * Get all recurring patterns from the database.
+ * Get all recurring patterns from the database for a user.
  *
  * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
  * @returns {Array<Object>} Array of patterns with category info
  */
-export function getAllPatterns(db) {
+export function getAllPatterns(db, userId) {
   const patterns = db.prepare(`
     SELECT
       rp.*,
@@ -264,9 +276,9 @@ export function getAllPatterns(db) {
       c.icon AS category_icon
     FROM recurring_patterns rp
     LEFT JOIN categories c ON rp.category_id = c.id
-    WHERE rp.is_active = 1
+    WHERE rp.is_active = 1 AND rp.user_id = ?
     ORDER BY rp.last_seen DESC
-  `).all();
+  `).all(userId);
 
   // Add transaction count for each pattern
   const countStmt = db.prepare(`
@@ -286,9 +298,10 @@ export function getAllPatterns(db) {
  *
  * @param {Database} db - The database instance
  * @param {number} patternId - Pattern ID
+ * @param {number} userId - User ID to verify ownership
  * @returns {Object|null} Pattern object or null if not found
  */
-export function getPatternById(db, patternId) {
+export function getPatternById(db, patternId, userId) {
   const pattern = db.prepare(`
     SELECT
       rp.*,
@@ -297,8 +310,8 @@ export function getPatternById(db, patternId) {
       c.icon AS category_icon
     FROM recurring_patterns rp
     LEFT JOIN categories c ON rp.category_id = c.id
-    WHERE rp.id = ?
-  `).get(patternId);
+    WHERE rp.id = ? AND rp.user_id = ?
+  `).get(patternId, userId);
 
   if (!pattern) return null;
 
@@ -320,11 +333,12 @@ export function getPatternById(db, patternId) {
  *
  * @param {Database} db - The database instance
  * @param {number} patternId - Pattern ID
+ * @param {number} userId - User ID to verify ownership
  * @returns {Array<Object>} Array of transactions
  */
-export function getRecurringTransactions(db, patternId) {
-  // Verify pattern exists
-  const pattern = db.prepare('SELECT id FROM recurring_patterns WHERE id = ?').get(patternId);
+export function getRecurringTransactions(db, patternId, userId) {
+  // Verify pattern exists and belongs to user
+  const pattern = db.prepare('SELECT id FROM recurring_patterns WHERE id = ? AND user_id = ?').get(patternId, userId);
   if (!pattern) {
     throw new Error('Pattern not found');
   }
@@ -350,24 +364,27 @@ export function getRecurringTransactions(db, patternId) {
  * @param {Database} db - The database instance
  * @param {number[]} txnIds - Array of transaction IDs
  * @param {number} patternId - Pattern ID to link to
+ * @param {number} userId - User ID to verify ownership
  * @returns {number} Number of transactions updated
  */
-export function markAsRecurring(db, txnIds, patternId) {
+export function markAsRecurring(db, txnIds, patternId, userId) {
   if (!txnIds || txnIds.length === 0) {
     throw new Error('Transaction IDs are required');
   }
 
-  // Verify pattern exists
-  const pattern = db.prepare('SELECT id FROM recurring_patterns WHERE id = ?').get(patternId);
+  // Verify pattern exists and belongs to user
+  const pattern = db.prepare('SELECT id FROM recurring_patterns WHERE id = ? AND user_id = ?').get(patternId, userId);
   if (!pattern) {
     throw new Error('Pattern not found');
   }
 
-  // Verify all transactions exist
+  // Verify all transactions exist and belong to user's accounts
   const placeholders = txnIds.map(() => '?').join(',');
   const existingTxns = db.prepare(`
-    SELECT id FROM transactions WHERE id IN (${placeholders})
-  `).all(...txnIds);
+    SELECT t.id FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE t.id IN (${placeholders}) AND a.user_id = ?
+  `).all(...txnIds, userId);
 
   if (existingTxns.length !== txnIds.length) {
     throw new Error('One or more transactions not found');
@@ -414,9 +431,10 @@ export function markAsRecurring(db, txnIds, patternId) {
  * @param {Database} db - The database instance
  * @param {Object} patternData - Pattern data
  * @param {number[]} [txnIds] - Optional transaction IDs to link
+ * @param {number} userId - User ID who owns the pattern
  * @returns {Object} Created pattern
  */
-export function createPattern(db, patternData, txnIds = []) {
+export function createPattern(db, patternData, txnIds = [], userId = null) {
   const {
     description_pattern,
     merchant_name,
@@ -431,9 +449,9 @@ export function createPattern(db, patternData, txnIds = []) {
     throw new Error('Description pattern is required');
   }
 
-  // Verify category exists if provided
+  // Verify category exists and is accessible to user if provided
   if (category_id) {
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(category_id, userId);
     if (!category) {
       throw new Error('Category not found');
     }
@@ -443,9 +461,10 @@ export function createPattern(db, patternData, txnIds = []) {
     // Create the pattern
     const result = db.prepare(`
       INSERT INTO recurring_patterns
-      (description_pattern, merchant_name, typical_amount, typical_day, frequency, category_id, is_subscription, last_seen)
-      VALUES (?, ?, ?, ?, ?, ?, ?, date('now'))
+      (user_id, description_pattern, merchant_name, typical_amount, typical_day, frequency, category_id, is_subscription, last_seen)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, date('now'))
     `).run(
+      userId,
       description_pattern,
       merchant_name || null,
       typical_amount || null,
@@ -489,7 +508,7 @@ export function createPattern(db, patternData, txnIds = []) {
   });
 
   const patternId = createPatternTxn();
-  return getPatternById(db, patternId);
+  return getPatternById(db, patternId, userId);
 }
 
 /**
@@ -498,11 +517,12 @@ export function createPattern(db, patternData, txnIds = []) {
  * @param {Database} db - The database instance
  * @param {number} patternId - Pattern ID
  * @param {Object} data - Update data
+ * @param {number} userId - User ID to verify ownership
  * @returns {Object} Updated pattern
  */
-export function updatePattern(db, patternId, data) {
-  // Verify pattern exists
-  const existing = db.prepare('SELECT * FROM recurring_patterns WHERE id = ?').get(patternId);
+export function updatePattern(db, patternId, data, userId) {
+  // Verify pattern exists and belongs to user
+  const existing = db.prepare('SELECT * FROM recurring_patterns WHERE id = ? AND user_id = ?').get(patternId, userId);
   if (!existing) {
     throw new Error('Pattern not found');
   }
@@ -523,9 +543,9 @@ export function updatePattern(db, patternId, data) {
     throw new Error('Invalid frequency. Must be one of: ' + validFrequencies.join(', '));
   }
 
-  // Verify category exists if provided
+  // Verify category exists and is accessible to user if provided
   if (category_id !== undefined && category_id !== null) {
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(category_id, userId);
     if (!category) {
       throw new Error('Category not found');
     }
@@ -565,15 +585,16 @@ export function updatePattern(db, patternId, data) {
   }
 
   if (updates.length === 0) {
-    return getPatternById(db, patternId);
+    return getPatternById(db, patternId, userId);
   }
 
   params.push(patternId);
+  params.push(userId);
 
   db.prepare(`
     UPDATE recurring_patterns
     SET ${updates.join(', ')}
-    WHERE id = ?
+    WHERE id = ? AND user_id = ?
   `).run(...params);
 
   // If category was updated, also update linked transactions
@@ -585,7 +606,7 @@ export function updatePattern(db, patternId, data) {
     `).run(category_id, patternId);
   }
 
-  return getPatternById(db, patternId);
+  return getPatternById(db, patternId, userId);
 }
 
 /**
@@ -593,11 +614,12 @@ export function updatePattern(db, patternId, data) {
  *
  * @param {Database} db - The database instance
  * @param {number} patternId - Pattern ID
+ * @param {number} userId - User ID to verify ownership
  * @returns {Object} Deletion result with unlinked transaction count
  */
-export function deletePattern(db, patternId) {
-  // Verify pattern exists
-  const existing = db.prepare('SELECT * FROM recurring_patterns WHERE id = ?').get(patternId);
+export function deletePattern(db, patternId, userId) {
+  // Verify pattern exists and belongs to user
+  const existing = db.prepare('SELECT * FROM recurring_patterns WHERE id = ? AND user_id = ?').get(patternId, userId);
   if (!existing) {
     throw new Error('Pattern not found');
   }
@@ -611,7 +633,7 @@ export function deletePattern(db, patternId) {
     `).run(patternId);
 
     // Delete the pattern
-    db.prepare('DELETE FROM recurring_patterns WHERE id = ?').run(patternId);
+    db.prepare('DELETE FROM recurring_patterns WHERE id = ? AND user_id = ?').run(patternId, userId);
 
     return unlinkResult.changes;
   });
@@ -630,10 +652,16 @@ export function deletePattern(db, patternId) {
  *
  * @param {Database} db - The database instance
  * @param {number} txnId - Transaction ID
+ * @param {number} userId - User ID to verify ownership
  * @returns {Object} Updated transaction
  */
-export function unlinkTransaction(db, txnId) {
-  const txn = db.prepare('SELECT * FROM transactions WHERE id = ?').get(txnId);
+export function unlinkTransaction(db, txnId, userId) {
+  // Verify transaction exists and belongs to user
+  const txn = db.prepare(`
+    SELECT t.* FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE t.id = ? AND a.user_id = ?
+  `).get(txnId, userId);
   if (!txn) {
     throw new Error('Transaction not found');
   }

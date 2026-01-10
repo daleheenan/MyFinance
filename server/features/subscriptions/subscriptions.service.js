@@ -159,19 +159,29 @@ function calculateConfidence(amountCV, dateCV, occurrences) {
  * - At least 2 occurrences
  *
  * @param {Database} db - The database instance
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Array<Object>} Array of detected subscriptions
  */
-export function detectSubscriptions(db) {
+export function detectSubscriptions(db, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const params = [];
+  if (userId) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+    params.push(userId);
+  }
+
   // Get all non-transfer transactions
   const transactions = db.prepare(`
     SELECT
-      id, account_id, transaction_date, description, original_description,
-      debit_amount, credit_amount
-    FROM transactions
-    WHERE is_transfer = 0
-      AND debit_amount > 0
-    ORDER BY transaction_date ASC
-  `).all();
+      t.id, t.account_id, t.transaction_date, t.description, t.original_description,
+      t.debit_amount, t.credit_amount
+    FROM transactions t
+    WHERE t.is_transfer = 0
+      AND t.debit_amount > 0
+      ${userFilter}
+    ORDER BY t.transaction_date ASC
+  `).all(...params);
 
   if (transactions.length === 0) {
     return [];
@@ -278,19 +288,29 @@ export function detectSubscriptions(db) {
  * - At least 2 occurrences
  *
  * @param {Database} db - The database instance
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Array<Object>} Array of detected recurring income sources
  */
-export function detectRecurringIncome(db) {
+export function detectRecurringIncome(db, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const params = [];
+  if (userId) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+    params.push(userId);
+  }
+
   // Get all non-transfer credit transactions
   const transactions = db.prepare(`
     SELECT
-      id, account_id, transaction_date, description, original_description,
-      debit_amount, credit_amount
-    FROM transactions
-    WHERE is_transfer = 0
-      AND credit_amount > 0
-    ORDER BY transaction_date ASC
-  `).all();
+      t.id, t.account_id, t.transaction_date, t.description, t.original_description,
+      t.debit_amount, t.credit_amount
+    FROM transactions t
+    WHERE t.is_transfer = 0
+      AND t.credit_amount > 0
+      ${userFilter}
+    ORDER BY t.transaction_date ASC
+  `).all(...params);
 
   if (transactions.length === 0) {
     return [];
@@ -395,13 +415,19 @@ export function detectRecurringIncome(db) {
  * @param {Object} options - Query options
  * @param {boolean} options.active_only - Only return active subscriptions (default: true)
  * @param {string} options.type - Filter by type: 'expense', 'income', or null for all (default: null)
+ * @param {number} options.userId - User ID to filter by
  * @returns {Array<Object>} Array of subscriptions with category info
  */
 export function getSubscriptions(db, options = { active_only: true }) {
-  const { active_only = true, type = null } = options;
+  const { active_only = true, type = null, userId = null } = options;
 
   const conditions = [];
   const params = [];
+
+  if (userId) {
+    conditions.push('s.user_id = ?');
+    params.push(userId);
+  }
 
   if (active_only) {
     conditions.push('s.is_active = 1');
@@ -451,15 +477,24 @@ function toMonthlyAmount(amount, frequency) {
  * Includes separate totals for expenses and income.
  *
  * @param {Database} db - The database instance
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Object} Summary with expense/income totals, counts, and upcoming
  */
-export function getSubscriptionSummary(db) {
+export function getSubscriptionSummary(db, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const params = [];
+  if (userId) {
+    userFilter = 'AND user_id = ?';
+    params.push(userId);
+  }
+
   // Get all active subscriptions
   const subscriptions = db.prepare(`
     SELECT expected_amount, frequency, next_expected_date, display_name, type
     FROM subscriptions
-    WHERE is_active = 1
-  `).all();
+    WHERE is_active = 1 ${userFilter}
+  `).all(...params);
 
   // Calculate monthly totals by type
   let monthlyExpenses = 0;
@@ -488,7 +523,7 @@ export function getSubscriptionSummary(db) {
   const yearlyNet = pennyPrecision(monthlyNet * 12);
 
   // Get upcoming charges (next 7 days for summary) - expenses only
-  const upcoming7Days = getUpcomingCharges(db, 7);
+  const upcoming7Days = getUpcomingCharges(db, 7, userId);
   const upcoming7DaysTotal = pennyPrecision(
     upcoming7Days.filter(sub => sub.type !== 'income').reduce((sum, sub) => sum + (sub.expected_amount || 0), 0)
   );
@@ -529,13 +564,22 @@ export function getSubscriptionSummary(db) {
  *
  * @param {Database} db - The database instance
  * @param {number} days - Number of days to look ahead (default: 30)
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Array<Object>} Array of upcoming subscriptions
  */
-export function getUpcomingCharges(db, days = 30) {
+export function getUpcomingCharges(db, days = 30, userId = null) {
   const today = new Date().toISOString().split('T')[0];
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + days);
   const endDate = futureDate.toISOString().split('T')[0];
+
+  // Build user filter
+  let userFilter = '';
+  const params = [today, endDate];
+  if (userId) {
+    userFilter = 'AND s.user_id = ?';
+    params.push(userId);
+  }
 
   return db.prepare(`
     SELECT
@@ -548,8 +592,9 @@ export function getUpcomingCharges(db, days = 30) {
     WHERE s.is_active = 1
       AND s.next_expected_date >= ?
       AND s.next_expected_date <= ?
+      ${userFilter}
     ORDER BY s.next_expected_date ASC
-  `).all(today, endDate);
+  `).all(...params);
 }
 
 /**
@@ -557,9 +602,10 @@ export function getUpcomingCharges(db, days = 30) {
  *
  * @param {Database} db - The database instance
  * @param {Object} data - Subscription data
+ * @param {number} [userId=null] - User ID for the subscription
  * @returns {Object} Created subscription
  */
-export function createSubscription(db, data) {
+export function createSubscription(db, data, userId = null) {
   const {
     merchant_pattern,
     display_name,
@@ -590,9 +636,9 @@ export function createSubscription(db, data) {
     throw new Error(`Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`);
   }
 
-  // Validate category if provided
+  // Validate category if provided (must be global or belong to user)
   if (category_id !== undefined && category_id !== null) {
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(category_id, userId);
     if (!category) {
       throw new Error('Category not found');
     }
@@ -600,9 +646,10 @@ export function createSubscription(db, data) {
 
   const result = db.prepare(`
     INSERT INTO subscriptions
-    (merchant_pattern, display_name, category_id, expected_amount, frequency, billing_day, next_expected_date, last_charged_date, type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (user_id, merchant_pattern, display_name, category_id, expected_amount, frequency, billing_day, next_expected_date, last_charged_date, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
+    userId,
     merchant_pattern.trim(),
     display_name.trim(),
     category_id || null,
@@ -614,7 +661,7 @@ export function createSubscription(db, data) {
     type || 'expense'
   );
 
-  return getSubscriptionById(db, result.lastInsertRowid);
+  return getSubscriptionById(db, result.lastInsertRowid, userId);
 }
 
 /**
@@ -622,9 +669,17 @@ export function createSubscription(db, data) {
  *
  * @param {Database} db - The database instance
  * @param {number} id - Subscription ID
+ * @param {number} [userId=null] - User ID to verify ownership
  * @returns {Object|null} Subscription or null if not found
  */
-export function getSubscriptionById(db, id) {
+export function getSubscriptionById(db, id, userId = null) {
+  let userFilter = '';
+  const params = [id];
+  if (userId) {
+    userFilter = 'AND s.user_id = ?';
+    params.push(userId);
+  }
+
   return db.prepare(`
     SELECT
       s.*,
@@ -633,8 +688,8 @@ export function getSubscriptionById(db, id) {
       c.icon AS category_icon
     FROM subscriptions s
     LEFT JOIN categories c ON s.category_id = c.id
-    WHERE s.id = ?
-  `).get(id);
+    WHERE s.id = ? ${userFilter}
+  `).get(...params);
 }
 
 /**
@@ -643,11 +698,18 @@ export function getSubscriptionById(db, id) {
  * @param {Database} db - The database instance
  * @param {number} id - Subscription ID
  * @param {Object} data - Update data
+ * @param {number} [userId=null] - User ID to verify ownership
  * @returns {Object} Updated subscription
  */
-export function updateSubscription(db, id, data) {
-  // Verify subscription exists
-  const existing = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(id);
+export function updateSubscription(db, id, data, userId = null) {
+  // Verify subscription exists and belongs to user
+  let userFilter = '';
+  const checkParams = [id];
+  if (userId) {
+    userFilter = 'AND user_id = ?';
+    checkParams.push(userId);
+  }
+  const existing = db.prepare(`SELECT * FROM subscriptions WHERE id = ? ${userFilter}`).get(...checkParams);
   if (!existing) {
     throw new Error('Subscription not found');
   }
@@ -675,9 +737,9 @@ export function updateSubscription(db, id, data) {
     throw new Error(`Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`);
   }
 
-  // Validate category if provided
+  // Validate category if provided (must be global or belong to user)
   if (category_id !== undefined && category_id !== null) {
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(category_id, userId);
     if (!category) {
       throw new Error('Category not found');
     }
@@ -729,20 +791,21 @@ export function updateSubscription(db, id, data) {
   }
 
   if (updates.length === 0) {
-    return getSubscriptionById(db, id);
+    return getSubscriptionById(db, id, userId);
   }
 
   // Always update updated_at
   updates.push("updated_at = datetime('now')");
   params.push(id);
+  if (userId) params.push(userId);
 
   db.prepare(`
     UPDATE subscriptions
     SET ${updates.join(', ')}
-    WHERE id = ?
+    WHERE id = ? ${userFilter}
   `).run(...params);
 
-  return getSubscriptionById(db, id);
+  return getSubscriptionById(db, id, userId);
 }
 
 /**
@@ -750,20 +813,29 @@ export function updateSubscription(db, id, data) {
  *
  * @param {Database} db - The database instance
  * @param {number} id - Subscription ID
+ * @param {number} [userId=null] - User ID to verify ownership
  * @returns {Object} Deleted subscription info
  */
-export function deleteSubscription(db, id) {
-  // Get subscription first to return its info
-  const existing = getSubscriptionById(db, id);
+export function deleteSubscription(db, id, userId = null) {
+  // Get subscription first to return its info (and verify ownership)
+  const existing = getSubscriptionById(db, id, userId);
   if (!existing) {
     throw new Error('Subscription not found');
+  }
+
+  // Build user filter
+  let userFilter = '';
+  const params = [id];
+  if (userId) {
+    userFilter = 'AND user_id = ?';
+    params.push(userId);
   }
 
   db.prepare(`
     UPDATE subscriptions
     SET is_active = 0, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(id);
+    WHERE id = ? ${userFilter}
+  `).run(...params);
 
   return {
     ...existing,

@@ -216,6 +216,7 @@ CREATE INDEX IF NOT EXISTS idx_net_worth_date ON net_worth_snapshots(snapshot_da
 -- Anomalies log table
 CREATE TABLE IF NOT EXISTS anomalies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     transaction_id INTEGER,
     anomaly_type TEXT NOT NULL,
     severity TEXT CHECK(severity IN ('low', 'medium', 'high')),
@@ -223,9 +224,11 @@ CREATE TABLE IF NOT EXISTS anomalies (
     is_dismissed INTEGER DEFAULT 0,
     is_confirmed_fraud INTEGER DEFAULT 0,
     detected_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (transaction_id) REFERENCES transactions(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_anomalies_user ON anomalies(user_id);
 CREATE INDEX IF NOT EXISTS idx_anomalies_dismissed ON anomalies(is_dismissed);
 CREATE INDEX IF NOT EXISTS idx_anomalies_type ON anomalies(anomaly_type);
 

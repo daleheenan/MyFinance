@@ -36,7 +36,8 @@ const router = Router();
 router.get('/', (req, res, next) => {
   try {
     const db = getDb();
-    const patterns = getAllPatterns(db);
+    const userId = req.user.id;
+    const patterns = getAllPatterns(db, userId);
 
     res.json({
       success: true,
@@ -54,6 +55,7 @@ router.get('/', (req, res, next) => {
 router.get('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
     // Validate id is a number
@@ -62,13 +64,13 @@ router.get('/:id', (req, res, next) => {
       throw new ApiError('Invalid pattern ID', 400);
     }
 
-    const pattern = getPatternById(db, patternId);
+    const pattern = getPatternById(db, patternId, userId);
     if (!pattern) {
       throw new ApiError('Pattern not found', 404);
     }
 
     // Get linked transactions
-    const transactions = getRecurringTransactions(db, patternId);
+    const transactions = getRecurringTransactions(db, patternId, userId);
 
     res.json({
       success: true,
@@ -90,9 +92,10 @@ router.get('/:id', (req, res, next) => {
 router.post('/detect', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { minOccurrences, maxAmountVariance, lookbackMonths } = req.body;
 
-    const options = {};
+    const options = { userId };
     if (minOccurrences !== undefined) {
       options.minOccurrences = parseInt(minOccurrences, 10) || 3;
     }
@@ -123,6 +126,7 @@ router.post('/detect', (req, res, next) => {
 router.post('/', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const {
       description_pattern,
       merchant_name,
@@ -157,7 +161,7 @@ router.post('/', (req, res, next) => {
 
     const txnIds = Array.isArray(transaction_ids) ? transaction_ids.map(id => parseInt(id, 10)) : [];
 
-    const pattern = createPattern(db, patternData, txnIds);
+    const pattern = createPattern(db, patternData, txnIds, userId);
 
     res.status(201).json({
       success: true,
@@ -180,6 +184,7 @@ router.post('/', (req, res, next) => {
 router.put('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
     // Validate id is a number
@@ -227,7 +232,7 @@ router.put('/:id', (req, res, next) => {
       updateData.is_active = is_active ? 1 : 0;
     }
 
-    const pattern = updatePattern(db, patternId, updateData);
+    const pattern = updatePattern(db, patternId, updateData, userId);
 
     res.json({
       success: true,
@@ -254,6 +259,7 @@ router.put('/:id', (req, res, next) => {
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
 
     // Validate id is a number
@@ -262,7 +268,7 @@ router.delete('/:id', (req, res, next) => {
       throw new ApiError('Invalid pattern ID', 400);
     }
 
-    const result = deletePattern(db, patternId);
+    const result = deletePattern(db, patternId, userId);
 
     res.json({
       success: true,
@@ -284,6 +290,7 @@ router.delete('/:id', (req, res, next) => {
 router.post('/:id/transactions', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id } = req.params;
     const { transaction_ids } = req.body;
 
@@ -306,7 +313,7 @@ router.post('/:id/transactions', (req, res, next) => {
       return parsed;
     });
 
-    const count = markAsRecurring(db, txnIds, patternId);
+    const count = markAsRecurring(db, txnIds, patternId, userId);
 
     res.json({
       success: true,
@@ -336,6 +343,7 @@ router.post('/:id/transactions', (req, res, next) => {
 router.delete('/:id/transactions/:txnId', (req, res, next) => {
   try {
     const db = getDb();
+    const userId = req.user.id;
     const { id, txnId } = req.params;
 
     // Validate ids are numbers
@@ -349,8 +357,18 @@ router.delete('/:id/transactions/:txnId', (req, res, next) => {
       throw new ApiError('Invalid transaction ID', 400);
     }
 
-    // Verify the transaction belongs to this pattern
-    const txn = db.prepare('SELECT * FROM transactions WHERE id = ?').get(transactionId);
+    // Verify the pattern belongs to user
+    const pattern = db.prepare('SELECT id FROM recurring_patterns WHERE id = ? AND user_id = ?').get(patternId, userId);
+    if (!pattern) {
+      throw new ApiError('Pattern not found', 404);
+    }
+
+    // Verify the transaction belongs to user and to this pattern
+    const txn = db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      WHERE t.id = ? AND a.user_id = ?
+    `).get(transactionId, userId);
     if (!txn) {
       throw new ApiError('Transaction not found', 404);
     }
@@ -358,7 +376,7 @@ router.delete('/:id/transactions/:txnId', (req, res, next) => {
       throw new ApiError('Transaction does not belong to this pattern', 400);
     }
 
-    const result = unlinkTransaction(db, transactionId);
+    const result = unlinkTransaction(db, transactionId, userId);
 
     res.json({
       success: true,

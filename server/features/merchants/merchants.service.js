@@ -89,6 +89,7 @@ function pennyPrecision(amount) {
  * @param {string} [options.month=null] - Filter by month (YYYY-MM format)
  * @param {string} [options.startDate] - Start date filter (YYYY-MM-DD)
  * @param {string} [options.endDate] - End date filter (YYYY-MM-DD)
+ * @param {number} [options.userId=null] - User ID to filter by
  * @returns {Array<Object>} Array of merchant objects with stats
  */
 export function getTopMerchants(db, options = {}) {
@@ -97,12 +98,19 @@ export function getTopMerchants(db, options = {}) {
     limit = 10,
     month = null,
     startDate,
-    endDate
+    endDate,
+    userId = null
   } = options;
 
   // Build date filter clause
   let dateFilter = '';
+  let userFilter = '';
   const params = [];
+
+  if (userId) {
+    userFilter = 'AND a.user_id = ?';
+    params.push(userId);
+  }
 
   if (month) {
     dateFilter = "AND strftime('%Y-%m', t.transaction_date) = ?";
@@ -126,8 +134,10 @@ export function getTopMerchants(db, options = {}) {
       t.debit_amount,
       t.transaction_date
     FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
     WHERE t.is_transfer = 0
       AND t.debit_amount > 0
+      ${userFilter}
       ${dateFilter}
   `).all(...params);
 
@@ -180,21 +190,32 @@ export function getTopMerchants(db, options = {}) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} merchantPattern - Pattern to match in descriptions (case-insensitive)
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Object|null} Merchant statistics or null if not found
  */
-export function getMerchantStats(db, merchantPattern) {
+export function getMerchantStats(db, merchantPattern, userId = null) {
   const patternUpper = merchantPattern.toUpperCase();
+
+  // Build user filter
+  let userFilter = '';
+  const params = [`%${patternUpper}%`, `%${patternUpper}%`];
+  if (userId) {
+    userFilter = 'AND a.user_id = ?';
+    params.push(userId);
+  }
 
   // Find all matching transactions with category info
   const transactions = db.prepare(`
     SELECT t.*, c.id AS cat_id, c.name AS cat_name
     FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
     LEFT JOIN categories c ON t.category_id = c.id
     WHERE (UPPER(t.description) LIKE ? OR UPPER(t.original_description) LIKE ?)
       AND t.debit_amount > 0
       AND t.is_transfer = 0
+      ${userFilter}
     ORDER BY t.transaction_date ASC
-  `).all(`%${patternUpper}%`, `%${patternUpper}%`);
+  `).all(...params);
 
   if (transactions.length === 0) {
     return null;
@@ -247,39 +268,52 @@ export function getMerchantStats(db, merchantPattern) {
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} merchantPattern - Pattern to match in descriptions (case-insensitive)
  * @param {number} [months=12] - Number of months to retrieve
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Array<{month: string, spend: number, transactionCount: number}>}
  */
-export function getMerchantHistory(db, merchantPattern, months = 12) {
+export function getMerchantHistory(db, merchantPattern, months = 12, userId = null) {
   const patternUpper = merchantPattern.toUpperCase();
   const today = new Date();
   const result = [];
+
+  // Build user filter
+  let userFilter = '';
+  if (userId) {
+    userFilter = 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)';
+  }
 
   // Generate month list (most recent first)
   for (let i = 0; i < months; i++) {
     const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
 
+    // Build params
+    const params = [`%${patternUpper}%`, `%${patternUpper}%`, monthStr];
+    if (userId) params.push(userId);
+
     // Get spending for this month and merchant
     const data = db.prepare(`
       SELECT
-        COALESCE(SUM(debit_amount), 0) AS spend,
+        COALESCE(SUM(t.debit_amount), 0) AS spend,
         COUNT(*) AS transaction_count
-      FROM transactions
-      WHERE (UPPER(description) LIKE ? OR UPPER(original_description) LIKE ?)
-        AND strftime('%Y-%m', transaction_date) = ?
-        AND debit_amount > 0
-        AND is_transfer = 0
-    `).get(`%${patternUpper}%`, `%${patternUpper}%`, monthStr);
+      FROM transactions t
+      WHERE (UPPER(t.description) LIKE ? OR UPPER(t.original_description) LIKE ?)
+        AND strftime('%Y-%m', t.transaction_date) = ?
+        AND t.debit_amount > 0
+        AND t.is_transfer = 0
+        ${userFilter}
+    `).get(...params);
 
     // Get actual count (since COUNT returns 1 when no matches with SUM)
     const actualCount = db.prepare(`
       SELECT COUNT(*) AS cnt
-      FROM transactions
-      WHERE (UPPER(description) LIKE ? OR UPPER(original_description) LIKE ?)
-        AND strftime('%Y-%m', transaction_date) = ?
-        AND debit_amount > 0
-        AND is_transfer = 0
-    `).get(`%${patternUpper}%`, `%${patternUpper}%`, monthStr);
+      FROM transactions t
+      WHERE (UPPER(t.description) LIKE ? OR UPPER(t.original_description) LIKE ?)
+        AND strftime('%Y-%m', t.transaction_date) = ?
+        AND t.debit_amount > 0
+        AND t.is_transfer = 0
+        ${userFilter}
+    `).get(...params);
 
     result.push({
       month: monthStr,
@@ -295,9 +329,18 @@ export function getMerchantHistory(db, merchantPattern, months = 12) {
  * Get all unique merchants with their stats.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} [userId=null] - User ID to filter by
  * @returns {Array<Object>} Array of all merchants with stats
  */
-export function getAllMerchants(db) {
+export function getAllMerchants(db, userId = null) {
+  // Build user filter
+  let userFilter = '';
+  const params = [];
+  if (userId) {
+    userFilter = 'AND a.user_id = ?';
+    params.push(userId);
+  }
+
   // Get all non-transfer debit transactions
   const transactions = db.prepare(`
     SELECT
@@ -306,9 +349,11 @@ export function getAllMerchants(db) {
       t.debit_amount,
       t.transaction_date
     FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
     WHERE t.is_transfer = 0
       AND t.debit_amount > 0
-  `).all();
+      ${userFilter}
+  `).all(...params);
 
   // Group by merchant name
   const merchantMap = new Map();
