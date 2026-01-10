@@ -11,6 +11,14 @@ import {
   createUser
 } from './auth.service.js';
 import { requireAuth, getClientIP } from './auth.middleware.js';
+import {
+  setSessionCookie,
+  clearSessionCookie,
+  setCsrfCookie,
+  clearCsrfCookie,
+  generateCsrfToken,
+  getSessionFromCookie
+} from '../../core/csrf.js';
 
 const router = Router();
 
@@ -41,9 +49,16 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Set HTTP-only session cookie
+    setSessionCookie(res, result.token);
+
+    // Set CSRF token cookie (readable by JavaScript)
+    const csrfToken = generateCsrfToken();
+    setCsrfCookie(res, csrfToken);
+
     res.json({
       success: true,
-      token: result.token,
+      token: result.token, // Still return token for backwards compatibility
       user: result.user
     });
   } catch (error) {
@@ -62,6 +77,11 @@ router.post('/login', async (req, res) => {
 router.post('/logout', requireAuth, (req, res) => {
   try {
     const result = logout(req.sessionToken);
+
+    // Clear session and CSRF cookies
+    clearSessionCookie(res);
+    clearCsrfCookie(res);
+
     res.json({ success: true });
   } catch (error) {
     console.error('Logout error:', error);
@@ -75,16 +95,25 @@ router.post('/logout', requireAuth, (req, res) => {
 /**
  * GET /api/auth/verify
  * Check if current session is valid
+ * Supports both HTTP-only cookie and Bearer token
  */
 router.get('/verify', (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
+    // First try session cookie
+    let token = getSessionFromCookie(req);
 
-    if (!authHeader) {
+    // Fallback to Bearer token
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        token = authHeader.replace('Bearer ', '');
+      }
+    }
+
+    if (!token) {
       return res.json({ valid: false });
     }
 
-    const token = authHeader.replace('Bearer ', '');
     const result = verifySession(token);
 
     res.json({

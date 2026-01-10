@@ -1,11 +1,19 @@
 /**
  * API Client for FinanceFlow
- * Fetch wrapper with automatic JSON parsing and error handling
+ * Fetch wrapper with automatic JSON parsing, error handling, and CSRF protection
  */
 
 import { auth } from './auth.js';
 
 const BASE_URL = '/api';
+
+/**
+ * Get CSRF token from cookie
+ */
+function getCsrfToken() {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
 
 /**
  * Make an HTTP request to the API
@@ -20,15 +28,24 @@ async function request(method, path, data = null) {
     'Content-Type': 'application/json'
   };
 
-  // Add auth token if available
+  // Add auth token if available (backwards compatibility, session cookie is preferred)
   const token = auth.getToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Add CSRF token for state-changing requests
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+
   const options = {
     method,
-    headers
+    headers,
+    credentials: 'include' // Include cookies for session-based auth
   };
 
   if (data && (method === 'POST' || method === 'PUT')) {

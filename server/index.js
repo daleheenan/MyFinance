@@ -8,6 +8,7 @@ import { setupMiddleware } from './core/middleware.js';
 import { setupSecurity, setupTrustProxy } from './core/security.js';
 import { requireAuth } from './features/auth/auth.middleware.js';
 import { cleanupExpiredSessions } from './features/auth/auth.service.js';
+import { csrfProtection } from './core/csrf.js';
 import authRouter from './features/auth/auth.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +46,7 @@ await preloadRoutes();
 
 export function createApp(db = null, options = {}) {
   const app = express();
-  const { skipAuth = false } = options; // Allow tests to skip auth
+  const { skipAuth = false, skipCsrf = false } = options; // Allow tests to skip auth/csrf
 
   // Trust proxy for Railway/reverse proxies
   setupTrustProxy(app);
@@ -79,9 +80,12 @@ export function createApp(db = null, options = {}) {
   app.use('/api/auth', authRouter);
   console.log('Registered: /api/auth');
 
-  // Apply authentication middleware to all other API routes
+  // Apply authentication and CSRF protection to all other API routes
   if (!skipAuth) {
     app.use('/api', requireAuth);
+  }
+  if (!skipCsrf) {
+    app.use('/api', csrfProtection);
   }
 
   // Register pre-loaded feature routes (now protected)

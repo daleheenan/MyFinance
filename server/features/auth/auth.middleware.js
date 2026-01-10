@@ -1,24 +1,26 @@
 import { verifySession } from './auth.service.js';
+import { getSessionFromCookie } from '../../core/csrf.js';
 
 /**
  * Middleware to require authentication for protected routes
+ * Supports both HTTP-only session cookie (preferred) and Bearer token (legacy)
  */
 export function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
+  // First, try to get session from HTTP-only cookie (more secure)
+  let token = getSessionFromCookie(req);
 
-  if (!authHeader) {
-    return res.status(401).json({
-      success: false,
-      error: 'Authentication required'
-    });
+  // Fallback to Bearer token for backwards compatibility
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      token = authHeader.replace('Bearer ', '');
+    }
   }
-
-  const token = authHeader.replace('Bearer ', '');
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      error: 'Invalid authorization header'
+      error: 'Authentication required'
     });
   }
 
@@ -40,14 +42,22 @@ export function requireAuth(req, res, next) {
 
 /**
  * Optional auth - attaches user if token present, but doesn't require it
+ * Supports both HTTP-only session cookie and Bearer token
  */
 export function optionalAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
+  // First, try to get session from HTTP-only cookie
+  let token = getSessionFromCookie(req);
 
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
+  // Fallback to Bearer token
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      token = authHeader.replace('Bearer ', '');
+    }
+  }
+
+  if (token) {
     const { valid, user } = verifySession(token);
-
     if (valid) {
       req.user = user;
       req.sessionToken = token;

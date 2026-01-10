@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -11,6 +12,9 @@ const ALLOWED_ORIGINS = [
 let corsWarningLogged = false;
 
 export function setupMiddleware(app) {
+  // Parse cookies (required for session and CSRF cookies)
+  app.use(cookieParser());
+
   // Parse JSON bodies
   app.use(express.json({ limit: '10mb' }));
 
@@ -44,7 +48,7 @@ export function setupMiddleware(app) {
     }
 
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
 
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);

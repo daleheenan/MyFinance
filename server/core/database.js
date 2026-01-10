@@ -50,6 +50,7 @@ function runMigrations(database) {
   addColumnIfNotExists(database, 'merchants', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'subscriptions', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'net_worth_snapshots', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfNotExists(database, 'anomalies', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
 }
 
 export function initDb(dbPath) {

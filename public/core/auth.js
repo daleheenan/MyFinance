@@ -1,7 +1,16 @@
 /**
  * Authentication state manager
- * Handles login, logout, session verification
+ * Handles login, logout, session verification with CSRF protection
  */
+
+/**
+ * Get CSRF token from cookie
+ */
+function getCsrfToken() {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 export const auth = {
   token: null,
   user: null,
@@ -35,6 +44,7 @@ export const auth = {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password })
       });
 
@@ -44,7 +54,7 @@ export const auth = {
         return { success: false, error: data.error || 'Login failed' };
       }
 
-      // Store token and user
+      // Store token and user (token kept for backwards compatibility, cookies preferred)
       this.token = data.token;
       this.user = data.user;
       localStorage.setItem('auth_token', data.token);
@@ -62,15 +72,22 @@ export const auth = {
    */
   async logout() {
     try {
-      if (this.token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.token}`
-          }
-        });
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      };
+
+      // Add CSRF token for logout request
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
       }
+
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers,
+        credentials: 'include'
+      });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -87,15 +104,13 @@ export const auth = {
    * @returns {Promise<boolean>}
    */
   async verify() {
-    if (!this.token) {
-      return false;
-    }
-
+    // Try to verify with either cookie or token
     try {
       const response = await fetch('/api/auth/verify', {
         headers: {
-          'Authorization': `Bearer ${this.token}`
-        }
+          'Authorization': `Bearer ${this.token || ''}`
+        },
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -154,12 +169,21 @@ export const auth = {
    */
   async changePassword(currentPassword, newPassword) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      };
+
+      // Add CSRF token
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       const response = await fetch('/api/auth/password', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.token}`
-        },
+        headers,
+        credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword })
       });
 
@@ -186,7 +210,8 @@ export const auth = {
       const response = await fetch(`/api/auth/login-history?limit=${limit}`, {
         headers: {
           'Authorization': `Bearer ${this.token}`
-        }
+        },
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -206,7 +231,8 @@ export const auth = {
       const response = await fetch('/api/auth/sessions', {
         headers: {
           'Authorization': `Bearer ${this.token}`
-        }
+        },
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -224,11 +250,20 @@ export const auth = {
    */
   async revokeSession(sessionId) {
     try {
+      const headers = {
+        'Authorization': `Bearer ${this.token}`
+      };
+
+      // Add CSRF token
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       const response = await fetch(`/api/auth/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${this.token}`
-        }
+        headers,
+        credentials: 'include'
       });
 
       const data = await response.json();
