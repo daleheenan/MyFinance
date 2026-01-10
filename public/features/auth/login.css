@@ -1,20 +1,21 @@
-/* Login Page Styles */
+/* Login Page Styles - Light Theme */
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
   padding: 1rem;
 }
 
 .login-card {
-  background: var(--card-bg, #1e1e2e);
+  background: #ffffff;
   border-radius: 12px;
   padding: 2.5rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
 .login-header {
@@ -25,12 +26,12 @@
 .login-header h1 {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--text-primary, #ffffff);
+  color: #1f2937;
   margin: 0 0 0.5rem 0;
 }
 
 .login-header p {
-  color: var(--text-secondary, #a0a0a0);
+  color: #6b7280;
   margin: 0;
   font-size: 0.95rem;
 }
@@ -48,35 +49,36 @@
 }
 
 .login-form label {
-  color: var(--text-secondary, #a0a0a0);
+  color: #374151;
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .login-form input {
-  background: var(--input-bg, #2a2a3e);
-  border: 1px solid var(--border-color, #3a3a4e);
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 0.875rem 1rem;
   font-size: 1rem;
-  color: var(--text-primary, #ffffff);
+  color: #1f2937;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .login-form input:focus {
   outline: none;
-  border-color: var(--accent-color, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  background: #ffffff;
 }
 
 .login-form input::placeholder {
-  color: var(--text-muted, #666);
+  color: #9ca3af;
 }
 
 .login-error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -84,7 +86,7 @@
 }
 
 .login-btn {
-  background: var(--accent-color, #6366f1);
+  background: #6366f1;
   color: white;
   border: none;
   border-radius: 8px;
@@ -97,7 +99,7 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: var(--accent-hover, #5558e3);
+  background: #4f46e5;
 }
 
 .login-btn:active:not(:disabled) {

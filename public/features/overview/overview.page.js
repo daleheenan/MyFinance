@@ -136,7 +136,7 @@ async function loadData() {
     // Fetch all data in parallel
     const [overviewStats, recentTransactions, categories, mainAccountTrend, anomalies] = await Promise.all([
       api.get('/accounts/overview/stats'),
-      api.get('/accounts/overview/recent-transactions?limit=10'),
+      api.get('/accounts/overview/recent-transactions?limit=15'),
       api.get('/categories?include_totals=true').catch(() => []),
       api.get('/accounts/1/balance-trend?days=365').catch(() => []), // Main account 12-month trend
       api.get('/analytics/anomalies?dismissed=false&limit=5').catch(() => [])
@@ -347,13 +347,13 @@ function renderBalanceTrend(data) {
         <!-- Y-axis labels -->
         ${yAxisElements.map(el => `
           <text x="${padding.left - 10}" y="${el.y + 4}"
-                text-anchor="end" font-size="12" fill="var(--text-tertiary)">${el.label}</text>
+                text-anchor="end" font-size="12" fill="var(--text-secondary)">${el.label}</text>
         `).join('')}
 
         <!-- X-axis labels (all 12 months) -->
         ${monthLabels.map(ml => `
           <text x="${ml.x}" y="${svgHeight - 10}"
-                text-anchor="middle" font-size="12" fill="var(--text-tertiary)">${ml.label}</text>
+                text-anchor="middle" font-size="12" fill="var(--text-secondary)">${ml.label}</text>
         `).join('')}
 
         <!-- Filled area under curve -->
