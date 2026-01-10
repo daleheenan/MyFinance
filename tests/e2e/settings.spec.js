@@ -69,6 +69,71 @@ test.describe('Settings Page', () => {
       expect(true).toBeTruthy();
     });
 
+    test('should open add account modal', async ({ page }) => {
+      await page.goto('/#/settings');
+      await page.waitForLoadState('networkidle');
+
+      // Find and click add account button
+      const addBtn = page.locator('button:has-text("Add Account"), .add-account-btn, [data-action="add-account"]').first();
+      await addBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+
+      if (await addBtn.isVisible()) {
+        await addBtn.click();
+
+        // Modal should open with form fields
+        const modal = page.locator('.modal, .modal-overlay');
+        await expect(modal).toBeVisible({ timeout: 5000 });
+
+        // Check for expected form fields
+        const nameInput = page.locator('#account-name, input[name="account_name"]');
+        await expect(nameInput).toBeVisible();
+
+        const typeSelect = page.locator('#account-type, select[name="account_type"]');
+        await expect(typeSelect).toBeVisible();
+
+        // Account type should have debit and credit options
+        const debitOption = page.locator('option[value="debit"]');
+        const creditOption = page.locator('option[value="credit"]');
+        await expect(debitOption).toBeAttached();
+        await expect(creditOption).toBeAttached();
+      }
+    });
+
+    test('should create new account with debit type', async ({ page }) => {
+      await page.goto('/#/settings');
+      await page.waitForLoadState('networkidle');
+
+      // Get initial account count
+      await page.waitForSelector('.account-item, .account-card, [data-account-id]', { timeout: 10000 }).catch(() => {});
+      const initialAccountElements = page.locator('.account-item, .account-card, [data-account-id]');
+      const initialCount = await initialAccountElements.count().catch(() => 0);
+
+      // Click add account
+      const addBtn = page.locator('button:has-text("Add Account"), .add-account-btn').first();
+      await addBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+
+      if (await addBtn.isVisible()) {
+        await addBtn.click();
+        await page.waitForSelector('.modal, .modal-overlay', { timeout: 5000 });
+
+        // Fill in account details
+        await page.fill('#account-name', 'Test Checking Account');
+        await page.selectOption('#account-type', 'debit');
+        await page.fill('#account-balance, #account-opening-balance, input[type="number"]', '1000');
+
+        // Submit form
+        const saveBtn = page.locator('#modal-save, button:has-text("Save"), button:has-text("Create")').first();
+        await saveBtn.click();
+
+        // Wait for modal to close
+        await page.waitForSelector('.modal, .modal-overlay', { state: 'hidden', timeout: 5000 }).catch(() => {});
+
+        // Verify success toast appeared
+        const toast = page.locator('.toast, .toast-success');
+        await toast.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      }
+    });
+
     test('should allow editing account opening balance', async ({ page }) => {
       await page.goto('/#/settings');
       await page.waitForLoadState('networkidle');

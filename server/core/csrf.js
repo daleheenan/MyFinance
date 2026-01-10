@@ -76,17 +76,17 @@ export function getSessionFromCookie(req) {
 /**
  * CSRF protection middleware
  * - Ensures CSRF token in header matches cookie for unsafe methods
- * - Generates new CSRF token if missing
+ * - Generates new CSRF token if missing (for legacy sessions without cookies)
  */
 export function csrfProtection(req, res, next) {
-  // Generate CSRF token if not present in cookies
-  if (!req.cookies?.[CSRF_COOKIE_NAME]) {
-    const csrfToken = generateCsrfToken();
-    setCsrfCookie(res, csrfToken);
-  }
-
-  // Skip CSRF check for safe methods
+  // Skip CSRF check for safe methods (GET, HEAD, OPTIONS)
+  // But still set the cookie if missing so subsequent POST/PUT/DELETE work
   if (SAFE_METHODS.includes(req.method)) {
+    // Generate CSRF token if not present - allows legacy Bearer token sessions to work
+    if (!req.cookies?.[CSRF_COOKIE_NAME]) {
+      const csrfToken = generateCsrfToken();
+      setCsrfCookie(res, csrfToken);
+    }
     return next();
   }
 
@@ -97,15 +97,26 @@ export function csrfProtection(req, res, next) {
   if (!cookieToken || !headerToken) {
     return res.status(403).json({
       success: false,
-      error: 'CSRF token missing'
+      error: 'CSRF token missing. Please refresh the page and try again.'
     });
   }
 
   // Constant-time comparison to prevent timing attacks
-  if (!crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))) {
+  try {
+    const cookieBuffer = Buffer.from(cookieToken);
+    const headerBuffer = Buffer.from(headerToken);
+
+    if (cookieBuffer.length !== headerBuffer.length ||
+        !crypto.timingSafeEqual(cookieBuffer, headerBuffer)) {
+      return res.status(403).json({
+        success: false,
+        error: 'CSRF token mismatch'
+      });
+    }
+  } catch (err) {
     return res.status(403).json({
       success: false,
-      error: 'CSRF token mismatch'
+      error: 'CSRF token validation failed'
     });
   }
 
