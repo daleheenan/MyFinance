@@ -41,7 +41,15 @@
         <li><a href="#/overview" class="nav-link" data-route="/overview">Overview</a></li>
         <li><a href="#/transactions" class="nav-link" data-route="/transactions">Transactions</a></li>
         <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
-        <li><a href="#/analytics" class="nav-link" data-route="/analytics">Analytics</a></li>
+        <li class="nav-dropdown">
+          <button class="nav-link nav-dropdown-toggle">Analytics <span class="dropdown-arrow">▼</span></button>
+          <ul class="nav-dropdown-menu">
+            <li><a href="#/analytics/summary" class="nav-link" data-route="/analytics/summary">Summary</a></li>
+            <li><a href="#/analytics/trends" class="nav-link" data-route="/analytics/trends">Trends</a></li>
+            <li><a href="#/analytics/spend" class="nav-link" data-route="/analytics/spend">Spending</a></li>
+            <li><a href="#/analytics/merchants" class="nav-link" data-route="/analytics/merchants">Merchants</a></li>
+          </ul>
+        </li>
         <li class="nav-dropdown">
           <button class="nav-link nav-dropdown-toggle">More <span class="dropdown-arrow">▼</span></button>
           <ul class="nav-dropdown-menu">
@@ -83,7 +91,7 @@
         </a>
       </li>
       <li>
-        <a href="#/analytics" class="mobile-nav-link" data-route="/analytics">
+        <a href="#/analytics/summary" class="mobile-nav-link" data-route="/analytics/summary">
           <span class="mobile-nav-icon">📈</span>
           Analytics
         </a>

@@ -86,13 +86,16 @@ function updateActiveNavLinks(path) {
   // Desktop nav
   document.querySelectorAll('.nav-link[data-route]').forEach(link => {
     const route = link.getAttribute('data-route');
-    link.classList.toggle('active', route === path);
+    // Exact match or analytics sub-page match
+    const isActive = route === path || (path.startsWith('/analytics/') && route.startsWith('/analytics/'));
+    link.classList.toggle('active', isActive);
   });
 
-  // Mobile bottom nav
+  // Mobile bottom nav - highlight Analytics for any analytics sub-page
   document.querySelectorAll('.mobile-nav-link[data-route]').forEach(link => {
     const route = link.getAttribute('data-route');
-    link.classList.toggle('active', route === path);
+    const isActive = route === path || (path.startsWith('/analytics/') && route.startsWith('/analytics/'));
+    link.classList.toggle('active', isActive);
   });
 }
 
@@ -104,7 +107,7 @@ function setupKeyboardShortcuts() {
     '1': '/overview',
     '2': '/transactions',
     '3': '/budgets',
-    '4': '/analytics',
+    '4': '/analytics/summary',
     '5': '/settings'
   };
 

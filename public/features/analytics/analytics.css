@@ -3,6 +3,49 @@
  * Reports and insights layout with charts and category breakdowns
  */
 
+/* ===== ANALYTICS SUB-NAVIGATION ===== */
+
+.analytics-sub-nav {
+  display: flex;
+  gap: var(--space-xs);
+  background: var(--bg-tertiary);
+  padding: var(--space-xs);
+  border-radius: var(--radius-lg);
+}
+
+.analytics-sub-nav-link {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.analytics-sub-nav-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.analytics-sub-nav-link.active {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 640px) {
+  .analytics-sub-nav {
+    flex-wrap: wrap;
+  }
+
+  .analytics-sub-nav-link {
+    flex: 1;
+    text-align: center;
+    min-width: 80px;
+  }
+}
+
 /* ===== ANALYTICS HUB ===== */
 
 .analytics-hub .page-header {

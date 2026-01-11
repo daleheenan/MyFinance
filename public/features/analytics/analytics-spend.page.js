@@ -46,7 +46,12 @@ function render() {
           <h1 class="page-title">Monthly Spending</h1>
           <p class="page-subtitle">Average monthly expense breakdown by category</p>
         </div>
-        <a href="#/analytics" class="btn btn-secondary">Back to Analytics</a>
+        <div class="analytics-sub-nav">
+          <a href="#/analytics/summary" class="analytics-sub-nav-link">Summary</a>
+          <a href="#/analytics/trends" class="analytics-sub-nav-link">Trends</a>
+          <a href="#/analytics/spend" class="analytics-sub-nav-link active">Spending</a>
+          <a href="#/analytics/merchants" class="analytics-sub-nav-link">Merchants</a>
+        </div>
       </div>
 
       <section class="filter-section">
