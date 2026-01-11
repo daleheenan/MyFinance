@@ -11,20 +11,26 @@ let db = null;
  * Helper to add a column if it doesn't exist
  */
 function addColumnIfNotExists(database, table, column, definition) {
-  const tableCheck = database.prepare(`
-    SELECT name FROM sqlite_master WHERE type='table' AND name=?
-  `).get(table);
+  try {
+    const tableCheck = database.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name=?
+    `).get(table);
 
-  if (tableCheck) {
-    const columns = database.prepare(`PRAGMA table_info(${table})`).all();
-    const hasColumn = columns.some(col => col.name === column);
+    if (tableCheck) {
+      const columns = database.prepare(`PRAGMA table_info(${table})`).all();
+      const hasColumn = columns.some(col => col.name === column);
 
-    if (!hasColumn) {
-      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-      return true;
+      if (!hasColumn) {
+        console.log(`Migration: Adding column ${column} to ${table}`);
+        database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        return true;
+      }
     }
+    return false;
+  } catch (err) {
+    console.error(`Migration error adding ${column} to ${table}:`, err.message);
+    throw err;
   }
-  return false;
 }
 
 /**
