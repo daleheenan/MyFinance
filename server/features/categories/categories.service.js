@@ -17,9 +17,10 @@ const OTHER_CATEGORY_ID = 11;
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} description - Transaction description to match
+ * @param {number} userId - User ID to filter rules (user's own rules only)
  * @returns {object} Category object with id and name
  */
-export function getCategoryByDescription(db, description) {
+export function getCategoryByDescription(db, description, userId) {
   // Handle empty/whitespace descriptions
   const normalizedDescription = (description || '').trim().toUpperCase();
 
@@ -27,15 +28,15 @@ export function getCategoryByDescription(db, description) {
     return getOtherCategory(db);
   }
 
-  // Get all active rules ordered by priority (descending)
+  // Get active rules for this user only, ordered by priority (descending)
   const rules = db.prepare(`
     SELECT cr.id, cr.pattern, cr.category_id, cr.priority,
            c.name as category_name
     FROM category_rules cr
     JOIN categories c ON c.id = cr.category_id
-    WHERE cr.is_active = 1
+    WHERE cr.is_active = 1 AND cr.user_id = ?
     ORDER BY cr.priority DESC, cr.id ASC
-  `).all();
+  `).all(userId);
 
   // Find first matching rule
   for (const rule of rules) {
@@ -71,23 +72,29 @@ function getOtherCategory(db) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} transactionId - Transaction ID to categorize
+ * @param {number} userId - User ID to verify ownership and filter rules
  * @returns {object} Result with success, categoryId, categoryName
  * @throws {Error} If transaction not found
  */
-export function autoAssignCategory(db, transactionId) {
+export function autoAssignCategory(db, transactionId, userId) {
   if (transactionId == null) {
     throw new Error('Transaction ID is required');
   }
 
-  // Get transaction
-  const txn = db.prepare('SELECT id, description FROM transactions WHERE id = ?').get(transactionId);
+  // Get transaction - only if it belongs to user's account
+  const txn = db.prepare(`
+    SELECT t.id, t.description
+    FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.id = ? AND a.user_id = ?
+  `).get(transactionId, userId);
 
   if (!txn) {
     throw new Error('Transaction not found');
   }
 
-  // Get matching category
-  const category = getCategoryByDescription(db, txn.description);
+  // Get matching category using user's rules
+  const category = getCategoryByDescription(db, txn.description, userId);
 
   // Update transaction
   db.prepare('UPDATE transactions SET category_id = ?, updated_at = datetime(\'now\') WHERE id = ?')
@@ -106,10 +113,11 @@ export function autoAssignCategory(db, transactionId) {
  * If not provided, all uncategorized (Other) transactions are processed.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter transactions and rules
  * @param {number[]?} transactionIds - Optional array of transaction IDs
  * @returns {object} Summary with totalProcessed, updated, unchanged, skipped
  */
-export function bulkAssignCategories(db, transactionIds = null) {
+export function bulkAssignCategories(db, userId, transactionIds = null) {
   // Handle empty array
   if (transactionIds && transactionIds.length === 0) {
     return { totalProcessed: 0, updated: 0, unchanged: 0, skipped: 0 };
@@ -118,20 +126,22 @@ export function bulkAssignCategories(db, transactionIds = null) {
   let transactions;
 
   if (transactionIds && transactionIds.length > 0) {
-    // Get specific transactions
+    // Get specific transactions - only if they belong to user's accounts
     const placeholders = transactionIds.map(() => '?').join(',');
     transactions = db.prepare(`
-      SELECT id, description, category_id
-      FROM transactions
-      WHERE id IN (${placeholders})
-    `).all(...transactionIds);
+      SELECT t.id, t.description, t.category_id
+      FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      WHERE t.id IN (${placeholders}) AND a.user_id = ?
+    `).all(...transactionIds, userId);
   } else {
-    // Get all uncategorized transactions (category_id = OTHER_CATEGORY_ID)
+    // Get all uncategorized transactions for user's accounts only
     transactions = db.prepare(`
-      SELECT id, description, category_id
-      FROM transactions
-      WHERE category_id = ?
-    `).all(OTHER_CATEGORY_ID);
+      SELECT t.id, t.description, t.category_id
+      FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      WHERE t.category_id = ? AND a.user_id = ?
+    `).all(OTHER_CATEGORY_ID, userId);
   }
 
   let updated = 0;
@@ -153,7 +163,7 @@ export function bulkAssignCategories(db, transactionIds = null) {
         continue;
       }
 
-      const category = getCategoryByDescription(db, txn.description);
+      const category = getCategoryByDescription(db, txn.description, userId);
 
       if (category.id !== txn.category_id) {
         updateStmt.run(category.id, txn.id);

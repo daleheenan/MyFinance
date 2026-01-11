@@ -23,6 +23,28 @@
 
 ---
 
+## Phase 0: Critical Data Isolation Fixes (COMPLETED)
+
+These bugs would allow cross-user data access and MUST be fixed before multi-user support.
+
+| # | Task | Status |
+|---|------|--------|
+| 0.1 | Fix `transfer.service.js` - `detectTransfers()` to filter by user's accounts only | [x] |
+| 0.2 | Fix `transfer.service.js` - `linkTransferPair()` to verify user owns both transactions | [x] |
+| 0.3 | Fix `transfer.service.js` - `unlinkTransfer()` to verify user ownership | [x] |
+| 0.4 | Fix `categorization.service.js` - `suggestCategory()` to use user's rules only | [x] |
+| 0.5 | Fix `categorization.service.js` - `learnFromCategorization()` to associate rules with user | [x] |
+| 0.6 | Fix `categorization.service.js` - `autoCategorize()` to filter by user's accounts | [x] |
+| 0.7 | Fix `categorization.service.js` - `findSimilarTransactions()` to filter by user's accounts | [x] |
+| 0.8 | Fix `categorization.service.js` - `applyToSimilarTransactions()` to filter by user's accounts | [x] |
+| 0.9 | Fix `categorization.service.js` - `getUncategorizedTransactions()` to filter by user's accounts | [x] |
+| 0.10 | Fix `categories.service.js` - `getCategoryByDescription()` to use user's rules only | [x] |
+| 0.11 | Fix `categories.service.js` - `autoAssignCategory()` to verify user ownership | [x] |
+| 0.12 | Fix `categories.service.js` - `bulkAssignCategories()` to filter by user's accounts | [x] |
+| 0.13 | Update all route callers to pass userId parameter | [x] |
+
+---
+
 ## Phase 1: Database Schema & Backend Foundation
 | # | Task | Status |
 |---|------|--------|

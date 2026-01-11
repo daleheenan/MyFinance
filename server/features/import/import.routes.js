@@ -477,9 +477,9 @@ router.post('/', upload.single('file'), (req, res) => {
         WHERE id = ?
       `).run(imported, errors.length, batchId);
 
-      // Auto-assign categories to imported transactions
+      // Auto-assign categories to imported transactions (user's rules only)
       if (insertedIds.length > 0) {
-        bulkAssignCategories(db, insertedIds);
+        bulkAssignCategories(db, userId, insertedIds);
       }
 
       // Calculate running balances for the account
@@ -491,13 +491,14 @@ router.post('/', upload.single('file'), (req, res) => {
     const insertedIds = importTransaction();
 
     // Detect transfers (outside transaction since it's across accounts)
+    // Only detect within this user's accounts
     if (insertedIds.length > 0) {
       try {
-        const { pairs } = detectTransfers(db);
+        const { pairs } = detectTransfers(db, userId);
         // Auto-link detected transfers
         for (const pair of pairs) {
           try {
-            linkTransferPair(db, pair.debitTxnId, pair.creditTxnId);
+            linkTransferPair(db, pair.debitTxnId, pair.creditTxnId, userId);
           } catch {
             // Ignore linking errors
           }

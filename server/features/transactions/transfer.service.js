@@ -40,17 +40,19 @@ function getOtherCategoryId(db) {
 /**
  * Detect potential transfer pairs that haven't been linked yet
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter transfers (only between user's own accounts)
  * @returns {{ detected: number, pairs: Array<{ debitTxnId: number, creditTxnId: number, amount: number }> }}
  */
-export function detectTransfers(db) {
-  // Detect transfers between any two different accounts
-  // Criteria: same amount, opposite direction, within 3 days
+export function detectTransfers(db, userId) {
+  // Detect transfers between user's own accounts only
+  // Criteria: same amount, opposite direction, within 3 days, both accounts belong to user
   const query = `
     SELECT
       t1.id AS debit_id,
       t2.id AS credit_id,
       t1.debit_amount AS amount
     FROM transactions t1
+    JOIN accounts a1 ON a1.id = t1.account_id
     JOIN transactions t2 ON (
       -- Same amount (debit in t1 = credit in t2)
       t1.debit_amount = t2.credit_amount
@@ -66,10 +68,13 @@ export function detectTransfers(db) {
       -- Avoid duplicate pairs (only match where t1.id < t2.id for one direction)
       AND t1.id < t2.id
     )
+    JOIN accounts a2 ON a2.id = t2.account_id
+    -- CRITICAL: Both accounts must belong to the same user
+    WHERE a1.user_id = ? AND a2.user_id = ?
     ORDER BY t1.transaction_date, t1.id
   `;
 
-  const pairs = db.prepare(query).all();
+  const pairs = db.prepare(query).all(userId, userId);
 
   // Format the result
   const formattedPairs = pairs.map(p => ({
@@ -89,12 +94,22 @@ export function detectTransfers(db) {
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} txn1Id - First transaction ID
  * @param {number} txn2Id - Second transaction ID
+ * @param {number} userId - User ID to verify ownership of both transactions
  * @returns {{ success: boolean, linkedCount: number }}
  */
-export function linkTransferPair(db, txn1Id, txn2Id) {
-  // Verify both transactions exist
-  const txn1 = db.prepare('SELECT id FROM transactions WHERE id = ?').get(txn1Id);
-  const txn2 = db.prepare('SELECT id FROM transactions WHERE id = ?').get(txn2Id);
+export function linkTransferPair(db, txn1Id, txn2Id, userId) {
+  // Verify both transactions exist AND belong to user's accounts
+  const txn1 = db.prepare(`
+    SELECT t.id FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.id = ? AND a.user_id = ?
+  `).get(txn1Id, userId);
+
+  const txn2 = db.prepare(`
+    SELECT t.id FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.id = ? AND a.user_id = ?
+  `).get(txn2Id, userId);
 
   if (!txn1 || !txn2) {
     throw new Error('Transaction not found');
@@ -129,11 +144,17 @@ export function linkTransferPair(db, txn1Id, txn2Id) {
  * Unlink a transfer pair
  * @param {Database} db - better-sqlite3 database instance
  * @param {number} txnId - Transaction ID (either side of the pair)
+ * @param {number} userId - User ID to verify ownership
  * @returns {{ success: boolean, unlinkedCount: number }}
  */
-export function unlinkTransfer(db, txnId) {
-  // Verify transaction exists
-  const txn = db.prepare('SELECT id, linked_transaction_id, is_transfer FROM transactions WHERE id = ?').get(txnId);
+export function unlinkTransfer(db, txnId, userId) {
+  // Verify transaction exists AND belongs to user's account
+  const txn = db.prepare(`
+    SELECT t.id, t.linked_transaction_id, t.is_transfer
+    FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.id = ? AND a.user_id = ?
+  `).get(txnId, userId);
 
   if (!txn) {
     throw new Error('Transaction not found');

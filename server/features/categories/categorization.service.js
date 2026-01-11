@@ -85,9 +85,10 @@ export function levenshteinDistance(a, b) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} description - Transaction description
+ * @param {number} userId - User ID to filter rules (user's own rules only)
  * @returns {object|null} Suggestion with category_id, categoryName, confidence, matched_rule or null
  */
-export function suggestCategory(db, description) {
+export function suggestCategory(db, description, userId) {
   // Handle empty/whitespace descriptions
   const normalizedDescription = (description || '').trim().toUpperCase();
 
@@ -95,15 +96,15 @@ export function suggestCategory(db, description) {
     return null;
   }
 
-  // Get all active rules ordered by priority (descending)
+  // Get active rules for this user only, ordered by priority (descending)
   const rules = db.prepare(`
     SELECT cr.id, cr.pattern, cr.category_id, cr.priority,
            c.name as category_name
     FROM category_rules cr
     JOIN categories c ON c.id = cr.category_id
-    WHERE cr.is_active = 1
+    WHERE cr.is_active = 1 AND cr.user_id = ?
     ORDER BY cr.priority DESC, cr.id ASC
-  `).all();
+  `).all(userId);
 
   // Track best match for confidence calculation
   let bestMatch = null;
@@ -180,12 +181,13 @@ export function suggestCategory(db, description) {
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} description - Transaction description to learn from
  * @param {number} categoryId - Category ID to associate with pattern
+ * @param {number} userId - User ID who owns the rule
  * @returns {object} Created or existing rule
  * @throws {Error} If pattern cannot be extracted or category doesn't exist
  */
-export function learnFromCategorization(db, description, categoryId) {
-  // Validate category exists
-  const category = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(categoryId);
+export function learnFromCategorization(db, description, categoryId, userId) {
+  // Validate category exists and is accessible to user
+  const category = db.prepare('SELECT id, name FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(categoryId, userId);
   if (!category) {
     throw new Error('Category not found');
   }
@@ -196,12 +198,12 @@ export function learnFromCategorization(db, description, categoryId) {
     throw new Error('Could not extract pattern from description');
   }
 
-  // Check if rule already exists for this pattern and category
+  // Check if rule already exists for this pattern, category, and user
   const existingRule = db.prepare(`
     SELECT id, pattern, category_id, priority
     FROM category_rules
-    WHERE pattern = ? AND category_id = ?
-  `).get(pattern, categoryId);
+    WHERE pattern = ? AND category_id = ? AND user_id = ?
+  `).get(pattern, categoryId, userId);
 
   if (existingRule) {
     return {
@@ -218,11 +220,11 @@ export function learnFromCategorization(db, description, categoryId) {
   const word = pattern.replace(/%/g, '');
   const priority = Math.min(word.length * 2, 20); // Longer words = higher priority, max 20
 
-  // Insert new rule
+  // Insert new rule for this user
   const result = db.prepare(`
-    INSERT INTO category_rules (pattern, category_id, priority, is_active)
-    VALUES (?, ?, ?, 1)
-  `).run(pattern, categoryId, priority);
+    INSERT INTO category_rules (user_id, pattern, category_id, priority, is_active)
+    VALUES (?, ?, ?, ?, 1)
+  `).run(userId, pattern, categoryId, priority);
 
   return {
     id: result.lastInsertRowid,
@@ -238,10 +240,11 @@ export function learnFromCategorization(db, description, categoryId) {
  * Only categorizes with high confidence matches.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter transactions and rules
  * @param {number[]} transactionIds - Optional array of specific transaction IDs. If not provided, processes all uncategorized.
  * @returns {object} Result with categorized count, skipped count, and details
  */
-export function autoCategorize(db, transactionIds = null) {
+export function autoCategorize(db, userId, transactionIds = null) {
   // Handle explicitly empty array (user wants to process nothing)
   if (Array.isArray(transactionIds) && transactionIds.length === 0) {
     return { categorized: 0, skipped: 0, details: [] };
@@ -250,20 +253,22 @@ export function autoCategorize(db, transactionIds = null) {
   let transactions;
 
   if (Array.isArray(transactionIds) && transactionIds.length > 0) {
-    // Get specific transactions
+    // Get specific transactions - only if they belong to user's accounts
     const placeholders = transactionIds.map(() => '?').join(',');
     transactions = db.prepare(`
-      SELECT id, description, category_id
-      FROM transactions
-      WHERE id IN (${placeholders})
-    `).all(...transactionIds);
+      SELECT t.id, t.description, t.category_id
+      FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      WHERE t.id IN (${placeholders}) AND a.user_id = ?
+    `).all(...transactionIds, userId);
   } else {
-    // Get all uncategorized transactions (category_id IS NULL)
+    // Get all uncategorized transactions for user's accounts only
     transactions = db.prepare(`
-      SELECT id, description, category_id
-      FROM transactions
-      WHERE category_id IS NULL
-    `).all();
+      SELECT t.id, t.description, t.category_id
+      FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      WHERE t.category_id IS NULL AND a.user_id = ?
+    `).all(userId);
   }
 
   let categorized = 0;
@@ -293,7 +298,7 @@ export function autoCategorize(db, transactionIds = null) {
         continue;
       }
 
-      const suggestion = suggestCategory(db, txn.description);
+      const suggestion = suggestCategory(db, txn.description, userId);
 
       if (suggestion && suggestion.confidence >= 0.7) {
         // High confidence - apply categorization
@@ -337,10 +342,11 @@ export function autoCategorize(db, transactionIds = null) {
  *
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} description - Transaction description to extract pattern from
+ * @param {number} userId - User ID to filter transactions (user's accounts only)
  * @param {number} excludeId - Optional transaction ID to exclude (the one being categorized)
  * @returns {object} Object with pattern, count, and matching transactions
  */
-export function findSimilarTransactions(db, description, excludeId = null) {
+export function findSimilarTransactions(db, description, userId, excludeId = null) {
   const pattern = extractPattern(description);
   if (!pattern) {
     return { pattern: null, count: 0, transactions: [] };
@@ -349,7 +355,7 @@ export function findSimilarTransactions(db, description, excludeId = null) {
   // Strip % wildcards for LIKE query
   const cleanPattern = pattern.replace(/%/g, '');
 
-  // Find transactions with similar descriptions (case insensitive)
+  // Find transactions with similar descriptions - only in user's accounts
   let query = `
     SELECT
       t.id,
@@ -361,10 +367,11 @@ export function findSimilarTransactions(db, description, excludeId = null) {
       t.category_id,
       c.name as category_name
     FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
     LEFT JOIN categories c ON c.id = t.category_id
-    WHERE UPPER(t.description) LIKE ?
+    WHERE UPPER(t.description) LIKE ? AND a.user_id = ?
   `;
-  const params = [`%${cleanPattern}%`];
+  const params = [`%${cleanPattern}%`, userId];
 
   if (excludeId !== null) {
     query += ' AND t.id != ?';
@@ -390,17 +397,18 @@ export function findSimilarTransactions(db, description, excludeId = null) {
  * @param {Database} db - better-sqlite3 database instance
  * @param {string} description - Description to extract pattern from
  * @param {number} categoryId - Category to apply
+ * @param {number} userId - User ID to filter transactions (user's accounts only)
  * @param {object} options - Options
  * @param {boolean} options.onlyUncategorized - Only update transactions that are uncategorized (category_id = 11 "Other")
  * @param {number} options.excludeId - Transaction ID to exclude
  * @returns {object} Result with updated count and pattern
  */
-export function applyToSimilarTransactions(db, description, categoryId, options = {}) {
+export function applyToSimilarTransactions(db, description, categoryId, userId, options = {}) {
   const { onlyUncategorized = false, excludeId = null } = options;
   const OTHER_CATEGORY_ID = 11;
 
-  // Validate category exists
-  const category = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(categoryId);
+  // Validate category exists and is accessible to user
+  const category = db.prepare('SELECT id, name FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)').get(categoryId, userId);
   if (!category) {
     throw new Error('Category not found');
   }
@@ -412,22 +420,26 @@ export function applyToSimilarTransactions(db, description, categoryId, options 
 
   const cleanPattern = pattern.replace(/%/g, '');
 
-  // Build update query
-  let whereClause = `WHERE UPPER(description) LIKE ?`;
-  const params = [`%${cleanPattern}%`];
+  // Build query to find matching transactions in user's accounts only
+  let whereClause = `WHERE UPPER(t.description) LIKE ? AND a.user_id = ?`;
+  const params = [`%${cleanPattern}%`, userId];
 
   if (onlyUncategorized) {
-    whereClause += ` AND category_id = ?`;
+    whereClause += ` AND t.category_id = ?`;
     params.push(OTHER_CATEGORY_ID);
   }
 
   if (excludeId !== null) {
-    whereClause += ` AND id != ?`;
+    whereClause += ` AND t.id != ?`;
     params.push(excludeId);
   }
 
-  // Count how many will be affected
-  const countResult = db.prepare(`SELECT COUNT(*) as count FROM transactions ${whereClause}`).get(...params);
+  // Count how many will be affected (must join to accounts for user filtering)
+  const countResult = db.prepare(`
+    SELECT COUNT(*) as count FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    ${whereClause}
+  `).get(...params);
   const affectedCount = countResult.count;
 
   if (affectedCount === 0) {
@@ -440,17 +452,21 @@ export function applyToSimilarTransactions(db, description, categoryId, options 
     };
   }
 
-  // Perform the update - need to build SET clause properly
+  // Perform the update - use subquery to filter by user's accounts
   const updateQuery = `
     UPDATE transactions
     SET category_id = ?, updated_at = datetime('now')
-    ${whereClause}
+    WHERE id IN (
+      SELECT t.id FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      ${whereClause}
+    )
   `;
   const result = db.prepare(updateQuery).run(categoryId, ...params);
 
   // Also learn this pattern as a rule for future imports
   try {
-    learnFromCategorization(db, description, categoryId);
+    learnFromCategorization(db, description, categoryId, userId);
   } catch {
     // Ignore if rule already exists or pattern extraction fails
   }
@@ -468,10 +484,11 @@ export function applyToSimilarTransactions(db, description, categoryId, options 
  * Get uncategorized transactions with suggestions.
  *
  * @param {Database} db - better-sqlite3 database instance
+ * @param {number} userId - User ID to filter transactions (user's accounts only)
  * @param {number} limit - Maximum number of transactions to return (default 50)
  * @returns {object[]} Array of transactions with suggestion property
  */
-export function getUncategorizedTransactions(db, limit = 50) {
+export function getUncategorizedTransactions(db, userId, limit = 50) {
   const transactions = db.prepare(`
     SELECT
       t.id,
@@ -483,15 +500,15 @@ export function getUncategorizedTransactions(db, limit = 50) {
       t.account_id,
       a.account_name
     FROM transactions t
-    LEFT JOIN accounts a ON a.id = t.account_id
-    WHERE t.category_id IS NULL
+    JOIN accounts a ON a.id = t.account_id
+    WHERE t.category_id IS NULL AND a.user_id = ?
     ORDER BY t.transaction_date DESC, t.id DESC
     LIMIT ?
-  `).all(limit);
+  `).all(userId, limit);
 
   // Add suggestion to each transaction
   return transactions.map(txn => ({
     ...txn,
-    suggestion: suggestCategory(db, txn.description)
+    suggestion: suggestCategory(db, txn.description, userId)
   }));
 }

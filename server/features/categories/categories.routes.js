@@ -96,6 +96,7 @@ router.get('/', (req, res) => {
  */
 router.post('/suggest', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { description } = req.body;
 
   if (!description || typeof description !== 'string') {
@@ -105,7 +106,7 @@ router.post('/suggest', (req, res) => {
     });
   }
 
-  const suggestion = suggestCategory(db, description);
+  const suggestion = suggestCategory(db, description, userId);
 
   res.json({
     success: true,
@@ -121,6 +122,7 @@ router.post('/suggest', (req, res) => {
  */
 router.post('/learn', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { description, category_id } = req.body;
 
   if (!description || typeof description !== 'string') {
@@ -138,7 +140,7 @@ router.post('/learn', (req, res) => {
   }
 
   try {
-    const result = learnFromCategorization(db, description, category_id);
+    const result = learnFromCategorization(db, description, category_id, userId);
     res.status(result.existing ? 200 : 201).json({
       success: true,
       data: result
@@ -159,6 +161,7 @@ router.post('/learn', (req, res) => {
  */
 router.post('/find-similar', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { description, exclude_id } = req.body;
 
   if (!description || typeof description !== 'string') {
@@ -169,7 +172,7 @@ router.post('/find-similar', (req, res) => {
   }
 
   try {
-    const result = findSimilarTransactions(db, description, exclude_id || null);
+    const result = findSimilarTransactions(db, description, userId, exclude_id || null);
     res.json({
       success: true,
       data: result
@@ -190,6 +193,7 @@ router.post('/find-similar', (req, res) => {
  */
 router.post('/apply-to-similar', (req, res) => {
   const db = getDb();
+  const userId = req.user.id;
   const { description, category_id, only_uncategorized, exclude_id } = req.body;
 
   if (!description || typeof description !== 'string') {
@@ -207,7 +211,7 @@ router.post('/apply-to-similar', (req, res) => {
   }
 
   try {
-    const result = applyToSimilarTransactions(db, description, category_id, {
+    const result = applyToSimilarTransactions(db, description, category_id, userId, {
       onlyUncategorized: Boolean(only_uncategorized),
       excludeId: exclude_id || null
     });

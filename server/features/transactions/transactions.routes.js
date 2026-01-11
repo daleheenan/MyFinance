@@ -117,7 +117,7 @@ router.get('/uncategorized', (req, res, next) => {
     const userId = req.user.id;
     const limit = parseInt(req.query.limit, 10) || 50;
 
-    const transactions = getUncategorizedTransactions(db, limit, userId);
+    const transactions = getUncategorizedTransactions(db, userId, limit);
 
     res.json({
       success: true,
@@ -143,7 +143,7 @@ router.post('/auto-categorize', (req, res, next) => {
 
     // Pass null if not provided, otherwise pass the array
     const ids = transaction_ids !== undefined ? transaction_ids : null;
-    const result = autoCategorize(db, ids, userId);
+    const result = autoCategorize(db, userId, ids);
 
     res.json({
       success: true,
