@@ -33,6 +33,7 @@ async function displayVersion() {
 import * as overviewPage from '../features/overview/overview.page.js';
 import * as transactionsPage from '../features/transactions/transactions.page.js';
 import * as analyticsPage from '../features/analytics/analytics.page.js';
+import * as analyticsSummaryPage from '../features/analytics/analytics-summary.page.js';
 import * as budgetsPage from '../features/budgets/budgets.page.js';
 import * as settingsPage from '../features/settings/settings.page.js';
 import * as subscriptionsPage from '../features/subscriptions/subscriptions.page.js';
@@ -134,6 +135,7 @@ function registerRoutes() {
   router.register('/overview', overviewPage);
   router.register('/transactions', transactionsPage);
   router.register('/analytics', analyticsPage);
+  router.register('/analytics/summary', analyticsSummaryPage);
   router.register('/budgets', budgetsPage);
   router.register('/subscriptions', subscriptionsPage);
   router.register('/networth', networthPage);

@@ -120,6 +120,7 @@ router.get('/spending-by-category', (req, res, next) => {
 
 // ==========================================================================
 // GET /api/analytics/income-vs-expenses
+// Supports both months param (legacy) and date range filtering
 // ==========================================================================
 router.get('/income-vs-expenses', (req, res, next) => {
   try {
@@ -127,17 +128,11 @@ router.get('/income-vs-expenses', (req, res, next) => {
     const userId = req.user.id;
     const {
       months = '12',
+      range,
+      start_date: startDate,
+      end_date: endDate,
       account_id: accountIdStr
     } = req.query;
-
-    // Parse months
-    const monthsNum = parseInt(months, 10);
-    if (isNaN(monthsNum) || monthsNum < 1 || monthsNum > 24) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid months parameter. Expected 1-24.'
-      });
-    }
 
     // Parse optional account filter
     const accountId = parseAccountId(accountIdStr);
@@ -156,7 +151,37 @@ router.get('/income-vs-expenses', (req, res, next) => {
       });
     }
 
-    const data = getIncomeVsExpenses(db, monthsNum, userId, accountId);
+    let data;
+
+    // If range is specified, use date range filtering
+    if (range) {
+      let dateRange;
+      try {
+        dateRange = calculateDateRange(range, startDate, endDate);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          error: err.message
+        });
+      }
+
+      // Calculate months between start and end dates
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      const monthsInRange = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+
+      data = getIncomeVsExpenses(db, monthsInRange, userId, accountId, dateRange.startDate);
+    } else {
+      // Legacy: use months param
+      const monthsNum = parseInt(months, 10);
+      if (isNaN(monthsNum) || monthsNum < 1 || monthsNum > 24) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid months parameter. Expected 1-24.'
+        });
+      }
+      data = getIncomeVsExpenses(db, monthsNum, userId, accountId);
+    }
 
     // Calculate totals
     const totals = data.reduce(

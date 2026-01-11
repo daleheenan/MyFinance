@@ -979,4 +979,112 @@ router.get('/:id/monthly', (req, res, next) => {
   }
 });
 
+// ==========================================================================
+// GET /api/accounts/:id/balance-history - Get year-on-year balance history for line chart
+// ==========================================================================
+router.get('/:id/balance-history', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+    const userId = req.user.id;
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists and belongs to user
+    const account = db.prepare('SELECT id, account_name, opening_balance FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Get all distinct years from transactions
+    const yearsResult = db.prepare(`
+      SELECT DISTINCT strftime('%Y', transaction_date) as year
+      FROM transactions
+      WHERE account_id = ?
+      ORDER BY year ASC
+    `).all(accountId);
+
+    if (yearsResult.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          account_name: account.account_name,
+          years: []
+        }
+      });
+    }
+
+    const years = yearsResult.map(r => parseInt(r.year));
+
+    // For each year, get the end-of-month balance for each month
+    const yearData = years.map(year => {
+      const months = [];
+
+      for (let month = 1; month <= 12; month++) {
+        const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+        // Get the last transaction balance for this month
+        const lastTxn = db.prepare(`
+          SELECT balance_after
+          FROM transactions
+          WHERE account_id = ?
+            AND strftime('%Y-%m', transaction_date) = ?
+          ORDER BY transaction_date DESC, id DESC
+          LIMIT 1
+        `).get(accountId, monthStr);
+
+        // If no transactions in this month, try to get the last known balance before this month
+        let balance = null;
+        if (lastTxn) {
+          balance = lastTxn.balance_after;
+        } else {
+          // Get the last balance before this month
+          const lastEndOfMonth = new Date(year, month, 0); // Last day of this month
+          const lastBefore = db.prepare(`
+            SELECT balance_after
+            FROM transactions
+            WHERE account_id = ?
+              AND transaction_date <= ?
+            ORDER BY transaction_date DESC, id DESC
+            LIMIT 1
+          `).get(accountId, lastEndOfMonth.toISOString().slice(0, 10));
+
+          if (lastBefore) {
+            balance = lastBefore.balance_after;
+          }
+        }
+
+        months.push({
+          month,
+          balance
+        });
+      }
+
+      return {
+        year,
+        months
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        account_name: account.account_name,
+        years: yearData
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

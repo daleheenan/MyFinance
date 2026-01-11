@@ -165,10 +165,16 @@ export function getSpendingByCategory(db, startDate, endDate, userId, accountId 
  * @param {number} months - Number of months to retrieve (default 12)
  * @param {number} userId - User ID to filter by
  * @param {number|null} accountId - Optional account ID filter
+ * @param {string|null} fromDate - Optional start date (YYYY-MM-DD) to calculate months from
  * @returns {Array<{ month: string, income: number, expenses: number, net: number }>}
  */
-export function getIncomeVsExpenses(db, months = 12, userId, accountId = null) {
-  const today = new Date();
+export function getIncomeVsExpenses(db, months = 12, userId, accountId = null, fromDate = null) {
+  // If fromDate specified, use that as the starting point
+  const endDate = fromDate ? new Date(fromDate) : new Date();
+  // Move to the last month in the range
+  if (fromDate) {
+    endDate.setMonth(endDate.getMonth() + months - 1);
+  }
   const results = [];
 
   // Build account filter - always filter by user
@@ -183,7 +189,7 @@ export function getIncomeVsExpenses(db, months = 12, userId, accountId = null) {
 
   // Calculate for each month
   for (let i = months - 1; i >= 0; i--) {
-    const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const monthDate = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
     const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
 
     // Get income (credits, excluding transfers)

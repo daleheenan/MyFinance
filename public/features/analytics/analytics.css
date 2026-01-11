@@ -3,6 +3,32 @@
  * Reports and insights layout with charts and category breakdowns
  */
 
+/* ===== PAGE HEADER ===== */
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.analytics-header .page-header__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.analytics-header .page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.analytics-header .page-subtitle {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 /* ===== FILTER SECTION ===== */
 
 .filter-section {

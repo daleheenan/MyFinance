@@ -94,6 +94,15 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
+      <!-- Page Header -->
+      <div class="page-header analytics-header">
+        <div class="page-header__content">
+          <h1 class="page-title">Analytics</h1>
+          <p class="page-subtitle">Detailed financial analysis</p>
+        </div>
+        <a href="#/analytics/summary" class="btn btn-secondary">Summary View</a>
+      </div>
+
       <!-- Date Range Selector -->
       <section class="filter-section">
         <div class="filter-bar card">
@@ -116,16 +125,6 @@ function render() {
               <input type="date" id="end-date" class="form-input">
             </div>
             <button class="btn btn-primary btn-sm" id="apply-custom-dates">Apply</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Summary Stats -->
-      <section class="summary-section">
-        <div id="summary-container" class="summary-stats">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading summary...</p>
           </div>
         </div>
       </section>
@@ -279,7 +278,7 @@ async function loadData() {
     // Fetch all data in parallel
     const [categoryDataResp, incomeExpenseData, trendsData, summaryData, merchantsDataResp, expenseBreakdownData, yoyDataResp] = await Promise.all([
       api.get(`/analytics/spending-by-category?${queryParams}`),
-      api.get('/analytics/income-vs-expenses?months=12'),
+      api.get(`/analytics/income-vs-expenses?${queryParams}`),
       api.get(`/analytics/trends?${queryParams}&group_by=day`),
       api.get(`/analytics/summary?${queryParams}`),
       api.get('/merchants/top?by=spend&limit=10'),
@@ -448,10 +447,18 @@ function renderIncomeVsExpenses(data) {
   const incomeExpenseContainer = container.querySelector('#income-expenses-container');
   const { months, totals } = data;
 
+  // Build subtitle from the months data
+  let subtitle = '';
+  if (months && months.length > 0) {
+    const firstMonth = months[0].month;
+    const lastMonth = months[months.length - 1].month;
+    subtitle = `${formatMonthLabel(firstMonth)} - ${formatMonthLabel(lastMonth)} ${lastMonth.split('-')[0]}`;
+  }
+
   incomeExpenseContainer.innerHTML = `
     <div class="card-header">
       <h3 class="card-title">Income vs Expenses</h3>
-      <span class="card-subtitle">Last 12 Months</span>
+      <span class="card-subtitle">${subtitle}</span>
     </div>
   `;
 
@@ -488,10 +495,10 @@ function renderIncomeVsExpenses(data) {
 
   const fragment = document.createDocumentFragment();
 
-  // Show last 6 months for better visibility
-  const recentMonths = months.slice(-6);
+  // Show up to 6 months for better visibility, or all if fewer
+  const displayMonths = months.length > 6 ? months.slice(-6) : months;
 
-  recentMonths.forEach(month => {
+  displayMonths.forEach(month => {
     const barGroup = document.createElement('div');
     barGroup.className = 'bar-group';
 
