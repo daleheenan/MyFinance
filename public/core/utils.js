@@ -29,6 +29,23 @@ export function formatDate(dateStr) {
   });
 }
 
+
+/**
+ * Format a date string with time in UK format
+ * @param {string} dateStr - ISO date string or Date-compatible string
+ * @returns {string} - Formatted date and time (e.g., "15 Jan 2024, 14:30")
+ */
+export function formatDateTime(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 /**
  * Format a date as relative time
  * @param {string} dateStr - ISO date string or Date-compatible string

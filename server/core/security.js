@@ -11,8 +11,8 @@ export function setupSecurity(app) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for dynamic UI
+        scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"], // Allow inline styles for dynamic UI
         imgSrc: ["'self'", "data:", "blob:"],
         fontSrc: ["'self'"],
         connectSrc: ["'self'"],
