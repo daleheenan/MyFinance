@@ -14,6 +14,7 @@ function getCsrfToken() {
 export const auth = {
   token: null,
   user: null,
+  subscription: null,
   initialized: false,
 
   /**
@@ -27,6 +28,14 @@ export const auth = {
         this.user = JSON.parse(userStr);
       } catch (e) {
         this.user = null;
+      }
+    }
+    const subscriptionStr = localStorage.getItem('auth_subscription');
+    if (subscriptionStr) {
+      try {
+        this.subscription = JSON.parse(subscriptionStr);
+      } catch (e) {
+        this.subscription = null;
       }
     }
     this.initialized = true;
@@ -94,14 +103,16 @@ export const auth = {
       // Clear local state regardless of server response
       this.token = null;
       this.user = null;
+      this.subscription = null;
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_subscription');
     }
   },
 
   /**
    * Verify if current session is still valid
-   * @returns {Promise<boolean>}
+   * @returns {Promise<{valid: boolean, subscription?: object}>}
    */
   async verify() {
     // Try to verify with either cookie or token
@@ -119,9 +130,11 @@ export const auth = {
         // Session invalid, clear local state
         this.token = null;
         this.user = null;
+        this.subscription = null;
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
-        return false;
+        localStorage.removeItem('auth_subscription');
+        return { valid: false };
       }
 
       // Update user info if provided
@@ -130,10 +143,16 @@ export const auth = {
         localStorage.setItem('auth_user', JSON.stringify(data.user));
       }
 
-      return true;
+      // Update subscription info if provided
+      if (data.subscription) {
+        this.subscription = data.subscription;
+        localStorage.setItem('auth_subscription', JSON.stringify(data.subscription));
+      }
+
+      return { valid: true, subscription: data.subscription };
     } catch (error) {
       console.error('Verify error:', error);
-      return false;
+      return { valid: false };
     }
   },
 
@@ -159,6 +178,14 @@ export const auth = {
    */
   getUser() {
     return this.user;
+  },
+
+  /**
+   * Get current subscription status
+   * @returns {object|null}
+   */
+  getSubscription() {
+    return this.subscription;
   },
 
   /**

@@ -5,6 +5,11 @@
 
 import { router } from './router.js';
 import { auth } from './auth.js';
+import { updateTrialBanner, hideTrialBanner } from './trial-banner.js';
+import { updateExpiredModal, hideExpiredModal } from './expired-modal.js';
+
+// Store current subscription status
+let currentSubscription = null;
 
 /**
  * Fetch and display app version in the header
@@ -36,11 +41,14 @@ import * as forecastingPage from '../features/forecasting/forecasting.page.js';
 import * as loginPage from '../features/auth/login.page.js';
 import * as forgotPasswordPage from '../features/auth/forgot-password.page.js';
 import * as resetPasswordPage from '../features/auth/reset-password.page.js';
+import * as registerPage from '../features/auth/register.page.js';
+import * as verifyEmailPage from '../features/auth/verify-email.page.js';
+import * as registrationSuccessPage from '../features/auth/registration-success.page.js';
 import * as cmsPage from '../features/cms/cms.page.js';
 import * as adminPage from '../features/admin/admin.page.js';
 
 // Public routes that don't require authentication
-const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password', '/register', '/verify-email', '/registration-success'];
 
 /**
  * Setup hamburger menu toggle for mobile
@@ -118,6 +126,9 @@ function registerRoutes() {
   router.register('/login', loginPage);
   router.register('/forgot-password', forgotPasswordPage);
   router.register('/reset-password', resetPasswordPage);
+  router.register('/register', registerPage);
+  router.register('/verify-email', verifyEmailPage);
+  router.register('/registration-success', registrationSuccessPage);
 
   // Protected routes
   router.register('/overview', overviewPage);
@@ -132,6 +143,35 @@ function registerRoutes() {
   // Admin routes
   router.register('/cms', cmsPage);
   router.register('/admin', adminPage);
+}
+
+/**
+ * Update subscription UI (banner and modal)
+ * @param {object|null} subscription - Subscription status object
+ */
+function updateSubscriptionUI(subscription) {
+  currentSubscription = subscription;
+
+  const user = auth.getUser();
+
+  // Admin users don't see trial/subscription UI
+  if (user?.isAdmin) {
+    hideTrialBanner();
+    hideExpiredModal();
+    return;
+  }
+
+  if (!subscription) {
+    hideTrialBanner();
+    hideExpiredModal();
+    return;
+  }
+
+  // Update trial banner (shows for trial users)
+  updateTrialBanner(subscription);
+
+  // Update expired modal (blocks app if expired)
+  updateExpiredModal(subscription);
 }
 
 /**
@@ -170,6 +210,8 @@ function updateAuthUI() {
 
       logoutLi.querySelector('#logout-btn').addEventListener('click', async () => {
         await auth.logout();
+        hideTrialBanner();
+        hideExpiredModal();
         window.location.hash = '#/login';
         updateAuthUI();
       });
@@ -215,10 +257,15 @@ async function init() {
 
   // Verify session if we have a token
   if (auth.getToken()) {
-    const isValid = await auth.verify();
-    if (!isValid) {
+    const verifyResult = await auth.verify();
+    if (!verifyResult.valid) {
       // Token invalid, redirect to login
       window.location.hash = '#/login';
+      hideTrialBanner();
+      hideExpiredModal();
+    } else {
+      // Update subscription UI
+      updateSubscriptionUI(verifyResult.subscription);
     }
   }
 
@@ -249,6 +296,15 @@ async function init() {
     updateAuthUI();
     const path = window.location.hash.replace('#', '') || '/overview';
     updateActiveNavLinks(path);
+
+    // Hide trial/subscription UI on public routes
+    if (PUBLIC_ROUTES.includes(path)) {
+      hideTrialBanner();
+      hideExpiredModal();
+    } else if (auth.isAuthenticated()) {
+      // Re-apply subscription UI on protected routes
+      updateSubscriptionUI(auth.getSubscription());
+    }
   });
 
   // Set initial active state

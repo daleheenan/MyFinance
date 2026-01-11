@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     last_login TEXT,
     failed_login_count INTEGER DEFAULT 0,
-    locked_until TEXT
+    locked_until TEXT,
+    email_verified INTEGER DEFAULT 0,
+    verification_token TEXT,
+    verification_expires TEXT
 );
 
 -- Password reset tokens table

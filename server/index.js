@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './core/errors.js';
 import { setupMiddleware } from './core/middleware.js';
 import { setupSecurity, setupTrustProxy } from './core/security.js';
 import { requireAuth } from './features/auth/auth.middleware.js';
+import { requireActiveSubscription } from './features/auth/subscription.middleware.js';
 import { cleanupExpiredSessions } from './features/auth/auth.service.js';
 import { csrfProtection } from './core/csrf.js';
 import authRouter from './features/auth/auth.routes.js';
@@ -75,7 +76,7 @@ await preloadRoutes();
 
 export function createApp(db = null, options = {}) {
   const app = express();
-  const { skipAuth = false, skipCsrf = false } = options; // Allow tests to skip auth/csrf
+  const { skipAuth = false, skipCsrf = false, skipSubscription = false } = options; // Allow tests to skip auth/csrf/subscription
 
   // Trust proxy for Railway/reverse proxies
   setupTrustProxy(app);
@@ -298,6 +299,13 @@ export function createApp(db = null, options = {}) {
   }
   if (!skipCsrf) {
     app.use('/api', csrfProtection);
+  }
+
+  // Apply subscription/trial check to protected feature routes
+  // This blocks access if trial expired AND subscription not active
+  // Admin users and active subscribers bypass this check
+  if (!skipSubscription) {
+    app.use('/api', requireActiveSubscription);
   }
 
   // Register pre-loaded feature routes (now protected)

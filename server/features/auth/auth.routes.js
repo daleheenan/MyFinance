@@ -13,7 +13,11 @@ import {
   validateResetToken,
   resetPassword,
   updateUserEmail,
-  getUserEmail
+  getUserEmail,
+  registerUser,
+  verifyEmail,
+  resendVerificationEmail,
+  getSubscriptionStatus
 } from './auth.service.js';
 import { isEmailConfigured } from '../../core/email.js';
 import { requireAuth, getClientIP } from './auth.middleware.js';
@@ -134,7 +138,8 @@ router.get('/verify', (req, res) => {
 
     res.json({
       valid: result.valid,
-      user: result.user || null
+      user: result.user || null,
+      subscription: result.subscription || null
     });
   } catch (error) {
     console.error('Verify error:', error);
@@ -518,6 +523,174 @@ router.post('/set-email', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to set email'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/register
+ * Create a new user account
+ * Required: username, email, password
+ * Optional: full_name
+ * Auto-sets trial period (7 days) and sends verification email
+ * Does NOT auto-login - user must verify email and then login
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { username, email, password, full_name } = req.body;
+
+    // Validate required fields
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username, email, and password are required'
+      });
+    }
+
+    // Get base URL from request for verification email
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    const result = await registerUser({ username, email, password, full_name }, baseUrl);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    // Always return success (even if email already exists - prevents enumeration)
+    res.json({
+      success: true,
+      message: 'Account created successfully. Please check your email to verify your account.'
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create account'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/verify-email
+ * Verify email address with token
+ * Required: token
+ */
+router.post('/verify-email', (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Verification token is required'
+      });
+    }
+
+    const result = verifyEmail(token);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully. You can now log in.'
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify email'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification email
+ * Required: email
+ * Rate limited: 1 per minute
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Get base URL from request for verification email
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    const result = await resendVerificationEmail(email, baseUrl);
+
+    if (!result.success) {
+      // Rate limit errors should return 429
+      if (result.error && result.error.includes('wait')) {
+        return res.status(429).json({
+          success: false,
+          error: result.error
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a verification email has been sent.'
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send verification email'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/subscription-status
+ * Get current user's subscription status
+ * Requires authentication
+ * Returns: subscription_status, trial_start_date, trial_end_date, days_remaining, is_expired
+ */
+router.get('/subscription-status', requireAuth, (req, res) => {
+  try {
+    const result = getSubscriptionStatus(req.user.id);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Subscription status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get subscription status'
     });
   }
 });

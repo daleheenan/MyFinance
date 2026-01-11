@@ -78,6 +78,11 @@ function runMigrations(database) {
   addColumnIfNotExists(database, 'users', 'subscription_status', "TEXT DEFAULT 'trial'");
   addColumnIfNotExists(database, 'users', 'last_password_reset', 'TEXT');
 
+  // Migration 6: Add email verification columns
+  addColumnIfNotExists(database, 'users', 'email_verified', 'INTEGER DEFAULT 0');
+  addColumnIfNotExists(database, 'users', 'verification_token', 'TEXT');
+  addColumnIfNotExists(database, 'users', 'verification_expires', 'TEXT');
+
   // Set first user as admin if not already set
   try {
     database.prepare(`

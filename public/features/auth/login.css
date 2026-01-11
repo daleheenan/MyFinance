@@ -138,6 +138,212 @@
   text-align: center;
 }
 
+/* Form Hints */
+.form-hint {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* Password Strength Meter */
+.password-strength {
+  margin-top: 0.5rem;
+}
+
+.strength-meter {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.strength-meter-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  width: 0;
+}
+
+.strength-meter-fill.strength-weak {
+  background-color: #dc2626;
+}
+
+.strength-meter-fill.strength-fair {
+  background-color: #f97316;
+}
+
+.strength-meter-fill.strength-good {
+  background-color: #eab308;
+}
+
+.strength-meter-fill.strength-strong {
+  background-color: #16a34a;
+}
+
+.strength-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.strength-label {
+  font-weight: 600;
+}
+
+.strength-label.strength-weak {
+  color: #dc2626;
+}
+
+.strength-label.strength-fair {
+  color: #f97316;
+}
+
+.strength-label.strength-good {
+  color: #eab308;
+}
+
+.strength-label.strength-strong {
+  color: #16a34a;
+}
+
+.strength-feedback {
+  color: #6b7280;
+}
+
+.feedback-prefix {
+  color: #9ca3af;
+}
+
+/* Verification Status */
+.verification-status {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.verification-icon {
+  margin-bottom: 1rem;
+  color: #16a34a;
+}
+
+.verification-icon.error-icon {
+  color: #dc2626;
+}
+
+.verification-icon.pending-icon {
+  color: #6366f1;
+}
+
+.verification-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.75rem 0;
+}
+
+.verification-message {
+  color: #374151;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.verification-submessage {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Verification Spinner */
+.verification-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Email Tips */
+.email-tips {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.tips-title {
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.tips-list li {
+  margin-bottom: 0.25rem;
+}
+
+.tips-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Resend Section */
+.resend-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.resend-section > p {
+  margin: 0 0 1rem 0;
+  color: #374151;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.resend-form .form-group {
+  margin-bottom: 1rem;
+}
+
+/* Secondary Button */
+.secondary-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+/* Screen Reader Only (Accessibility) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .login-card {
@@ -146,5 +352,14 @@
 
   .login-header h1 {
     font-size: 1.75rem;
+  }
+
+  .verification-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .email-tips {
+    padding: 0.875rem;
   }
 }
