@@ -412,13 +412,19 @@ function renderBreakdown() {
   if (assets.length === 0) {
     assetsContainer.innerHTML = '<div class="empty-state"><p>No assets</p></div>';
   } else {
+    // Helper to get display name for account type
+    const getTypeDisplay = (type) => {
+      const map = { 'current': 'Current', 'savings': 'Savings', 'credit': 'Credit Card', 'debit': 'Current' };
+      return map[type] || type;
+    };
+
     assetsContainer.innerHTML = `
       <div class="breakdown-list">
         ${assets.map(account => `
           <div class="breakdown-item">
             <div class="breakdown-item__info">
               <span class="breakdown-item__name">${escapeHtml(account.account_name)}</span>
-              <span class="breakdown-item__type">${account.account_type}</span>
+              <span class="breakdown-item__type">${getTypeDisplay(account.account_type)}</span>
             </div>
             <span class="breakdown-item__balance value--positive">
               ${formatCurrency(account.current_balance)}
@@ -434,13 +440,19 @@ function renderBreakdown() {
   if (liabilities.length === 0) {
     liabilitiesContainer.innerHTML = '<div class="empty-state"><p>No liabilities</p></div>';
   } else {
+    // Helper to get display name for account type
+    const getTypeDisplay = (type) => {
+      const map = { 'current': 'Current', 'savings': 'Savings', 'credit': 'Credit Card', 'debit': 'Current' };
+      return map[type] || type;
+    };
+
     liabilitiesContainer.innerHTML = `
       <div class="breakdown-list">
         ${liabilities.map(account => `
           <div class="breakdown-item">
             <div class="breakdown-item__info">
               <span class="breakdown-item__name">${escapeHtml(account.account_name)}</span>
-              <span class="breakdown-item__type">${account.account_type}</span>
+              <span class="breakdown-item__type">${getTypeDisplay(account.account_type)}</span>
             </div>
             <span class="breakdown-item__balance value--negative">
               ${formatCurrency(Math.abs(account.current_balance))}

@@ -118,7 +118,7 @@ if (isMain) {
   const app = createApp();
 
   const server = app.listen(PORT, HOST, async () => {
-    console.log(`FinanceFlow server listening on port ${PORT}`);
+    console.log(`Flow Finance Manager server listening on port ${PORT}`);
     console.log(`Health check available at /api/health`);
 
     // In production, the public URL is configured via Railway/custom domain

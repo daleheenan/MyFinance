@@ -1241,15 +1241,3 @@ function updateUrl() {
   history.replaceState(null, '', `#${newHash}`);
 }
 
-/**
- * Show error message
- */
-function showError(message) {
-  const txnContainer = container.querySelector('#transactions-container');
-  txnContainer.innerHTML = `
-    <div class="error-state">
-      <p>${escapeHtml(message)}</p>
-      <button type="button" class="btn btn-secondary retry-btn">Retry</button>
-    </div>
-  `;
-}

@@ -117,8 +117,8 @@ test.describe('Settings Page', () => {
         await page.waitForSelector('.modal, .modal-overlay', { timeout: 5000 });
 
         // Fill in account details
-        await page.fill('#account-name', 'Test Checking Account');
-        await page.selectOption('#account-type', 'debit');
+        await page.fill('#account-name', 'Test Current Account');
+        await page.selectOption('#account-type', 'current');
         await page.fill('#account-balance, #account-opening-balance, input[type="number"]', '1000');
 
         // Submit form

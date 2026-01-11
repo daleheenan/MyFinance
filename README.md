@@ -1,11 +1,11 @@
-# FinanceFlow
+# Flow Finance Manager
 
 A comprehensive personal finance management application built with vanilla JavaScript and Node.js. Track transactions, manage budgets, analyze spending patterns, and forecast your financial future.
 
 ## Features
 
 ### Core Functionality
-- **Multi-Account Management** - Track checking, savings, and credit card accounts with real-time balance updates
+- **Multi-Account Management** - Track current, savings, and credit card accounts with real-time balance updates
 - **Transaction Tracking** - Import from CSV bank statements or manually add transactions
 - **Smart Categorization** - Automatic categorization with customizable pattern-matching rules
 - **Budget Management** - Set monthly budgets by category with rollover support and overspend alerts

@@ -504,11 +504,20 @@ function renderAccounts(accounts) {
 
   accounts.forEach(account => {
     const card = document.createElement('div');
-    card.className = `account-card account-card--${account.account_type}`;
+    // Normalize legacy 'debit' to 'current' for CSS class
+    const typeClass = account.account_type === 'debit' ? 'current' : account.account_type;
+    card.className = `account-card account-card--${typeClass}`;
     card.dataset.accountId = account.id;
 
     const balanceClass = account.current_balance >= 0 ? 'amount-positive' : 'amount-negative';
-    const accountType = account.account_type === 'credit' ? 'Credit' : 'Debit';
+    // Map account types to display names
+    const typeDisplayMap = {
+      'current': 'Current',
+      'savings': 'Savings',
+      'credit': 'Credit',
+      'debit': 'Current'  // Legacy mapping
+    };
+    const accountType = typeDisplayMap[account.account_type] || account.account_type;
 
     // Format month-to-date income/expenses
     const incomeClass = account.month_income > 0 ? 'mtd-positive' : '';
@@ -522,7 +531,7 @@ function renderAccounts(accounts) {
       <div class="account-card__content">
         <div class="account-card__header">
           <span class="account-card__name">${escapeHtml(account.account_name)}</span>
-          <span class="account-card__type-badge account-card__type-badge--${account.account_type}">
+          <span class="account-card__type-badge account-card__type-badge--${typeClass}">
             ${accountType}
           </span>
         </div>

@@ -349,8 +349,13 @@
 }
 
 /* Account type gradients */
-.account-card--debit .account-card__accent {
+.account-card--debit .account-card__accent,
+.account-card--current .account-card__accent {
   background: linear-gradient(90deg, #1d1d1f 0%, #3a3a3c 100%);
+}
+
+.account-card--savings .account-card__accent {
+  background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
 }
 
 .account-card--credit .account-card__accent {
@@ -392,7 +397,13 @@
   letter-spacing: 0.5px;
 }
 
-.account-card__type-badge--debit {
+.account-card__type-badge--debit,
+.account-card__type-badge--current {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--blue);
+}
+
+.account-card__type-badge--savings {
   background: rgba(52, 199, 89, 0.1);
   color: var(--green);
 }

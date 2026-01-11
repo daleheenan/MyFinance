@@ -96,6 +96,7 @@ router.post('/logout', requireAuth, (req, res) => {
  * GET /api/auth/verify
  * Check if current session is valid
  * Supports both HTTP-only cookie and Bearer token
+ * Also ensures CSRF cookie is set for authenticated users
  */
 router.get('/verify', (req, res) => {
   try {
@@ -115,6 +116,14 @@ router.get('/verify', (req, res) => {
     }
 
     const result = verifySession(token);
+
+    // If valid session but no CSRF cookie, set one
+    // This handles users who logged in before CSRF was implemented
+    // or whose CSRF cookie expired while session is still valid
+    if (result.valid && !req.cookies?.csrf_token) {
+      const csrfToken = generateCsrfToken();
+      setCsrfCookie(res, csrfToken);
+    }
 
     res.json({
       valid: result.valid,

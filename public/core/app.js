@@ -200,7 +200,7 @@ async function init() {
   const initialPath = window.location.hash.replace('#', '') || '/overview';
   updateActiveNavLinks(initialPath);
 
-  console.log('FinanceFlow initialized');
+  console.log('Flow Finance Manager initialized');
 }
 
 // Initialize on DOM ready

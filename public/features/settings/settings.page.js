@@ -459,14 +459,27 @@ function renderAccounts() {
     return;
   }
 
+  // Helper to get display name for account type
+  const getAccountTypeDisplay = (type) => {
+    const typeMap = {
+      'current': 'Current',
+      'savings': 'Savings',
+      'credit': 'Credit Card',
+      'debit': 'Current'  // Map legacy 'debit' to 'Current'
+    };
+    return typeMap[type] || type;
+  };
+
   const fragment = document.createDocumentFragment();
   accounts.forEach(account => {
     const card = document.createElement('div');
     card.className = 'account-card';
+    // Normalize legacy 'debit' to 'current' for CSS class
+    const typeClass = account.account_type === 'debit' ? 'current' : account.account_type;
     card.innerHTML = `
       <div class="account-card-header">
         <div class="account-name">${escapeHtml(account.account_name)}</div>
-        <span class="account-type-badge ${account.account_type}">${account.account_type}</span>
+        <span class="account-type-badge ${typeClass}">${getAccountTypeDisplay(account.account_type)}</span>
       </div>
       <div class="account-details">
         <span class="account-detail-label">Account No:</span>
@@ -498,7 +511,7 @@ function showAccountModal(account = null) {
   const accountName = account?.account_name || '';
   const openingBalance = account?.opening_balance || 0;
   const accountNumber = account?.account_number || '';
-  const accountType = account?.account_type || 'debit';
+  const accountType = account?.account_type || 'current';
 
   const dangerZone = isNew ? '' : `
     <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--border-light);">
@@ -524,7 +537,8 @@ function showAccountModal(account = null) {
         <div class="form-group">
           <label class="form-label" for="account-type">Account Type</label>
           <select class="form-select" id="account-type" ${isNew ? '' : 'disabled'}>
-            <option value="debit" ${accountType === 'debit' ? 'selected' : ''}>Debit (Current/Savings)</option>
+            <option value="current" ${accountType === 'current' || accountType === 'debit' ? 'selected' : ''}>Current</option>
+            <option value="savings" ${accountType === 'savings' ? 'selected' : ''}>Savings</option>
             <option value="credit" ${accountType === 'credit' ? 'selected' : ''}>Credit Card</option>
           </select>
           ${isNew ? '' : '<small class="text-secondary">Account type cannot be changed</small>'}

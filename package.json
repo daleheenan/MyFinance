@@ -1,6 +1,7 @@
 {
-  "name": "financeflow",
+  "name": "flow-finance-manager",
   "version": "1.0.0",
+  "description": "Personal finance management application with budgeting, transactions, and analytics",
   "type": "module",
   "engines": {
     "node": ">=22"

@@ -53,7 +53,7 @@ function renderSetupForm(container) {
     <div class="login-page">
       <div class="login-card">
         <div class="login-header">
-          <h1>FinanceFlow</h1>
+          <h1>Flow Finance Manager</h1>
           <p>Welcome! Create your admin account to get started.</p>
         </div>
 
@@ -172,7 +172,7 @@ function renderLoginForm(container) {
     <div class="login-page">
       <div class="login-card">
         <div class="login-header">
-          <h1>FinanceFlow</h1>
+          <h1>Flow Finance Manager</h1>
           <p>Sign in to continue</p>
         </div>
 

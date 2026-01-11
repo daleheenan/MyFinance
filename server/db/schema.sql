@@ -280,3 +280,37 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 CREATE INDEX IF NOT EXISTS idx_login_attempts_timestamp ON login_attempts(timestamp);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username_attempted);
+
+-- ===== CMS TABLES =====
+
+-- CMS Pages (global, not user-scoped - admin only)
+CREATE TABLE IF NOT EXISTS cms_pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    css TEXT DEFAULT '',
+    meta_title TEXT,
+    meta_description TEXT,
+    is_published INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cms_pages_slug ON cms_pages(slug);
+CREATE INDEX IF NOT EXISTS idx_cms_pages_published ON cms_pages(is_published);
+
+-- CMS Images
+CREATE TABLE IF NOT EXISTS cms_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_size INTEGER,
+    alt_text TEXT,
+    uploaded_by INTEGER,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cms_images_filename ON cms_images(filename);

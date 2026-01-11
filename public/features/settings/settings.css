@@ -82,9 +82,15 @@
   text-transform: uppercase;
 }
 
-.account-type-badge.debit {
+.account-type-badge.debit,
+.account-type-badge.current {
   background: rgba(0, 122, 255, 0.1);
   color: var(--blue);
+}
+
+.account-type-badge.savings {
+  background: rgba(52, 199, 89, 0.1);
+  color: var(--green);
 }
 
 .account-type-badge.credit {
