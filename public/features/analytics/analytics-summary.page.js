@@ -73,43 +73,31 @@ function render() {
   container.innerHTML = `
     <div class="page analytics-summary-page">
       <div class="page-header">
-        <div class="page-header__content">
-          <h1 class="page-title">Analytics Summary</h1>
-          <p class="page-subtitle">Overview of your financial data</p>
-        </div>
+        <h1 class="page-title">Analytics</h1>
+      </div>
+
+      <!-- Sub-navigation with Date Range Filters -->
+      <div class="analytics-nav-bar">
         <div class="analytics-sub-nav">
           <a href="#/analytics/summary" class="analytics-sub-nav-link active">Summary</a>
           <a href="#/analytics/trends" class="analytics-sub-nav-link">Trends</a>
           <a href="#/analytics/spend" class="analytics-sub-nav-link">Spending</a>
           <a href="#/analytics/merchants" class="analytics-sub-nav-link">Merchants</a>
         </div>
-      </div>
-
-      <!-- Date Range Selector -->
-      <section class="filter-section">
-        <div class="filter-bar card">
-          <div class="filter-group">
-            <label class="filter-label">Date Range</label>
-            <div class="filter-buttons" id="range-selector">
-              <button class="filter-btn active" data-range="this_month">This Month</button>
-              <button class="filter-btn" data-range="last_3_months">Last 3 Months</button>
-              <button class="filter-btn" data-range="last_year">Last Year</button>
-              <button class="filter-btn" data-range="custom">Custom</button>
-            </div>
+        <div class="analytics-date-filters">
+          <div class="filter-buttons" id="range-selector">
+            <button class="filter-btn active" data-range="this_month">This Month</button>
+            <button class="filter-btn" data-range="last_3_months">3 Months</button>
+            <button class="filter-btn" data-range="last_year">Year</button>
+            <button class="filter-btn" data-range="custom">Custom</button>
           </div>
           <div class="custom-date-inputs hidden" id="custom-dates">
-            <div class="date-input-group">
-              <label for="start-date">From</label>
-              <input type="date" id="start-date" class="form-input">
-            </div>
-            <div class="date-input-group">
-              <label for="end-date">To</label>
-              <input type="date" id="end-date" class="form-input">
-            </div>
+            <input type="date" id="start-date" class="form-input" title="From date">
+            <input type="date" id="end-date" class="form-input" title="To date">
             <button class="btn btn-primary btn-sm" id="apply-custom-dates">Apply</button>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- Summary Stats -->
       <section class="summary-section">

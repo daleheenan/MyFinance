@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="features/auth/login.css">
   <link rel="stylesheet" href="features/cms/cms.css">
   <link rel="stylesheet" href="features/admin/admin.css">
+  <link rel="stylesheet" href="features/manage/manage.css">
   <!-- CodeMirror for CMS Editor -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
@@ -39,8 +40,16 @@
       </button>
       <ul class="nav-links">
         <li><a href="#/overview" class="nav-link" data-route="/overview">Overview</a></li>
-        <li><a href="#/transactions" class="nav-link" data-route="/transactions">Transactions</a></li>
-        <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
+        <li class="nav-dropdown">
+          <button class="nav-link nav-dropdown-toggle">Manage <span class="dropdown-arrow">▼</span></button>
+          <ul class="nav-dropdown-menu">
+            <li><a href="#/transactions" class="nav-link" data-route="/transactions">Transactions</a></li>
+            <li><a href="#/budgets" class="nav-link" data-route="/budgets">Budgets</a></li>
+            <li><a href="#/manage/accounts" class="nav-link" data-route="/manage/accounts">Accounts</a></li>
+            <li><a href="#/manage/categories" class="nav-link" data-route="/manage/categories">Categories</a></li>
+            <li><a href="#/manage/recurring" class="nav-link" data-route="/manage/recurring">Recurring</a></li>
+          </ul>
+        </li>
         <li class="nav-dropdown">
           <button class="nav-link nav-dropdown-toggle">Analytics <span class="dropdown-arrow">▼</span></button>
           <ul class="nav-dropdown-menu">

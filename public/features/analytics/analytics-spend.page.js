@@ -41,31 +41,26 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
-      <div class="page-header analytics-header">
-        <div class="page-header__content">
-          <h1 class="page-title">Monthly Spending</h1>
-          <p class="page-subtitle">Average monthly expense breakdown by category</p>
-        </div>
+      <div class="page-header">
+        <h1 class="page-title">Analytics</h1>
+      </div>
+
+      <!-- Sub-navigation with Date Range Filters -->
+      <div class="analytics-nav-bar">
         <div class="analytics-sub-nav">
           <a href="#/analytics/summary" class="analytics-sub-nav-link">Summary</a>
           <a href="#/analytics/trends" class="analytics-sub-nav-link">Trends</a>
           <a href="#/analytics/spend" class="analytics-sub-nav-link active">Spending</a>
           <a href="#/analytics/merchants" class="analytics-sub-nav-link">Merchants</a>
         </div>
-      </div>
-
-      <section class="filter-section">
-        <div class="filter-bar card">
-          <div class="filter-group">
-            <label class="filter-label">Period</label>
-            <div class="filter-buttons" id="months-selector">
-              <button class="filter-btn active" data-months="3">3 Months</button>
-              <button class="filter-btn" data-months="6">6 Months</button>
-              <button class="filter-btn" data-months="12">12 Months</button>
-            </div>
+        <div class="analytics-date-filters">
+          <div class="filter-buttons" id="months-selector">
+            <button class="filter-btn active" data-months="3">3 Months</button>
+            <button class="filter-btn" data-months="6">6 Months</button>
+            <button class="filter-btn" data-months="12">12 Months</button>
           </div>
         </div>
-      </section>
+      </div>
 
       <section class="spend-summary-section">
         <div id="spend-summary" class="spend-summary">

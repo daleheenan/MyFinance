@@ -390,3 +390,15 @@ CREATE TABLE IF NOT EXISTS payment_history (
 
 CREATE INDEX IF NOT EXISTS idx_payment_history_user ON payment_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_payment_history_status ON payment_history(status);
+
+-- ===== VERSION HISTORY =====
+
+-- Version history table (tracks app updates)
+CREATE TABLE IF NOT EXISTS version_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version TEXT NOT NULL UNIQUE,
+    changelog TEXT,
+    released_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_version_history_released ON version_history(released_at DESC);

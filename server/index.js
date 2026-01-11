@@ -284,6 +284,23 @@ export function createApp(db = null, options = {}) {
     });
   });
 
+  // Version history endpoint (public)
+  app.get('/api/version/history', (req, res) => {
+    try {
+      const db = getDb();
+      const history = db.prepare(`
+        SELECT version, changelog, released_at
+        FROM version_history
+        ORDER BY released_at DESC
+        LIMIT 5
+      `).all();
+      res.json({ success: true, history });
+    } catch (err) {
+      console.error('Error fetching version history:', err);
+      res.status(500).json({ success: false, error: 'Failed to fetch version history' });
+    }
+  });
+
   // Auth routes (public - handles its own auth for protected endpoints)
   app.use('/api/auth', authRouter);
   console.log('Registered: /api/auth');
@@ -340,6 +357,28 @@ export function createApp(db = null, options = {}) {
 
 // Start server if run directly
 // Note: In production containers, this file is the entry point
+/**
+ * Record current version in history if it's new
+ * @param {string} version - The current app version
+ * @param {string} changelog - Optional changelog text
+ */
+function recordVersion(version, changelog = null) {
+  try {
+    const db = getDb();
+    // Insert only if version doesn't exist (prevents duplicates on restart)
+    const result = db.prepare(`
+      INSERT OR IGNORE INTO version_history (version, changelog, released_at)
+      VALUES (?, ?, datetime('now'))
+    `).run(version, changelog);
+
+    if (result.changes > 0) {
+      console.log(`Recorded new version: ${version}`);
+    }
+  } catch (err) {
+    console.error('Failed to record version:', err.message);
+  }
+}
+
 const isMain = process.argv[1]?.endsWith('index.js') ||
                import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, '/')}`;
 
@@ -366,6 +405,9 @@ if (isMain) {
     } catch (err) {
       console.error('Session cleanup failed:', err.message);
     }
+
+    // Record current version in history
+    recordVersion(APP_VERSION);
   });
 
   // Graceful shutdown

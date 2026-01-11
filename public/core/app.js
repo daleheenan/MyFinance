@@ -11,24 +11,6 @@ import { updateExpiredModal, hideExpiredModal } from './expired-modal.js';
 // Store current subscription status
 let currentSubscription = null;
 
-/**
- * Fetch and display app version in the header
- */
-async function displayVersion() {
-  try {
-    const response = await fetch('/api/version');
-    if (response.ok) {
-      const data = await response.json();
-      const logoElement = document.querySelector('.nav-logo');
-      if (logoElement) {
-        logoElement.textContent = `Flow Money Manager ${data.version}`;
-      }
-    }
-  } catch (error) {
-    console.warn('Could not fetch version:', error.message);
-  }
-}
-
 // Import page modules
 import * as overviewPage from '../features/overview/overview.page.js';
 import * as transactionsPage from '../features/transactions/transactions.page.js';
@@ -50,6 +32,9 @@ import * as verifyEmailPage from '../features/auth/verify-email.page.js';
 import * as registrationSuccessPage from '../features/auth/registration-success.page.js';
 import * as cmsPage from '../features/cms/cms.page.js';
 import * as adminPage from '../features/admin/admin.page.js';
+import * as manageAccountsPage from '../features/manage/accounts.page.js';
+import * as manageCategoriesPage from '../features/manage/categories.page.js';
+import * as manageRecurringPage from '../features/manage/recurring.page.js';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password', '/register', '/verify-email', '/registration-success'];
@@ -86,15 +71,22 @@ function updateActiveNavLinks(path) {
   // Desktop nav
   document.querySelectorAll('.nav-link[data-route]').forEach(link => {
     const route = link.getAttribute('data-route');
-    // Exact match or analytics sub-page match
-    const isActive = route === path || (path.startsWith('/analytics/') && route.startsWith('/analytics/'));
+    // Exact match or sub-page match for analytics/manage
+    const isActive = route === path ||
+      (path.startsWith('/analytics/') && route.startsWith('/analytics/')) ||
+      (path.startsWith('/manage/') && route.startsWith('/manage/')) ||
+      (path === '/transactions' && route === '/transactions') ||
+      (path === '/budgets' && route === '/budgets');
     link.classList.toggle('active', isActive);
   });
 
-  // Mobile bottom nav - highlight Analytics for any analytics sub-page
+  // Mobile bottom nav - highlight appropriate section
   document.querySelectorAll('.mobile-nav-link[data-route]').forEach(link => {
     const route = link.getAttribute('data-route');
-    const isActive = route === path || (path.startsWith('/analytics/') && route.startsWith('/analytics/'));
+    const isActive = route === path ||
+      (path.startsWith('/analytics/') && route.startsWith('/analytics/')) ||
+      (path.startsWith('/manage/') && route === '/transactions') ||
+      (path === '/budgets' && route === '/budgets');
     link.classList.toggle('active', isActive);
   });
 }
@@ -150,6 +142,11 @@ function registerRoutes() {
   router.register('/networth', networthPage);
   router.register('/forecasting', forecastingPage);
   router.register('/settings', settingsPage);
+
+  // Manage routes
+  router.register('/manage/accounts', manageAccountsPage);
+  router.register('/manage/categories', manageCategoriesPage);
+  router.register('/manage/recurring', manageRecurringPage);
 
   // Admin routes
   router.register('/cms', cmsPage);
@@ -235,9 +232,6 @@ async function init() {
   // Setup mobile navigation
   setupHamburgerMenu();
   setupKeyboardShortcuts();
-
-  // Display version in header
-  displayVersion();
 
   // Check auth status
   auth.init();

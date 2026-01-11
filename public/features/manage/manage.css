@@ -1,0 +1,157 @@
+/**
+ * Manage Pages Styles
+ * Styles for Accounts, Categories, and Recurring management pages
+ */
+
+/* ===== PAGE LAYOUT ===== */
+
+.manage-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.manage-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.manage-page .page-header__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.manage-page .page-header__actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* ===== SECTION CARDS ===== */
+
+.manage-section {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-sm);
+}
+
+.manage-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-light);
+}
+
+.manage-section-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.manage-section-description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+/* ===== EMPTY STATE ===== */
+
+.manage-page .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.manage-page .empty-state__icon {
+  font-size: 48px;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+/* ===== ERROR STATE ===== */
+
+.manage-page .error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--red);
+}
+
+/* ===== LOADING STATE ===== */
+
+.manage-page .loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  color: var(--text-secondary);
+}
+
+/* ===== ACCOUNTS GRID (imported from settings) ===== */
+
+.manage-page .accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-md);
+}
+
+/* ===== CATEGORY LIST (inherited from settings.css) ===== */
+
+.manage-page .category-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ===== RECURRING LIST (inherited from settings.css) ===== */
+
+.manage-page .recurring-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ===== DETECTED PATTERNS ===== */
+
+.manage-page .detected-patterns-container {
+  border: 1px dashed var(--blue);
+  background: var(--bg-tertiary);
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .manage-page .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .manage-page .page-header__actions {
+    justify-content: flex-start;
+  }
+
+  .manage-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .manage-page .accounts-grid {
+    grid-template-columns: 1fr;
+  }
+}

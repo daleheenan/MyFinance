@@ -22,7 +22,8 @@ export async function mount(el) {
   container = el;
 
   // Check if user is admin
-  if (auth.getUserId() !== 1) {
+  const user = auth.getUser();
+  if (!user?.isAdmin) {
     container.innerHTML = `
       <div class="cms-container">
         <div class="cms-empty-state">

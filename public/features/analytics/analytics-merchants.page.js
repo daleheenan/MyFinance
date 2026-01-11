@@ -42,38 +42,30 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
-      <div class="page-header analytics-header">
-        <div class="page-header__content">
-          <h1 class="page-title">Top Merchants</h1>
-          <p class="page-subtitle">Where you spend the most</p>
-        </div>
+      <div class="page-header">
+        <h1 class="page-title">Analytics</h1>
+      </div>
+
+      <!-- Sub-navigation with Filters -->
+      <div class="analytics-nav-bar">
         <div class="analytics-sub-nav">
           <a href="#/analytics/summary" class="analytics-sub-nav-link">Summary</a>
           <a href="#/analytics/trends" class="analytics-sub-nav-link">Trends</a>
           <a href="#/analytics/spend" class="analytics-sub-nav-link">Spending</a>
           <a href="#/analytics/merchants" class="analytics-sub-nav-link active">Merchants</a>
         </div>
-      </div>
-
-      <section class="filter-section">
-        <div class="filter-bar card">
-          <div class="filter-group">
-            <label class="filter-label">Sort By</label>
-            <div class="filter-buttons" id="sort-selector">
-              <button class="filter-btn active" data-sort="spend">Total Spend</button>
-              <button class="filter-btn" data-sort="frequency">Frequency</button>
-            </div>
+        <div class="analytics-date-filters">
+          <div class="filter-buttons" id="sort-selector">
+            <button class="filter-btn active" data-sort="spend">By Spend</button>
+            <button class="filter-btn" data-sort="frequency">By Frequency</button>
           </div>
-          <div class="filter-group">
-            <label class="filter-label">Show</label>
-            <div class="filter-buttons" id="limit-selector">
-              <button class="filter-btn active" data-limit="10">Top 10</button>
-              <button class="filter-btn" data-limit="25">Top 25</button>
-              <button class="filter-btn" data-limit="50">Top 50</button>
-            </div>
+          <div class="filter-buttons" id="limit-selector">
+            <button class="filter-btn active" data-limit="10">Top 10</button>
+            <button class="filter-btn" data-limit="25">Top 25</button>
+            <button class="filter-btn" data-limit="50">Top 50</button>
           </div>
         </div>
-      </section>
+      </div>
 
       <section class="merchants-section">
         <div id="merchants-container" class="card merchants-card">
