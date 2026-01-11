@@ -68,24 +68,22 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page forecasting-page">
-      <!-- Period Selector Toolbar -->
-      <div class="forecast-toolbar">
+      <!-- Averages + Filter Row -->
+      <div class="averages-row">
+        <div class="averages-grid" id="averages-container">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading averages...</p>
+          </div>
+        </div>
         <div class="forecast-period-selector">
-          <label>Forecast Period:</label>
-          <select id="forecast-months" class="form-select">
+          <label>Forecast Period</label>
+          <select id="forecast-months" class="form-select form-select--sm">
             <option value="3">3 months</option>
             <option value="6">6 months</option>
             <option value="12" selected>12 months</option>
             <option value="24">24 months</option>
           </select>
-        </div>
-      </div>
-
-      <!-- Monthly Averages Summary -->
-      <div class="averages-grid" id="averages-container">
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>Loading averages...</p>
         </div>
       </div>
 
