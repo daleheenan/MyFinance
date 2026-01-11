@@ -67,8 +67,9 @@ export function initDb(dbPath) {
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');
 
-  // Enable foreign keys
-  db.pragma('foreign_keys = ON');
+  // IMPORTANT: Disable foreign keys during schema/migration to avoid constraint errors
+  // when tables reference user_id = 1 but no user exists yet (fresh database)
+  db.pragma('foreign_keys = OFF');
 
   // Run migrations FIRST for existing databases (before schema runs indexes)
   // This ensures columns exist before indexes reference them
@@ -80,6 +81,9 @@ export function initDb(dbPath) {
     const schema = readFileSync(schemaPath, 'utf-8');
     db.exec(schema);
   }
+
+  // Now enable foreign keys for runtime operations
+  db.pragma('foreign_keys = ON');
 
   // Run seeds only in development (not in production)
   // Production databases should be set up manually or via migration scripts
