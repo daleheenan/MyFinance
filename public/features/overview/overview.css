@@ -300,7 +300,46 @@
   color: var(--text-primary);
 }
 
-/* Year-over-Year Legend */
+/* Year-over-Year Compact Chart */
+.balance-trend-chart--compact {
+  height: 160px;
+}
+
+/* Footer with inline legend */
+.balance-trend-footer--with-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.trend-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.trend-stat.trend-positive {
+  color: var(--green);
+  font-weight: var(--font-semibold);
+}
+
+.trend-stat.trend-negative {
+  color: var(--red);
+  font-weight: var(--font-semibold);
+}
+
+.legend-color-inline {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Legacy legend (keep for backward compatibility) */
 .balance-trend-legend {
   display: flex;
   justify-content: center;

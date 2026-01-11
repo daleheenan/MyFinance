@@ -383,7 +383,7 @@ function renderBalanceTrend(data) {
 
 /**
  * Render year-over-year balance comparison chart
- * Shows each calendar year as a different colored line, aligned by month
+ * Shows current year vs last year with color-coded difference
  * @param {Object} data - { years: [{year, balances: [12 values]}], months: ['Jan',...] }
  */
 function renderBalanceTrendYoY(data) {
@@ -401,19 +401,15 @@ function renderBalanceTrendYoY(data) {
     return;
   }
 
-  const { years, months } = data;
+  const { months } = data;
+  // Only use current year and last year (max 2 years)
+  const years = data.years.slice(0, 2);
 
-  // Color palette for different years (most recent gets primary color)
-  const yearColors = [
-    'var(--primary)',      // Current year - teal
-    'var(--purple)',       // Last year - purple
-    'var(--orange)',       // 2 years ago - orange
-    'var(--blue)',         // 3 years ago - blue
-    'var(--pink)',         // 4 years ago - pink
-    'var(--green)',        // 5 years ago - green
-  ];
+  // Colors: current year teal, last year purple
+  const currentYearColor = 'var(--primary)';
+  const lastYearColor = 'var(--purple)';
 
-  // Get all balances to calculate min/max across all years
+  // Get all balances to calculate min/max across both years
   const allBalances = years.flatMap(y => y.balances.filter(b => b !== null));
   if (allBalances.length === 0) {
     trendContainer.innerHTML = `
@@ -432,10 +428,10 @@ function renderBalanceTrendYoY(data) {
   const { minBal, maxBal, yAxisLabels } = calculateYAxisScale(rawMin, rawMax);
   const range = maxBal - minBal || 1;
 
-  // Chart dimensions
+  // Chart dimensions - reduced bottom padding since legend moved to footer
   const svgWidth = 800;
-  const svgHeight = 220;
-  const padding = { top: 20, right: 30, bottom: 50, left: 70 };
+  const svgHeight = 200;
+  const padding = { top: 15, right: 30, bottom: 30, left: 70 };
   const chartWidth = svgWidth - padding.left - padding.right;
   const chartHeight = svgHeight - padding.top - padding.bottom;
 
@@ -455,53 +451,72 @@ function renderBalanceTrendYoY(data) {
     return { x, label: month };
   });
 
-  // Generate paths for each year
-  const yearPaths = years.map((yearData, yearIndex) => {
-    const color = yearColors[yearIndex % yearColors.length];
-    const points = [];
+  // Current year data
+  const currentYearData = years[0];
+  const currentYearBalances = currentYearData.balances;
 
-    yearData.balances.forEach((balance, monthIndex) => {
+  // Last year data (if available)
+  const lastYearData = years.length > 1 ? years[1] : null;
+  const lastYearBalances = lastYearData ? lastYearData.balances : null;
+
+  // Generate points for current year
+  const currentYearPoints = [];
+  currentYearBalances.forEach((balance, monthIndex) => {
+    if (balance !== null) {
+      const x = padding.left + (monthIndex / (months.length - 1 || 1)) * chartWidth;
+      const y = padding.top + chartHeight - ((balance - minBal) / range) * chartHeight;
+      currentYearPoints.push({ x, y, balance, month: months[monthIndex], monthIndex });
+    }
+  });
+
+  // Generate points for last year
+  const lastYearPoints = [];
+  if (lastYearBalances) {
+    lastYearBalances.forEach((balance, monthIndex) => {
       if (balance !== null) {
         const x = padding.left + (monthIndex / (months.length - 1 || 1)) * chartWidth;
         const y = padding.top + chartHeight - ((balance - minBal) / range) * chartHeight;
-        points.push({ x, y, balance, month: months[monthIndex] });
+        lastYearPoints.push({ x, y, balance, month: months[monthIndex], monthIndex });
       }
     });
+  }
 
-    if (points.length < 2) return null;
+  // Create smooth paths
+  const currentYearPath = currentYearPoints.length >= 2 ? createSmoothPath(currentYearPoints) : '';
+  const lastYearPath = lastYearPoints.length >= 2 ? createSmoothPath(lastYearPoints) : '';
 
-    // Create smooth path
-    const smoothPath = createSmoothPath(points);
+  // Calculate YTD comparison with last year
+  const currentYearLatestBalance = currentYearBalances.filter(b => b !== null).pop() || 0;
+  const currentYearLatestMonth = currentYearBalances.reduce((lastIdx, b, i) => b !== null ? i : lastIdx, 0);
 
-    return {
-      year: yearData.year,
-      color,
-      path: smoothPath,
-      points,
-      lastBalance: yearData.balances.filter(b => b !== null).pop()
-    };
-  }).filter(Boolean);
+  // Get last year's balance at the same month for comparison
+  let lastYearSameMonthBalance = null;
+  let yoyDifference = null;
+  let yoyPercent = null;
+  let isAheadOfLastYear = null;
 
-  // Sort years so current year renders last (on top)
-  yearPaths.reverse();
+  if (lastYearBalances && lastYearBalances[currentYearLatestMonth] !== null) {
+    lastYearSameMonthBalance = lastYearBalances[currentYearLatestMonth];
+    yoyDifference = currentYearLatestBalance - lastYearSameMonthBalance;
+    yoyPercent = lastYearSameMonthBalance !== 0
+      ? ((yoyDifference / Math.abs(lastYearSameMonthBalance)) * 100).toFixed(1)
+      : 0;
+    isAheadOfLastYear = yoyDifference >= 0;
+  }
 
-  // Calculate stats for current year
-  const currentYearData = years[0];
-  const currentYearBalances = currentYearData.balances.filter(b => b !== null);
-  const firstBalance = currentYearBalances[0];
-  const lastBalance = currentYearBalances[currentYearBalances.length - 1];
-  const changeAmount = lastBalance - firstBalance;
-  const changePercent = firstBalance !== 0 ? ((changeAmount / Math.abs(firstBalance)) * 100).toFixed(1) : 0;
-  const changeSign = changeAmount >= 0 ? '+' : '';
+  // Build header with YoY comparison
+  const yoySign = yoyDifference !== null && yoyDifference >= 0 ? '+' : '';
+  const yoyClass = yoyDifference !== null ? (isAheadOfLastYear ? 'trend-positive' : 'trend-negative') : '';
+  const yoyText = yoyDifference !== null
+    ? `${yoySign}${formatCurrency(yoyDifference)} (${yoySign}${yoyPercent}%) vs ${lastYearData.year}`
+    : '';
 
   trendContainer.innerHTML = `
     <div class="card-header">
       <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
-      <div class="trend-change ${changeAmount >= 0 ? 'trend-positive' : 'trend-negative'}">
-        ${changeSign}${formatCurrency(changeAmount)} (${changeSign}${changePercent}%) YTD
-      </div>
+      ${yoyText ? `<div class="trend-change ${yoyClass}">${yoyText}</div>` : ''}
     </div>
-    <div class="balance-trend-chart">
+    <div class="balance-trend-chart balance-trend-chart--compact">
       <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" class="trend-svg">
         <!-- Y-axis grid lines -->
         ${yAxisElements.map(el => `
@@ -517,33 +532,37 @@ function renderBalanceTrendYoY(data) {
 
         <!-- X-axis labels (all 12 months) -->
         ${monthLabels.map(ml => `
-          <text x="${ml.x}" y="${svgHeight - 25}"
-                text-anchor="middle" font-size="12" fill="var(--text-secondary)">${ml.label}</text>
+          <text x="${ml.x}" y="${svgHeight - 8}"
+                text-anchor="middle" font-size="11" fill="var(--text-secondary)">${ml.label}</text>
         `).join('')}
 
-        <!-- Year lines (oldest first so newest is on top) -->
-        ${yearPaths.map(yp => `
-          <path d="${yp.path}" fill="none" stroke="${yp.color}" stroke-width="${yp.year === currentYearData.year ? 3 : 2}"
-                stroke-linecap="round" stroke-linejoin="round" opacity="${yp.year === currentYearData.year ? 1 : 0.7}"/>
-          ${yp.points.map((p, i) => `
-            <circle cx="${p.x}" cy="${p.y}" r="${i === yp.points.length - 1 ? 5 : 3}"
-                    fill="${yp.color}" stroke="var(--bg-secondary)" stroke-width="1.5" opacity="${yp.year === currentYearData.year ? 1 : 0.8}"/>
-          `).join('')}
-        `).join('')}
+        <!-- Last year line (rendered first so current year is on top) -->
+        ${lastYearPath ? `
+          <path d="${lastYearPath}" fill="none" stroke="${lastYearColor}" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+        ` : ''}
+
+        <!-- Current year line -->
+        ${currentYearPath ? `
+          <path d="${currentYearPath}" fill="none" stroke="${currentYearColor}" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        ` : ''}
       </svg>
     </div>
-    <div class="balance-trend-legend">
-      ${years.map((y, i) => `
-        <span class="legend-item">
-          <span class="legend-color" style="background-color: ${yearColors[i % yearColors.length]}"></span>
-          <span class="legend-label">${y.year}</span>
+    <div class="balance-trend-footer balance-trend-footer--with-legend">
+      <span class="trend-stat">
+        <span class="legend-color-inline" style="background-color: ${currentYearColor}"></span>
+        ${currentYearData.year}: ${formatCurrency(currentYearLatestBalance)}
+      </span>
+      ${lastYearData ? `
+        <span class="trend-stat">
+          <span class="legend-color-inline" style="background-color: ${lastYearColor}"></span>
+          ${lastYearData.year}: ${formatCurrency(lastYearSameMonthBalance || 0)}
         </span>
-      `).join('')}
-    </div>
-    <div class="balance-trend-footer">
-      <span class="trend-min">Low: ${formatCurrency(rawMin)}</span>
-      <span class="trend-current">Current: ${formatCurrency(lastBalance)}</span>
-      <span class="trend-max">High: ${formatCurrency(rawMax)}</span>
+      ` : ''}
+      <span class="trend-stat ${yoyClass}">
+        ${yoyDifference !== null ? `Diff: ${yoySign}${formatCurrency(Math.abs(yoyDifference))}` : ''}
+      </span>
     </div>
   `;
 }

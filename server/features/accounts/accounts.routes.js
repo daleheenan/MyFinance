@@ -805,8 +805,9 @@ router.get('/:id/balance-yoy', (req, res, next) => {
       }
     });
 
-    // Convert to array format for frontend
-    const result = years.map(year => ({
+    // Convert to array format for frontend - only last 2 years, most recent first
+    const recentYears = years.slice(-2).reverse(); // Take last 2 years, reverse so current year is first
+    const result = recentYears.map(year => ({
       year: parseInt(year, 10),
       balances: Array.from({ length: 12 }, (_, m) => yearlyData[year][m])
     }));
