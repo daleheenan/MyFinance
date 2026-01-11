@@ -312,6 +312,8 @@ function detectCategorySpikes(db, currentMonth, anomalies, userId = null) {
   if (userId) currentParams.push(userId);
 
   // Get current month spending by category
+  // Note: Need to use t.account_id since transactions has alias 't'
+  const userFilterAliased = userId ? 'AND t.account_id IN (SELECT id FROM accounts WHERE user_id = ?)' : '';
   const currentSpending = db.prepare(`
     SELECT
       t.category_id,
@@ -322,7 +324,7 @@ function detectCategorySpikes(db, currentMonth, anomalies, userId = null) {
     WHERE t.is_transfer = 0
       AND t.debit_amount > 0
       AND strftime('%Y-%m', t.transaction_date) = ?
-      ${userFilter}
+      ${userFilterAliased}
     GROUP BY t.category_id
   `).all(...currentParams);
 
