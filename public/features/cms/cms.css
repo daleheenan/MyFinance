@@ -1,0 +1,465 @@
+/**
+ * CMS Admin Interface Styles
+ */
+
+/* =============================================================================
+   Layout
+   ============================================================================= */
+
+.cms-container {
+  padding: var(--space-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.cms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.cms-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* =============================================================================
+   Tabs
+   ============================================================================= */
+
+.cms-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--bg-tertiary);
+  padding-bottom: var(--space-xs);
+}
+
+.cms-tab {
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cms-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.cms-tab.active {
+  color: var(--blue);
+  border-bottom: 2px solid var(--blue);
+  margin-bottom: -1px;
+}
+
+/* =============================================================================
+   Pages List
+   ============================================================================= */
+
+.cms-pages-list {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.cms-pages-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cms-pages-table th,
+.cms-pages-table td {
+  padding: var(--space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.cms-pages-table th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cms-pages-table tr:last-child td {
+  border-bottom: none;
+}
+
+.cms-pages-table tr:hover td {
+  background: var(--bg-tertiary);
+}
+
+.cms-page-title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cms-page-slug {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.cms-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.cms-status-badge.published {
+  background: rgba(52, 199, 89, 0.15);
+  color: var(--green);
+}
+
+.cms-status-badge.draft {
+  background: rgba(142, 142, 147, 0.15);
+  color: var(--text-secondary);
+}
+
+.cms-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.cms-btn {
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.cms-btn-primary {
+  background: var(--blue);
+  color: white;
+}
+
+.cms-btn-primary:hover {
+  background: #0066cc;
+}
+
+.cms-btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.cms-btn-secondary:hover {
+  background: #e0e0e0;
+}
+
+.cms-btn-danger {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--red);
+}
+
+.cms-btn-danger:hover {
+  background: var(--red);
+  color: white;
+}
+
+.cms-btn-success {
+  background: rgba(52, 199, 89, 0.1);
+  color: var(--green);
+}
+
+.cms-btn-success:hover {
+  background: var(--green);
+  color: white;
+}
+
+/* =============================================================================
+   Editor
+   ============================================================================= */
+
+.cms-editor {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-lg);
+  min-height: 600px;
+}
+
+.cms-editor-sidebar {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.cms-editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.cms-form-group {
+  margin-bottom: var(--space-md);
+}
+
+.cms-form-group label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.cms-form-group input,
+.cms-form-group textarea {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.cms-form-group input:focus,
+.cms-form-group textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.cms-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.cms-editor-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  background: var(--bg-secondary);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.cms-editor-tab {
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cms-editor-tab:hover {
+  background: var(--bg-tertiary);
+}
+
+.cms-editor-tab.active {
+  background: var(--blue);
+  color: white;
+}
+
+.cms-editor-content {
+  flex: 1;
+  background: var(--bg-secondary);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.cms-codemirror-container {
+  height: 100%;
+  min-height: 400px;
+}
+
+.cms-codemirror-container .CodeMirror {
+  height: 100%;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+
+.cms-preview-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  border: none;
+  background: white;
+}
+
+/* =============================================================================
+   Image Gallery
+   ============================================================================= */
+
+.cms-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.cms-image-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.cms-image-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.cms-image-preview {
+  aspect-ratio: 1;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cms-image-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.cms-image-info {
+  padding: var(--space-sm);
+}
+
+.cms-image-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: var(--space-xs);
+}
+
+.cms-image-meta {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.cms-image-actions {
+  display: flex;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm) var(--space-sm);
+}
+
+.cms-image-actions button {
+  flex: 1;
+}
+
+/* =============================================================================
+   Upload Zone
+   ============================================================================= */
+
+.cms-upload-zone {
+  border: 2px dashed var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  text-align: center;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-bottom: var(--space-lg);
+}
+
+.cms-upload-zone:hover,
+.cms-upload-zone.dragover {
+  border-color: var(--blue);
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.cms-upload-zone-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-md);
+}
+
+.cms-upload-zone-text {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.cms-upload-zone-hint {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* =============================================================================
+   Empty State
+   ============================================================================= */
+
+.cms-empty-state {
+  text-align: center;
+  padding: var(--space-3xl);
+  color: var(--text-secondary);
+}
+
+.cms-empty-state-icon {
+  font-size: 64px;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.cms-empty-state-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.cms-empty-state-text {
+  margin-bottom: var(--space-lg);
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .cms-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .cms-editor-sidebar {
+    order: 2;
+  }
+
+  .cms-editor-main {
+    order: 1;
+  }
+
+  .cms-pages-table th:nth-child(3),
+  .cms-pages-table td:nth-child(3) {
+    display: none;
+  }
+
+  .cms-images-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

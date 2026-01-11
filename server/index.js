@@ -10,6 +10,8 @@ import { requireAuth } from './features/auth/auth.middleware.js';
 import { cleanupExpiredSessions } from './features/auth/auth.service.js';
 import { csrfProtection } from './core/csrf.js';
 import authRouter from './features/auth/auth.routes.js';
+import cmsRouter from './features/cms/cms.routes.js';
+import { getPublishedPageBySlug } from './features/cms/cms.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -68,6 +70,82 @@ export function createApp(db = null, options = {}) {
   // Setup other middleware (json parsing, CORS)
   setupMiddleware(app);
 
+  // ==========================================================================
+  // Marketing Routes (BEFORE static files - serve explicit routes first)
+  // ==========================================================================
+
+  // Marketing landing page
+  app.get('/', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/index.html'));
+  });
+
+  // Marketing features page
+  app.get('/features', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/features.html'));
+  });
+
+  // Marketing pricing page
+  app.get('/pricing', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/pricing.html'));
+  });
+
+  // Dynamic CMS pages (public, fetched from database)
+  app.get('/page/:slug', (req, res) => {
+    const db = getDb();
+    const page = getPublishedPageBySlug(db, req.params.slug);
+
+    if (!page) {
+      return res.status(404).send('Page not found');
+    }
+
+    // Render a simple HTML page with the CMS content
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${page.meta_title || page.title} - Flow Finance Manager</title>
+  <meta name="description" content="${page.meta_description || ''}">
+  <link rel="stylesheet" href="/marketing/css/marketing.css">
+  <style>${page.css || ''}</style>
+</head>
+<body>
+  <header class="marketing-header">
+    <nav class="marketing-nav">
+      <a href="/" class="marketing-logo">Flow Finance</a>
+      <div class="marketing-nav-links">
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/app#/login" class="btn btn-primary">Sign In</a>
+      </div>
+    </nav>
+  </header>
+  <main class="cms-page-content">
+    ${page.content}
+  </main>
+  <footer class="marketing-footer">
+    <p>&copy; ${new Date().getFullYear()} Flow Finance Manager. All rights reserved.</p>
+  </footer>
+</body>
+</html>`;
+
+    res.send(html);
+  });
+
+  // App entry point - serve SPA shell
+  app.get('/app', (req, res) => {
+    res.sendFile(join(__dirname, '../public/index.html'));
+  });
+
+  // App routes (SPA catch-all for /app/*)
+  app.get('/app/{*path}', (req, res) => {
+    res.sendFile(join(__dirname, '../public/index.html'));
+  });
+
+  // ==========================================================================
+  // Static Files
+  // ==========================================================================
+
   // Serve static files
   app.use(express.static(join(__dirname, '../public')));
 
@@ -91,6 +169,10 @@ export function createApp(db = null, options = {}) {
   // Auth routes (public - handles its own auth for protected endpoints)
   app.use('/api/auth', authRouter);
   console.log('Registered: /api/auth');
+
+  // CMS routes (public page fetch + admin routes with internal auth)
+  app.use('/api/cms', cmsRouter);
+  console.log('Registered: /api/cms');
 
   // Apply authentication and CSRF protection to all other API routes
   if (!skipAuth) {

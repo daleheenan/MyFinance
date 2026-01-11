@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceFlow - Master Your Personal Finances</title>
+  <meta name="description" content="Take control of your finances with FinanceFlow. Simpler, smarter financial management for everyone.">
+  <link rel="stylesheet" href="/marketing/css/marketing.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="marketing-header">
+    <nav class="marketing-nav">
+      <a href="/" class="marketing-logo">
+        <span class="marketing-logo-icon">&#163;</span>
+        FinanceFlow
+      </a>
+      <button class="marketing-nav-toggle" aria-label="Toggle navigation" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="marketing-nav-links">
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="#" class="btn btn-primary" onclick="openSignInModal(event)">Sign In</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero Section with Image -->
+  <section class="marketing-hero marketing-hero-image">
+    <div class="marketing-hero-bg" style="background-image: url('https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80');"></div>
+    <div class="marketing-hero-content">
+      <div class="marketing-hero-text">
+        <h1>Master Your Finances.</h1>
+        <p class="marketing-hero-subtitle">
+          Simpler, smarter financial management.
+        </p>
+        <div class="marketing-hero-cta">
+          <a href="#" class="btn btn-teal btn-lg" onclick="openSignInModal(event)">Get Started for Free</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="marketing-features">
+    <div class="marketing-container">
+      <div class="marketing-features-header">
+        <h2>Everything You Need to Manage Your Money</h2>
+        <p>Powerful features designed to give you complete visibility and control over your finances.</p>
+      </div>
+      <div class="marketing-features-grid">
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128200;</div>
+          <h3>Transaction Tracking</h3>
+          <p>Import bank statements and automatically categorize your transactions. See exactly where your money goes.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128176;</div>
+          <h3>Smart Budgeting</h3>
+          <p>Set category budgets and track spending in real-time. Get alerts when you're approaching your limits.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128200;</div>
+          <h3>Visual Analytics</h3>
+          <p>Beautiful charts and reports help you understand spending patterns and identify opportunities to save.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128260;</div>
+          <h3>Bills &amp; Subscriptions</h3>
+          <p>Track recurring payments, never miss a bill, and identify subscriptions you might want to cancel.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128197;</div>
+          <h3>Cash Flow Forecasting</h3>
+          <p>Project your future balances based on recurring income and expenses. Plan ahead with confidence.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <div class="marketing-feature-icon">&#128142;</div>
+          <h3>Net Worth Tracking</h3>
+          <p>Monitor your total financial health across all accounts. Watch your wealth grow over time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="marketing-cta">
+    <div class="marketing-container">
+      <h2>Ready to Take Control of Your Finances?</h2>
+      <p>Join thousands of users who have transformed their financial lives with FinanceFlow.</p>
+      <a href="#" class="btn btn-primary btn-lg" onclick="openSignInModal(event)">Start Your Free Trial</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="marketing-footer">
+    <div class="marketing-footer-content">
+      <div class="marketing-footer-links">
+        <a href="/page/privacy">Privacy</a>
+        <a href="/page/terms">Terms</a>
+        <a href="/contact">Contact</a>
+      </div>
+      <p>&copy; 2026 FinanceFlow. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Sign In Modal -->
+  <div id="signInModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSignInModal()" aria-label="Close modal">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="modal-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your FinanceFlow account</p>
+      </div>
+      <div class="modal-body">
+        <form id="signInForm" onsubmit="handleSignIn(event)">
+          <div class="form-group">
+            <label for="email">Email or Username</label>
+            <input type="text" id="email" name="email" placeholder="Enter your email or username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          </div>
+          <div id="formError" class="form-error">Invalid email or password. Please try again.</div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+          </div>
+          <div class="form-links">
+            <a href="/forgot-password">Forgot Password?</a>
+          </div>
+          <div class="form-divider">
+            <span>or</span>
+          </div>
+          <div class="form-links">
+            Don't have an account? <a href="/register">Create Account</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Modal functionality
+    function openSignInModal(event) {
+      if (event) event.preventDefault();
+      document.getElementById('signInModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      // Focus on email field
+      setTimeout(() => {
+        document.getElementById('email').focus();
+      }, 100);
+    }
+
+    function closeSignInModal() {
+      document.getElementById('signInModal').classList.remove('active');
+      document.body.style.overflow = '';
+      // Reset form
+      document.getElementById('signInForm').reset();
+      document.getElementById('formError').classList.remove('visible');
+    }
+
+    function closeModalOnOverlay(event) {
+      if (event.target === event.currentTarget) {
+        closeSignInModal();
+      }
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeSignInModal();
+      }
+    });
+
+    // Handle sign in form submission
+    async function handleSignIn(event) {
+      event.preventDefault();
+
+      const form = event.target;
+      const email = form.email.value;
+      const password = form.password.value;
+      const errorEl = document.getElementById('formError');
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      // Hide previous error
+      errorEl.classList.remove('visible');
+
+      // Disable button during request
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing in...';
+
+      try {
+        // Get CSRF token if available
+        let csrfToken = '';
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+          csrfToken = csrfMeta.getAttribute('content');
+        }
+
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Redirect to app on success
+          window.location.href = '/app#/overview';
+        } else {
+          // Show error message
+          errorEl.textContent = data.message || 'Invalid email or password. Please try again.';
+          errorEl.classList.add('visible');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorEl.textContent = 'An error occurred. Please try again.';
+        errorEl.classList.add('visible');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -154,40 +154,40 @@ These bugs would allow cross-user data access and MUST be fixed before multi-use
 
 ---
 
-## Phase 9: Public Marketing Website & CMS (From CMS_IMPLEMENTATION_TASKS.md)
+## Phase 9: Public Marketing Website & CMS (From CMS_IMPLEMENTATION_TASKS.md) (COMPLETED)
 
 ### 9.1 Backend CMS API
 | # | Task | Status |
 |---|------|--------|
-| 9.1.1 | Create `cms.service.js` with CRUD operations | [ ] |
-| 9.1.2 | Create `cms.routes.js` with public/admin endpoints | [ ] |
-| 9.1.3 | Create admin middleware (user.id === 1) | [ ] |
-| 9.1.4 | Configure multer for image uploads | [ ] |
+| 9.1.1 | Create `cms.service.js` with CRUD operations | [x] |
+| 9.1.2 | Create `cms.routes.js` with public/admin endpoints | [x] |
+| 9.1.3 | Create admin middleware (user.id === 1) | [x] |
+| 9.1.4 | Configure multer for image uploads | [x] |
 
 ### 9.2 Server Routing
 | # | Task | Status |
 |---|------|--------|
-| 9.2.1 | Add marketing routes (`/`, `/features`, `/pricing`) | [ ] |
-| 9.2.2 | Add app routes (`/app`, `/app/*`) | [ ] |
-| 9.2.3 | Add dynamic CMS page route (`/page/:slug`) | [ ] |
+| 9.2.1 | Add marketing routes (`/`, `/features`, `/pricing`) | [x] |
+| 9.2.2 | Add app routes (`/app`, `/app/*`) | [x] |
+| 9.2.3 | Add dynamic CMS page route (`/page/:slug`) | [x] |
 
 ### 9.3 Marketing Static Pages
 | # | Task | Status |
 |---|------|--------|
-| 9.3.1 | Create `public/marketing/css/marketing.css` | [ ] |
-| 9.3.2 | Create `public/marketing/index.html` (landing page) | [ ] |
-| 9.3.3 | Create `public/marketing/features.html` | [ ] |
-| 9.3.4 | Create `public/marketing/pricing.html` | [ ] |
+| 9.3.1 | Create `public/marketing/css/marketing.css` | [x] |
+| 9.3.2 | Create `public/marketing/index.html` (landing page) | [x] |
+| 9.3.3 | Create `public/marketing/features.html` | [x] |
+| 9.3.4 | Create `public/marketing/pricing.html` | [x] |
 
 ### 9.4 CMS Admin Interface
 | # | Task | Status |
 |---|------|--------|
-| 9.4.1 | Create `public/features/cms/cms.page.js` | [ ] |
-| 9.4.2 | Create `public/features/cms/cms.css` | [ ] |
-| 9.4.3 | Add CodeMirror for HTML/CSS editing | [ ] |
-| 9.4.4 | Create image gallery with upload | [ ] |
-| 9.4.5 | Add live preview functionality | [ ] |
-| 9.4.6 | Register CMS route in app.js | [ ] |
+| 9.4.1 | Create `public/features/cms/cms.page.js` | [x] |
+| 9.4.2 | Create `public/features/cms/cms.css` | [x] |
+| 9.4.3 | Add CodeMirror for HTML/CSS editing | [x] |
+| 9.4.4 | Create image gallery with upload | [x] |
+| 9.4.5 | Add live preview functionality | [x] |
+| 9.4.6 | Register CMS route in app.js | [x] |
 
 ---
 

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - FinanceFlow</title>
+  <meta name="description" content="Simple, transparent pricing for FinanceFlow. Start with a free trial and choose the plan that works for you.">
+  <link rel="stylesheet" href="/marketing/css/marketing.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="marketing-header">
+    <nav class="marketing-nav">
+      <a href="/" class="marketing-logo">
+        <span class="marketing-logo-icon">&#163;</span>
+        FinanceFlow
+      </a>
+      <button class="marketing-nav-toggle" aria-label="Toggle navigation" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="marketing-nav-links">
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="#" class="btn btn-primary" onclick="openSignInModal(event)">Sign In</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="marketing-hero">
+    <div class="marketing-container">
+      <h1>Simple, Transparent Pricing</h1>
+      <p class="marketing-hero-subtitle">
+        Start with a free 7-day trial. No credit card required.
+      </p>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section class="marketing-pricing">
+    <div class="marketing-container">
+      <div class="marketing-pricing-grid">
+        <div class="marketing-pricing-card">
+          <h3>Free Trial</h3>
+          <div class="marketing-pricing-price">
+            &pound;0 <span>/ 7 days</span>
+          </div>
+          <ul class="marketing-pricing-features">
+            <li>Full access to all features</li>
+            <li>Unlimited accounts</li>
+            <li>Unlimited transactions</li>
+            <li>All analytics &amp; reports</li>
+            <li>No credit card required</li>
+          </ul>
+          <a href="#" class="btn btn-secondary btn-lg" style="width: 100%;" onclick="openSignInModal(event)">Start Free Trial</a>
+        </div>
+        <div class="marketing-pricing-card featured">
+          <h3>Pro</h3>
+          <div class="marketing-pricing-price">
+            &pound;7.99 <span>/ month</span>
+          </div>
+          <ul class="marketing-pricing-features">
+            <li>Everything in Free Trial</li>
+            <li>Unlimited history</li>
+            <li>Priority support</li>
+            <li>Advanced forecasting</li>
+            <li>Custom categories</li>
+            <li>Data export</li>
+          </ul>
+          <a href="#" class="btn btn-primary btn-lg" style="width: 100%;" onclick="openSignInModal(event)">Get Started</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="marketing-features">
+    <div class="marketing-container">
+      <div class="marketing-features-header">
+        <h2>Frequently Asked Questions</h2>
+      </div>
+      <div class="marketing-features-grid">
+        <div class="marketing-feature-card">
+          <h3>What happens after my trial ends?</h3>
+          <p>After your 7-day trial, you can subscribe to continue using FinanceFlow. If you don't subscribe, you'll still be able to view your data but won't be able to add new transactions.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <h3>Can I cancel anytime?</h3>
+          <p>Yes, you can cancel your subscription at any time. Your access will continue until the end of your current billing period.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <h3>Is my data secure?</h3>
+          <p>Absolutely. Your data is encrypted and stored securely. We never share your financial information with third parties.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <h3>Do you connect to my bank?</h3>
+          <p>No, we don't connect directly to banks. You import transactions via CSV files from your bank, giving you full control over what data you share.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <h3>Can I export my data?</h3>
+          <p>Yes, Pro subscribers can export all their data at any time. Your data belongs to you.</p>
+        </div>
+        <div class="marketing-feature-card">
+          <h3>Do you offer refunds?</h3>
+          <p>Yes, if you're not satisfied within the first 30 days of your subscription, we'll provide a full refund.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="marketing-cta">
+    <div class="marketing-container">
+      <h2>Start Your Financial Journey Today</h2>
+      <p>Try FinanceFlow free for 7 days. No credit card required.</p>
+      <a href="#" class="btn btn-primary btn-lg" onclick="openSignInModal(event)">Start Free Trial</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="marketing-footer">
+    <div class="marketing-footer-content">
+      <div class="marketing-footer-links">
+        <a href="/page/privacy">Privacy</a>
+        <a href="/page/terms">Terms</a>
+        <a href="/contact">Contact</a>
+      </div>
+      <p>&copy; 2026 FinanceFlow. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Sign In Modal -->
+  <div id="signInModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSignInModal()" aria-label="Close modal">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="modal-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your FinanceFlow account</p>
+      </div>
+      <div class="modal-body">
+        <form id="signInForm" onsubmit="handleSignIn(event)">
+          <div class="form-group">
+            <label for="email">Email or Username</label>
+            <input type="text" id="email" name="email" placeholder="Enter your email or username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          </div>
+          <div id="formError" class="form-error">Invalid email or password. Please try again.</div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+          </div>
+          <div class="form-links">
+            <a href="/forgot-password">Forgot Password?</a>
+          </div>
+          <div class="form-divider">
+            <span>or</span>
+          </div>
+          <div class="form-links">
+            Don't have an account? <a href="/register">Create Account</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Modal functionality
+    function openSignInModal(event) {
+      if (event) event.preventDefault();
+      document.getElementById('signInModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      // Focus on email field
+      setTimeout(() => {
+        document.getElementById('email').focus();
+      }, 100);
+    }
+
+    function closeSignInModal() {
+      document.getElementById('signInModal').classList.remove('active');
+      document.body.style.overflow = '';
+      // Reset form
+      document.getElementById('signInForm').reset();
+      document.getElementById('formError').classList.remove('visible');
+    }
+
+    function closeModalOnOverlay(event) {
+      if (event.target === event.currentTarget) {
+        closeSignInModal();
+      }
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeSignInModal();
+      }
+    });
+
+    // Handle sign in form submission
+    async function handleSignIn(event) {
+      event.preventDefault();
+
+      const form = event.target;
+      const email = form.email.value;
+      const password = form.password.value;
+      const errorEl = document.getElementById('formError');
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      // Hide previous error
+      errorEl.classList.remove('visible');
+
+      // Disable button during request
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing in...';
+
+      try {
+        // Get CSRF token if available
+        let csrfToken = '';
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+          csrfToken = csrfMeta.getAttribute('content');
+        }
+
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Redirect to app on success
+          window.location.href = '/app#/overview';
+        } else {
+          // Show error message
+          errorEl.textContent = data.message || 'Invalid email or password. Please try again.';
+          errorEl.classList.add('visible');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorEl.textContent = 'An error occurred. Please try again.';
+        errorEl.classList.add('visible');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ import * as forecastingPage from '../features/forecasting/forecasting.page.js';
 import * as loginPage from '../features/auth/login.page.js';
 import * as forgotPasswordPage from '../features/auth/forgot-password.page.js';
 import * as resetPasswordPage from '../features/auth/reset-password.page.js';
+import * as cmsPage from '../features/cms/cms.page.js';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password'];
@@ -126,6 +127,9 @@ function registerRoutes() {
   router.register('/networth', networthPage);
   router.register('/forecasting', forecastingPage);
   router.register('/settings', settingsPage);
+
+  // Admin routes
+  router.register('/cms', cmsPage);
 }
 
 /**
