@@ -1,7 +1,17 @@
 # Flow Finance Manager - Implementation Todo List
 
 ## Project Status
-Last Updated: 2026-01-11
+**Current Version:** 1.1.0
+**Last Updated:** 2026-01-11
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.1.0 | 2026-01-11 | Add version display in header, bug fixes, app rebranding |
+| 1.0.0 | 2026-01-10 | Initial release with all core features |
 
 ---
 

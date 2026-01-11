@@ -1,10 +1,28 @@
 /**
- * FinanceFlow App Entry Point
+ * Flow Finance Manager App Entry Point
  * Initializes the SPA shell, registers routes, and starts the router
  */
 
 import { router } from './router.js';
 import { auth } from './auth.js';
+
+/**
+ * Fetch and display app version in the header
+ */
+async function displayVersion() {
+  try {
+    const response = await fetch('/api/version');
+    if (response.ok) {
+      const data = await response.json();
+      const logoElement = document.querySelector('.nav-logo');
+      if (logoElement) {
+        logoElement.textContent = `Flow Finance ${data.version}`;
+      }
+    }
+  } catch (error) {
+    console.warn('Could not fetch version:', error.message);
+  }
+}
 
 // Import page modules
 import * as overviewPage from '../features/overview/overview.page.js';
@@ -154,6 +172,9 @@ async function init() {
   // Setup mobile navigation
   setupHamburgerMenu();
   setupKeyboardShortcuts();
+
+  // Display version in header
+  displayVersion();
 
   // Check auth status
   auth.init();

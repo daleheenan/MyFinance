@@ -1,7 +1,7 @@
 import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdirSync, existsSync } from 'fs';
+import { readdirSync, existsSync, readFileSync } from 'fs';
 import { initDb, getDb, setDb } from './core/database.js';
 import { errorHandler, notFoundHandler } from './core/errors.js';
 import { setupMiddleware } from './core/middleware.js';
@@ -12,6 +12,10 @@ import { csrfProtection } from './core/csrf.js';
 import authRouter from './features/auth/auth.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Read version from package.json
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+const APP_VERSION = packageJson.version;
 
 // Pre-load all feature routes synchronously at module load time
 const featureRouters = new Map();
@@ -73,6 +77,14 @@ export function createApp(db = null, options = {}) {
       status: 'ok',
       timestamp: new Date().toISOString(),
       database: 'connected'
+    });
+  });
+
+  // Version endpoint (public)
+  app.get('/api/version', (req, res) => {
+    res.json({
+      version: APP_VERSION,
+      name: 'Flow Finance Manager'
     });
   });
 
