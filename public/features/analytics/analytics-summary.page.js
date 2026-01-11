@@ -1,10 +1,10 @@
 /**
  * Analytics Summary Page
- * Summary view with filters, totals, and year-on-year balance comparison
+ * Overview with filters, totals, spending by category, income vs expenses, and YoY balance
  */
 
 import { api } from '../../core/api.js';
-import { formatCurrency, formatDate, escapeHtml } from '../../core/utils.js';
+import { formatCurrency, escapeHtml } from '../../core/utils.js';
 import { showWarning } from '../../core/toast.js';
 
 // Private state
@@ -16,57 +16,40 @@ let currentRange = 'this_month';
 let currentStartDate = null;
 let currentEndDate = null;
 
-// Year-over-year balance data
+// Category colors
+const CATEGORY_COLORS = [
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
+  '#82CA9D', '#FFC658', '#8DD1E1', '#A4DE6C', '#D0ED57'
+];
+
+// Data
+let categoryData = [];
 let balanceYoyData = null;
 let selectedBalanceYears = [];
-
-// Accounts data
-let accounts = [];
 let mainAccountId = null;
 
-/**
- * Register cleanup function
- */
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
 
-/**
- * Mount the page
- */
 export async function mount(el, params) {
   container = el;
   cleanupFunctions = [];
-
-  // Load CSS
   loadStyles();
-
-  // Render initial structure
   render();
-
-  // Attach event listeners
   attachEventListeners();
-
-  // Load data
   await loadData();
 }
 
-/**
- * Unmount the page
- */
 export function unmount() {
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
-
   if (container) {
     container.innerHTML = '';
     container = null;
   }
 }
 
-/**
- * Load page-specific CSS
- */
 function loadStyles() {
   const styleId = 'analytics-summary-styles';
   if (!document.getElementById(styleId)) {
@@ -76,7 +59,6 @@ function loadStyles() {
     link.href = 'features/analytics/analytics-summary.css';
     document.head.appendChild(link);
   }
-  // Also load base analytics styles
   const analyticsStyleId = 'analytics-styles';
   if (!document.getElementById(analyticsStyleId)) {
     const link = document.createElement('link');
@@ -87,9 +69,6 @@ function loadStyles() {
   }
 }
 
-/**
- * Render the page structure
- */
 function render() {
   container.innerHTML = `
     <div class="page analytics-summary-page">
@@ -98,7 +77,7 @@ function render() {
           <h1 class="page-title">Analytics Summary</h1>
           <p class="page-subtitle">Overview of your financial data</p>
         </div>
-        <a href="#/analytics" class="btn btn-secondary">Detailed Analytics</a>
+        <a href="#/analytics" class="btn btn-secondary">Back to Analytics</a>
       </div>
 
       <!-- Date Range Selector -->
@@ -130,45 +109,43 @@ function render() {
       <!-- Summary Stats -->
       <section class="summary-section">
         <div id="summary-container" class="summary-stats">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading summary...</p>
-          </div>
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Main Analytics Grid -->
+      <section class="analytics-grid">
+        <!-- Spending by Category -->
+        <div id="category-spending-container" class="card category-spending-card">
+          <div class="loading"><div class="spinner"></div><p>Loading categories...</p></div>
+        </div>
+
+        <!-- Income vs Expenses -->
+        <div id="income-expenses-container" class="card income-expenses-card">
+          <div class="loading"><div class="spinner"></div><p>Loading comparison...</p></div>
         </div>
       </section>
 
       <!-- Year-on-Year Balance Chart -->
       <section class="balance-yoy-section">
         <div id="balance-yoy-container" class="card balance-yoy-card">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading balance history...</p>
-          </div>
+          <div class="loading"><div class="spinner"></div><p>Loading balance history...</p></div>
         </div>
       </section>
     </div>
   `;
 }
 
-/**
- * Attach event listeners
- */
 function attachEventListeners() {
-  // Range selector buttons
   const rangeSelector = container.querySelector('#range-selector');
   if (rangeSelector) {
     const rangeHandler = (e) => {
       const btn = e.target.closest('.filter-btn');
       if (!btn) return;
-
       const range = btn.dataset.range;
       if (range === currentRange) return;
-
-      // Update active state
       rangeSelector.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
-      // Show/hide custom date inputs
       const customDates = container.querySelector('#custom-dates');
       if (range === 'custom') {
         customDates.classList.remove('hidden');
@@ -177,71 +154,54 @@ function attachEventListeners() {
         currentRange = range;
         currentStartDate = null;
         currentEndDate = null;
-        loadSummaryData();
+        loadFilteredData();
       }
     };
     rangeSelector.addEventListener('click', rangeHandler);
     onCleanup(() => rangeSelector.removeEventListener('click', rangeHandler));
   }
 
-  // Apply custom dates button
   const applyBtn = container.querySelector('#apply-custom-dates');
   if (applyBtn) {
     const applyHandler = () => {
       const startInput = container.querySelector('#start-date');
       const endInput = container.querySelector('#end-date');
-
       if (!startInput.value || !endInput.value) {
         showWarning('Please select both start and end dates');
         return;
       }
-
       if (startInput.value > endInput.value) {
         showWarning('Start date must be before end date');
         return;
       }
-
       currentRange = 'custom';
       currentStartDate = startInput.value;
       currentEndDate = endInput.value;
-      loadSummaryData();
+      loadFilteredData();
     };
     applyBtn.addEventListener('click', applyHandler);
     onCleanup(() => applyBtn.removeEventListener('click', applyHandler));
   }
 }
 
-/**
- * Build query params for API requests
- */
 function buildQueryParams() {
   const params = new URLSearchParams();
   params.set('range', currentRange);
-
   if (currentRange === 'custom' && currentStartDate && currentEndDate) {
     params.set('start_date', currentStartDate);
     params.set('end_date', currentEndDate);
   }
-
   return params.toString();
 }
 
-/**
- * Load all data
- */
 async function loadData() {
   try {
-    // First load accounts to find main account
-    accounts = await api.get('/accounts');
-
-    // Find the main/primary account (first one or one with most transactions)
+    const accounts = await api.get('/accounts');
     if (accounts.length > 0) {
       mainAccountId = accounts[0].id;
     }
-
-    // Load summary and balance history in parallel
     await Promise.all([
-      loadSummaryData(),
+      loadFilteredData(),
       loadBalanceYoYData()
     ]);
   } catch (err) {
@@ -249,78 +209,50 @@ async function loadData() {
   }
 }
 
-/**
- * Load summary data based on filters
- */
-async function loadSummaryData() {
+async function loadFilteredData() {
   const queryParams = buildQueryParams();
-  const summaryContainer = container.querySelector('#summary-container');
-
-  summaryContainer.innerHTML = `
-    <div class="loading">
-      <div class="spinner"></div>
-    </div>
-  `;
-
   try {
-    const summaryData = await api.get(`/analytics/summary?${queryParams}`);
+    const [summaryData, categoryDataResp, incomeExpenseData] = await Promise.all([
+      api.get(`/analytics/summary?${queryParams}`),
+      api.get(`/analytics/spending-by-category?${queryParams}`),
+      api.get(`/analytics/income-vs-expenses?${queryParams}`)
+    ]);
+    categoryData = categoryDataResp.categories || [];
     renderSummaryStats(summaryData);
+    renderCategorySpending(categoryDataResp);
+    renderIncomeVsExpenses(incomeExpenseData);
   } catch (err) {
-    summaryContainer.innerHTML = `
-      <div class="error-state">
-        <p>Failed to load summary: ${escapeHtml(err.message)}</p>
-      </div>
-    `;
+    console.error('Failed to load filtered data:', err);
   }
 }
 
-/**
- * Load year-over-year balance data
- */
 async function loadBalanceYoYData() {
   const balanceContainer = container.querySelector('#balance-yoy-container');
-
   try {
     if (!mainAccountId) {
       balanceContainer.innerHTML = `
-        <div class="card-header">
-          <h3 class="card-title">Year-on-Year Balance Comparison</h3>
-        </div>
-        <div class="empty-state">
-          <p>No accounts found</p>
-        </div>
+        <div class="card-header"><h3 class="card-title">Year-on-Year Balance Comparison</h3></div>
+        <div class="empty-state"><p>No accounts found</p></div>
       `;
       return;
     }
-
     balanceYoyData = await api.get(`/accounts/${mainAccountId}/balance-history`);
-
-    // Determine which years to show by default
     if (balanceYoyData && balanceYoyData.years && balanceYoyData.years.length > 0) {
       const availableYears = balanceYoyData.years.map(y => y.year).sort((a, b) => b - a);
       selectedBalanceYears = availableYears.slice(0, Math.min(3, availableYears.length));
     }
-
     renderBalanceYoY();
   } catch (err) {
     balanceContainer.innerHTML = `
-      <div class="card-header">
-        <h3 class="card-title">Year-on-Year Balance Comparison</h3>
-      </div>
-      <div class="error-state">
-        <p>Failed to load balance history: ${escapeHtml(err.message)}</p>
-      </div>
+      <div class="card-header"><h3 class="card-title">Year-on-Year Balance Comparison</h3></div>
+      <div class="error-state"><p>Failed to load balance history: ${escapeHtml(err.message)}</p></div>
     `;
   }
 }
 
-/**
- * Render summary statistics
- */
 function renderSummaryStats(data) {
   const summaryContainer = container.querySelector('#summary-container');
-  const { summary, range } = data;
-
+  const { summary } = data;
   const netClass = summary.net >= 0 ? 'amount-positive' : 'amount-negative';
   const netSign = summary.net >= 0 ? '+' : '';
 
@@ -348,9 +280,132 @@ function renderSummaryStats(data) {
   `;
 }
 
-/**
- * Render year-over-year balance chart
- */
+function renderCategorySpending(data) {
+  const categoryContainer = container.querySelector('#category-spending-container');
+  const categories = data.categories || [];
+  const total = categories.reduce((sum, cat) => sum + cat.total, 0);
+
+  categoryContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Spending by Category</h3>
+      <span class="card-subtitle">${categories.length} categories</span>
+    </div>
+  `;
+
+  if (categories.length === 0) {
+    categoryContainer.innerHTML += `<div class="empty-state"><p>No spending data for this period</p></div>`;
+    return;
+  }
+
+  const listEl = document.createElement('div');
+  listEl.className = 'category-list';
+
+  // Show top 6 categories
+  const topCategories = categories.slice(0, 6);
+  topCategories.forEach((cat, idx) => {
+    const percentage = total > 0 ? (cat.total / total) * 100 : 0;
+    const color = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+
+    const itemEl = document.createElement('div');
+    itemEl.className = 'category-item';
+    itemEl.innerHTML = `
+      <div class="category-info">
+        <div class="category-indicator" style="background-color: ${color}"></div>
+        <span class="category-name">${escapeHtml(cat.name)}</span>
+        <span class="category-percentage">${percentage.toFixed(1)}%</span>
+      </div>
+      <div class="category-bar-wrapper">
+        <div class="category-bar" style="width: ${percentage}%; background-color: ${color}"></div>
+      </div>
+      <div class="category-amount">${formatCurrency(cat.total)}</div>
+    `;
+    listEl.appendChild(itemEl);
+  });
+
+  categoryContainer.appendChild(listEl);
+}
+
+function renderIncomeVsExpenses(data) {
+  const incomeExpenseContainer = container.querySelector('#income-expenses-container');
+  const { months, totals } = data;
+
+  let subtitle = '';
+  if (months && months.length > 0) {
+    const firstMonth = months[0].month;
+    const lastMonth = months[months.length - 1].month;
+    subtitle = `${formatMonthLabel(firstMonth)} - ${formatMonthLabel(lastMonth)} ${lastMonth.split('-')[0]}`;
+  }
+
+  incomeExpenseContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Income vs Expenses</h3>
+      <span class="card-subtitle">${subtitle}</span>
+    </div>
+  `;
+
+  const summaryEl = document.createElement('div');
+  summaryEl.className = 'income-expense-summary';
+  const netClass = totals.net >= 0 ? 'amount-positive' : 'amount-negative';
+  summaryEl.innerHTML = `
+    <div class="ie-stat">
+      <span class="ie-label">Total Income</span>
+      <span class="ie-value amount-positive">${formatCurrency(totals.income)}</span>
+    </div>
+    <div class="ie-stat">
+      <span class="ie-label">Total Expenses</span>
+      <span class="ie-value amount-negative">${formatCurrency(totals.expenses)}</span>
+    </div>
+    <div class="ie-stat ie-stat--net">
+      <span class="ie-label">Net</span>
+      <span class="ie-value ${netClass}">${totals.net >= 0 ? '+' : ''}${formatCurrency(totals.net)}</span>
+    </div>
+  `;
+  incomeExpenseContainer.appendChild(summaryEl);
+
+  // Monthly bars chart
+  const chartEl = document.createElement('div');
+  chartEl.className = 'monthly-chart';
+  const maxValue = Math.max(...months.map(m => Math.max(m.income, m.expenses)), 1);
+  const displayMonths = months.length > 6 ? months.slice(-6) : months;
+
+  displayMonths.forEach(month => {
+    const barGroup = document.createElement('div');
+    barGroup.className = 'bar-group';
+    const incomeHeight = (month.income / maxValue) * 100;
+    const expenseHeight = (month.expenses / maxValue) * 100;
+    barGroup.innerHTML = `
+      <div class="bars">
+        <div class="bar bar--income" style="height: ${incomeHeight}%" title="Income: ${formatCurrency(month.income)}"></div>
+        <div class="bar bar--expense" style="height: ${expenseHeight}%" title="Expenses: ${formatCurrency(month.expenses)}"></div>
+      </div>
+      <div class="bar-label">${formatMonthLabel(month.month)}</div>
+    `;
+    chartEl.appendChild(barGroup);
+  });
+  incomeExpenseContainer.appendChild(chartEl);
+
+  // Legend
+  const legendEl = document.createElement('div');
+  legendEl.className = 'chart-legend';
+  legendEl.innerHTML = `
+    <div class="legend-item">
+      <span class="legend-color legend-color--income"></span>
+      <span class="legend-label">Income</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-color legend-color--expense"></span>
+      <span class="legend-label">Expenses</span>
+    </div>
+  `;
+  incomeExpenseContainer.appendChild(legendEl);
+}
+
+function formatMonthLabel(monthStr) {
+  const [year, month] = monthStr.split('-');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return monthNames[parseInt(month, 10) - 1] || month;
+}
+
 function renderBalanceYoY() {
   const balanceContainer = container.querySelector('#balance-yoy-container');
 
@@ -360,16 +415,12 @@ function renderBalanceYoY() {
         <h3 class="card-title">Year-on-Year Balance Comparison</h3>
         <span class="card-subtitle">Main Account: ${escapeHtml(balanceYoyData?.account_name || 'Unknown')}</span>
       </div>
-      <div class="empty-state">
-        <p>No balance history available yet</p>
-      </div>
+      <div class="empty-state"><p>No balance history available yet</p></div>
     `;
     return;
   }
 
   const availableYears = balanceYoyData.years.map(y => y.year).sort((a, b) => b - a);
-
-  // Build year selector buttons
   const yearButtons = availableYears.map(year => {
     const isActive = selectedBalanceYears.includes(year);
     return `<button class="yoy-year-btn ${isActive ? 'active' : ''}" data-year="${year}">${year}</button>`;
@@ -382,18 +433,14 @@ function renderBalanceYoY() {
     </div>
     <div class="yoy-controls">
       <span class="filter-label">Compare Years:</span>
-      <div class="yoy-year-selector" id="balance-year-selector">
-        ${yearButtons}
-      </div>
+      <div class="yoy-year-selector" id="balance-year-selector">${yearButtons}</div>
     </div>
   `;
 
-  // Attach year selector event listeners
   const yearSelector = balanceContainer.querySelector('#balance-year-selector');
   yearSelector.addEventListener('click', (e) => {
     const btn = e.target.closest('.yoy-year-btn');
     if (!btn) return;
-
     const year = parseInt(btn.dataset.year);
     if (selectedBalanceYears.includes(year)) {
       if (selectedBalanceYears.length > 1) {
@@ -407,37 +454,22 @@ function renderBalanceYoY() {
     }
   });
 
-  // Filter data to selected years
   const selectedData = balanceYoyData.years.filter(y => selectedBalanceYears.includes(y.year));
-
   if (selectedData.length === 0) {
-    balanceContainer.innerHTML += `
-      <div class="empty-state">
-        <p>Select years to compare</p>
-      </div>
-    `;
+    balanceContainer.innerHTML += `<div class="empty-state"><p>Select years to compare</p></div>`;
     return;
   }
 
-  // Year colors for chart
-  const yearColors = [
-    '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
-  ];
-
-  // Create SVG line chart
+  const yearColors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
   const chartContainer = document.createElement('div');
   chartContainer.className = 'balance-chart-container';
 
-  // Chart dimensions
-  const width = 800;
-  const height = 300;
+  const width = 800, height = 300;
   const padding = { top: 30, right: 30, bottom: 50, left: 80 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Find min/max values across all selected years
-  let minBalance = Infinity;
-  let maxBalance = -Infinity;
+  let minBalance = Infinity, maxBalance = -Infinity;
   selectedData.forEach(yearData => {
     yearData.months.forEach(m => {
       if (m.balance !== null && m.balance !== undefined) {
@@ -447,89 +479,46 @@ function renderBalanceYoY() {
     });
   });
 
-  // Add some padding to the range
   const range = maxBalance - minBalance || 1;
   minBalance = minBalance - range * 0.1;
   maxBalance = maxBalance + range * 0.1;
 
-  // Month names
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  // Scale functions
   const xScale = (month) => padding.left + ((month - 1) / 11) * chartWidth;
   const yScale = (value) => padding.top + chartHeight - ((value - minBalance) / (maxBalance - minBalance)) * chartHeight;
 
-  // Generate Y-axis labels
   const yLabels = [];
-  const labelCount = 5;
-  for (let i = 0; i <= labelCount; i++) {
-    const value = minBalance + ((maxBalance - minBalance) * i / labelCount);
+  for (let i = 0; i <= 5; i++) {
+    const value = minBalance + ((maxBalance - minBalance) * i / 5);
     yLabels.push({ y: yScale(value), label: formatCurrency(value) });
   }
 
-  // Generate lines for each year
   const lines = selectedData.map((yearData, idx) => {
     const color = yearColors[idx % yearColors.length];
     const points = [];
-
     yearData.months.forEach(m => {
       if (m.balance !== null && m.balance !== undefined) {
         points.push({ x: xScale(m.month), y: yScale(m.balance), month: m.month, balance: m.balance });
       }
     });
-
-    // Generate path
     const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-
     return { year: yearData.year, color, points, pathD };
   });
 
   chartContainer.innerHTML = `
     <svg class="balance-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
-      <!-- Grid lines -->
       <g class="chart-grid">
-        ${yLabels.map(l => `
-          <line x1="${padding.left}" y1="${l.y}" x2="${width - padding.right}" y2="${l.y}" stroke="#e5e7eb" stroke-opacity="0.5" />
-        `).join('')}
+        ${yLabels.map(l => `<line x1="${padding.left}" y1="${l.y}" x2="${width - padding.right}" y2="${l.y}" stroke="#e5e7eb" stroke-opacity="0.5" />`).join('')}
       </g>
-
-      <!-- Zero line if applicable -->
-      ${minBalance < 0 && maxBalance > 0 ? `
-        <line class="zero-line" x1="${padding.left}" y1="${yScale(0)}"
-              x2="${width - padding.right}" y2="${yScale(0)}" stroke="#9ca3af" stroke-dasharray="4 4" />
-      ` : ''}
-
-      <!-- Lines -->
-      ${lines.map(line => `
-        <path class="balance-line" d="${line.pathD}" fill="none" stroke="${line.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      `).join('')}
-
-      <!-- Data points -->
-      ${lines.map(line => line.points.map(p => `
-        <circle class="balance-point" cx="${p.x}" cy="${p.y}" r="5" fill="${line.color}" stroke="white" stroke-width="2">
-          <title>${line.year} ${monthNames[p.month - 1]}: ${formatCurrency(p.balance)}</title>
-        </circle>
-      `).join('')).join('')}
-
-      <!-- Y-axis labels -->
-      <g class="chart-labels-y">
-        ${yLabels.map(l => `
-          <text x="${padding.left - 10}" y="${l.y}" dy="4" text-anchor="end" fill="#6b7280" font-size="11">${l.label}</text>
-        `).join('')}
-      </g>
-
-      <!-- X-axis labels -->
-      <g class="chart-labels-x">
-        ${monthNames.map((name, i) => `
-          <text x="${xScale(i + 1)}" y="${height - 15}" text-anchor="middle" fill="#6b7280" font-size="11">${name}</text>
-        `).join('')}
-      </g>
+      ${minBalance < 0 && maxBalance > 0 ? `<line class="zero-line" x1="${padding.left}" y1="${yScale(0)}" x2="${width - padding.right}" y2="${yScale(0)}" stroke="#9ca3af" stroke-dasharray="4 4" />` : ''}
+      ${lines.map(line => `<path class="balance-line" d="${line.pathD}" fill="none" stroke="${line.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />`).join('')}
+      ${lines.map(line => line.points.map(p => `<circle class="balance-point" cx="${p.x}" cy="${p.y}" r="5" fill="${line.color}" stroke="white" stroke-width="2"><title>${line.year} ${monthNames[p.month - 1]}: ${formatCurrency(p.balance)}</title></circle>`).join('')).join('')}
+      <g class="chart-labels-y">${yLabels.map(l => `<text x="${padding.left - 10}" y="${l.y}" dy="4" text-anchor="end" fill="#6b7280" font-size="11">${l.label}</text>`).join('')}</g>
+      <g class="chart-labels-x">${monthNames.map((name, i) => `<text x="${xScale(i + 1)}" y="${height - 15}" text-anchor="middle" fill="#6b7280" font-size="11">${name}</text>`).join('')}</g>
     </svg>
   `;
-
   balanceContainer.appendChild(chartContainer);
 
-  // Legend
   const legendEl = document.createElement('div');
   legendEl.className = 'balance-legend';
   legendEl.innerHTML = lines.map(line => `
@@ -540,7 +529,6 @@ function renderBalanceYoY() {
   `).join('');
   balanceContainer.appendChild(legendEl);
 
-  // Summary stats per year
   const summaryEl = document.createElement('div');
   summaryEl.className = 'balance-summary';
   summaryEl.innerHTML = selectedData.map((yearData, idx) => {
@@ -549,23 +537,13 @@ function renderBalanceYoY() {
     const endBalance = yearData.months.filter(m => m.balance !== null).pop()?.balance || 0;
     const change = endBalance - startBalance;
     const changeClass = change >= 0 ? 'amount-positive' : 'amount-negative';
-
     return `
       <div class="balance-summary-year" style="border-left-color: ${color}">
         <div class="balance-summary-label">${yearData.year}</div>
         <div class="balance-summary-stats">
-          <span class="balance-summary-stat">
-            <span class="stat-label">Start</span>
-            <span class="stat-value">${formatCurrency(startBalance)}</span>
-          </span>
-          <span class="balance-summary-stat">
-            <span class="stat-label">End</span>
-            <span class="stat-value">${formatCurrency(endBalance)}</span>
-          </span>
-          <span class="balance-summary-stat">
-            <span class="stat-label">Change</span>
-            <span class="stat-value ${changeClass}">${change >= 0 ? '+' : ''}${formatCurrency(change)}</span>
-          </span>
+          <span class="balance-summary-stat"><span class="stat-label">Start</span><span class="stat-value">${formatCurrency(startBalance)}</span></span>
+          <span class="balance-summary-stat"><span class="stat-label">End</span><span class="stat-value">${formatCurrency(endBalance)}</span></span>
+          <span class="balance-summary-stat"><span class="stat-label">Change</span><span class="stat-value ${changeClass}">${change >= 0 ? '+' : ''}${formatCurrency(change)}</span></span>
         </div>
       </div>
     `;
@@ -573,9 +551,6 @@ function renderBalanceYoY() {
   balanceContainer.appendChild(summaryEl);
 }
 
-/**
- * Show error state
- */
 function showError(message) {
   container.innerHTML = `
     <div class="page analytics-summary-page">

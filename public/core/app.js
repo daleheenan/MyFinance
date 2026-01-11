@@ -34,6 +34,9 @@ import * as overviewPage from '../features/overview/overview.page.js';
 import * as transactionsPage from '../features/transactions/transactions.page.js';
 import * as analyticsPage from '../features/analytics/analytics.page.js';
 import * as analyticsSummaryPage from '../features/analytics/analytics-summary.page.js';
+import * as analyticsTrendsPage from '../features/analytics/analytics-trends.page.js';
+import * as analyticsSpendPage from '../features/analytics/analytics-spend.page.js';
+import * as analyticsMerchantsPage from '../features/analytics/analytics-merchants.page.js';
 import * as budgetsPage from '../features/budgets/budgets.page.js';
 import * as settingsPage from '../features/settings/settings.page.js';
 import * as subscriptionsPage from '../features/subscriptions/subscriptions.page.js';
@@ -136,6 +139,9 @@ function registerRoutes() {
   router.register('/transactions', transactionsPage);
   router.register('/analytics', analyticsPage);
   router.register('/analytics/summary', analyticsSummaryPage);
+  router.register('/analytics/trends', analyticsTrendsPage);
+  router.register('/analytics/spend', analyticsSpendPage);
+  router.register('/analytics/merchants', analyticsMerchantsPage);
   router.register('/budgets', budgetsPage);
   router.register('/subscriptions', subscriptionsPage);
   router.register('/networth', networthPage);
@@ -182,27 +188,8 @@ function updateSubscriptionUI(subscription) {
 function updateAuthUI() {
   const nav = document.querySelector('.nav-container');
   const logoutBtn = document.getElementById('logout-btn');
-  const adminLink = document.getElementById('admin-nav-link');
 
   if (auth.isAuthenticated()) {
-    const user = auth.getUser();
-
-    // Show admin link for admin users
-    if (user?.isAdmin && !adminLink) {
-      const adminLi = document.createElement('li');
-      adminLi.innerHTML = `<a href="#/admin" class="nav-link" id="admin-nav-link" data-route="/admin">Admin</a>`;
-      const navLinks = nav.querySelector('.nav-links');
-      // Insert before Settings
-      const settingsLink = navLinks.querySelector('[data-route="/settings"]')?.closest('li');
-      if (settingsLink) {
-        navLinks.insertBefore(adminLi, settingsLink);
-      } else {
-        navLinks.appendChild(adminLi);
-      }
-    } else if (!user?.isAdmin && adminLink) {
-      adminLink.closest('li').remove();
-    }
-
     // Show logout button
     if (!logoutBtn) {
       const logoutLi = document.createElement('li');
@@ -225,11 +212,6 @@ function updateAuthUI() {
     // Remove logout button if it exists
     if (logoutBtn) {
       logoutBtn.closest('li').remove();
-    }
-
-    // Remove admin link if it exists
-    if (adminLink) {
-      adminLink.closest('li').remove();
     }
 
     // Hide nav on login page

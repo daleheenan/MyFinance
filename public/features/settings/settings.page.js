@@ -57,8 +57,32 @@ export function unmount() {
 }
 
 function render() {
+  const user = auth.getUser();
+  const isAdmin = user?.isAdmin;
+
   container.innerHTML = `
     <div class="page settings-page">
+      ${isAdmin ? `
+      <section class="settings-section admin-section" id="admin-section">
+        <div class="settings-section-header">
+          <div>
+            <h2 class="settings-section-title">Administration</h2>
+            <p class="settings-section-description">Manage users, system settings, and view admin controls</p>
+          </div>
+          <a href="#/admin" class="btn btn-primary btn-sm">Open Admin Panel</a>
+        </div>
+        <div class="admin-quick-links">
+          <a href="#/admin" class="admin-link-card">
+            <span class="admin-link-icon">👥</span>
+            <span class="admin-link-text">User Management</span>
+          </a>
+          <a href="#/cms" class="admin-link-card">
+            <span class="admin-link-icon">📝</span>
+            <span class="admin-link-text">CMS Editor</span>
+          </a>
+        </div>
+      </section>
+      ` : ''}
       <section class="settings-section" id="accounts-section">
         <div class="settings-section-header">
           <div>

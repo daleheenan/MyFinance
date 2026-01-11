@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "version:generate": "node scripts/generate-version.js",
+    "prebuild": "npm run version:generate"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

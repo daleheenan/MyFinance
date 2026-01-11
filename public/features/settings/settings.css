@@ -11,6 +11,49 @@
   gap: var(--space-lg);
 }
 
+/* ===== ADMIN SECTION ===== */
+
+.admin-section {
+  background: linear-gradient(135deg, var(--bg-secondary), rgba(175, 82, 222, 0.05));
+  border: 2px solid var(--purple);
+}
+
+.admin-quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.admin-link-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: var(--border-light);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.admin-link-card:hover {
+  background: var(--bg-primary);
+  border-color: var(--purple);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-link-icon {
+  font-size: 1.5rem;
+}
+
+.admin-link-text {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
 /* ===== SECTION CARDS ===== */
 
 .settings-section {

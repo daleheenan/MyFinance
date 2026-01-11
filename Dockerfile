@@ -19,15 +19,21 @@ RUN npm ci
 COPY . .
 
 # Generate version file from git info at build time
-RUN if [ -d .git ]; then \
-      COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
-      COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0"); \
-      VERSION=$(node -e "console.log(require('./package.json').version)"); \
-      echo "{\"version\":\"${VERSION}.${COUNT}+${COMMIT}\"}" > version.json; \
+# Also use build timestamp as fallback if git not available
+RUN VERSION=$(node -e "console.log(require('./package.json').version)") && \
+    BUILD_TIME=$(date +%Y%m%d%H%M) && \
+    if [ -d .git ] && command -v git >/dev/null 2>&1; then \
+      COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo ""); \
+      COUNT=$(git rev-list --count HEAD 2>/dev/null || echo ""); \
+      if [ -n "$COMMIT" ] && [ -n "$COUNT" ]; then \
+        echo "{\"version\":\"${VERSION}.${COUNT}+${COMMIT}\"}" > version.json; \
+      else \
+        echo "{\"version\":\"${VERSION}.${BUILD_TIME}\"}" > version.json; \
+      fi; \
     else \
-      VERSION=$(node -e "console.log(require('./package.json').version)"); \
-      echo "{\"version\":\"${VERSION}\"}" > version.json; \
-    fi
+      echo "{\"version\":\"${VERSION}.${BUILD_TIME}\"}" > version.json; \
+    fi && \
+    echo "Version file created:" && cat version.json
 
 # Production stage - smaller final image
 FROM node:22-alpine

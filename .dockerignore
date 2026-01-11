@@ -17,8 +17,10 @@ playwright-report/
 .gitignore
 .env.local
 .env.development
-*.md
 *.log
+
+# Exclude README but keep ROADMAP for production reference
+README.md
 
 # Editor files
 .vscode/
@@ -29,3 +31,6 @@ playwright-report/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Keep version.json if it exists (pre-generated)
+!version.json
