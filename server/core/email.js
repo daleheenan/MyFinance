@@ -93,10 +93,10 @@ export async function sendEmail({ to, subject, text, html }) {
 export async function sendPasswordResetEmail(email, resetToken, baseUrl) {
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
-  const subject = 'Reset Your Password - FinanceFlow';
+  const subject = 'Reset Your Password - Flow Money Manager';
 
   const text = `
-You requested a password reset for your FinanceFlow account.
+You requested a password reset for your Flow Money Manager account.
 
 Click the link below to reset your password:
 ${resetUrl}
@@ -105,7 +105,7 @@ This link will expire in 1 hour.
 
 If you didn't request this, please ignore this email. Your password will not be changed.
 
-- FinanceFlow
+- Flow Money Manager
   `.trim();
 
   const html = `
@@ -117,7 +117,7 @@ If you didn't request this, please ignore this email. Your password will not be 
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">FinanceFlow</h1>
+    <h1 style="color: white; margin: 0; font-size: 24px;">Flow Money Manager</h1>
   </div>
 
   <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #eee; border-top: none;">
@@ -164,10 +164,10 @@ If you didn't request this, please ignore this email. Your password will not be 
  */
 export async function sendWelcomeEmail(email, username, baseUrl) {
   const appUrl = `${baseUrl}/app`;
-  const subject = 'Welcome to FinanceFlow!';
+  const subject = 'Welcome to Flow Money Manager!';
 
   const text = `
-Welcome to FinanceFlow, ${username}!
+Welcome to Flow Money Manager, ${username}!
 
 Your account has been created successfully. You can now start managing your personal finances.
 
@@ -183,7 +183,7 @@ Features available to you:
 
 If you have any questions, please contact us.
 
-- The FinanceFlow Team
+- The Flow Money Manager Team
   `.trim();
 
   const html = `
@@ -195,7 +195,7 @@ If you have any questions, please contact us.
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to FinanceFlow!</h1>
+    <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to Flow Money Manager!</h1>
   </div>
 
   <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #eee; border-top: none;">
@@ -249,7 +249,7 @@ export async function sendSubscriptionConfirmation(email, planName, amount, next
     day: 'numeric'
   });
 
-  const subject = `Your ${planName} subscription is now active - FinanceFlow`;
+  const subject = `Your ${planName} subscription is now active - Flow Money Manager`;
 
   const text = `
 Your ${planName} subscription is now active!
@@ -264,7 +264,7 @@ You now have access to all premium features including unlimited accounts, advanc
 
 Manage your subscription: ${baseUrl}/app/settings
 
-- The FinanceFlow Team
+- The Flow Money Manager Team
   `.trim();
 
   const html = `
@@ -335,10 +335,10 @@ export async function sendSubscriptionCancellation(email, endDate, baseUrl) {
     day: 'numeric'
   });
 
-  const subject = 'Your subscription has been canceled - FinanceFlow';
+  const subject = 'Your subscription has been canceled - Flow Money Manager';
 
   const text = `
-Your FinanceFlow Pro subscription has been canceled.
+Your Flow Money Manager Pro subscription has been canceled.
 
 You'll continue to have access to Pro features until ${dateFormatted}.
 
@@ -348,7 +348,7 @@ Changed your mind? You can resume your subscription anytime from your settings p
 
 We'd love to have you back!
 
-- The FinanceFlow Team
+- The Flow Money Manager Team
   `.trim();
 
   const html = `
@@ -364,7 +364,7 @@ We'd love to have you back!
   </div>
 
   <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #eee; border-top: none;">
-    <p>Your FinanceFlow Pro subscription has been canceled.</p>
+    <p>Your Flow Money Manager Pro subscription has been canceled.</p>
 
     <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #fcd34d; margin: 20px 0;">
       <p style="margin: 0; color: #92400e;">

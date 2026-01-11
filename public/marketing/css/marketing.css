@@ -1,5 +1,5 @@
 /**
- * FinanceFlow - Marketing Pages Styles
+ * Flow Money Manager - Marketing Pages Styles
  *
  * Design tokens based on user mockup:
  * - Primary: #3B82F6 (blue)
@@ -236,24 +236,24 @@ img {
 
 .btn-primary {
   background: var(--marketing-primary);
-  color: var(--marketing-text-white);
+  color: var(--marketing-text-white) !important;
 }
 
 .btn-primary:hover {
   background: var(--marketing-primary-hover);
-  color: var(--marketing-text-white);
+  color: var(--marketing-text-white) !important;
   transform: translateY(-1px);
   box-shadow: var(--marketing-shadow-md);
 }
 
 .btn-teal {
   background: var(--marketing-teal);
-  color: var(--marketing-text-white);
+  color: var(--marketing-text-white) !important;
 }
 
 .btn-teal:hover {
   background: var(--marketing-teal-hover);
-  color: var(--marketing-text-white);
+  color: var(--marketing-text-white) !important;
   transform: translateY(-1px);
   box-shadow: var(--marketing-shadow-md);
 }
@@ -325,14 +325,8 @@ img {
 }
 
 .marketing-hero-image::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 40%, rgba(255,255,255,0) 70%);
-  z-index: 1;
+  /* Removed full gradient overlay to show the hero image better */
+  display: none;
 }
 
 .marketing-hero-bg {
@@ -353,10 +347,20 @@ img {
   margin: 0 auto;
   padding: var(--marketing-space-3xl) var(--marketing-container-padding);
   width: 100%;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .marketing-hero-text {
-  max-width: 500px;
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: var(--marketing-space-xl);
+  border-radius: var(--marketing-radius-lg);
+  box-shadow: var(--marketing-shadow-xl);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  text-align: left;
 }
 
 .marketing-hero-image h1 {
@@ -380,6 +384,62 @@ img {
 
 .marketing-hero-image .marketing-hero-cta {
   justify-content: flex-start;
+}
+
+/* Features Page Hero with Background */
+.marketing-hero-features {
+  position: relative;
+  min-height: 350px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 50%, #f0f9ff 100%);
+  overflow: hidden;
+}
+
+.marketing-hero-features::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  background-image: url('/marketing/images/features-bg.png');
+  background-size: contain;
+  background-position: center right;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+}
+
+.marketing-hero-features h1,
+.marketing-hero-features .marketing-hero-subtitle {
+  position: relative;
+  z-index: 1;
+}
+
+/* Pricing Page Hero with Background */
+.marketing-hero-pricing {
+  position: relative;
+  min-height: 350px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 50%, #ecfccb 100%);
+  overflow: hidden;
+}
+
+.marketing-hero-pricing::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  background-image: url('/marketing/images/pricing-bg.png');
+  background-size: contain;
+  background-position: center right;
+  background-repeat: no-repeat;
+  opacity: 0.12;
+}
+
+.marketing-hero-pricing h1,
+.marketing-hero-pricing .marketing-hero-subtitle {
+  position: relative;
+  z-index: 1;
 }
 
 /* =============================================================================
@@ -849,8 +909,8 @@ img {
     text-align: center;
   }
 
-  .marketing-hero-image::before {
-    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+  .marketing-hero-content {
+    justify-content: center;
   }
 
   .marketing-hero-image h1 {
@@ -860,6 +920,8 @@ img {
   .marketing-hero-text {
     max-width: 100%;
     text-align: center;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
   }
 
   .marketing-hero-image .marketing-hero-cta {
