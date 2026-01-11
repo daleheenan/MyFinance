@@ -18,6 +18,25 @@ function setButtonLoading(btn, loading, loadingText, defaultText) {
 }
 
 /**
+ * Check if email is configured and show forgot password link if so
+ */
+async function checkEmailConfigured(container) {
+  try {
+    const response = await fetch('/api/auth/email-configured');
+    const data = await response.json();
+    if (data.configured) {
+      const loginLinks = container.querySelector('#login-links');
+      if (loginLinks) {
+        loginLinks.style.display = 'block';
+      }
+    }
+  } catch (err) {
+    // If check fails, don't show the link
+    console.warn('Could not check email configuration:', err);
+  }
+}
+
+/**
  * Check if the system has any users set up
  */
 async function checkSetupStatus() {
@@ -205,10 +224,17 @@ function renderLoginForm(container) {
           <button type="submit" id="login-btn" class="login-btn">
             Sign In
           </button>
+
+          <div class="login-links" id="login-links" style="display: none;">
+            <a href="#/forgot-password" class="login-link">Forgot Password?</a>
+          </div>
         </form>
       </div>
     </div>
   `;
+
+  // Check if email is configured to show forgot password link
+  checkEmailConfigured(container);
 
   const form = container.querySelector('#login-form');
   const usernameInput = container.querySelector('#username');

@@ -15,6 +15,12 @@ export function createTestDb() {
   const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8');
   db.exec(schema);
 
+  // Create a test user (required for foreign key constraints)
+  db.prepare(`
+    INSERT INTO users (id, username, password_hash)
+    VALUES (1, 'testuser', '$2a$10$test.hash.for.testing.purposes.only')
+  `).run();
+
   // Run seeds
   const seeds = readFileSync(join(__dirname, 'seeds.sql'), 'utf-8');
   db.exec(seeds);

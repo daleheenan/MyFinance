@@ -42,6 +42,9 @@ function runMigrations(database) {
   // Migration 3: Add user_id columns to all user-owned tables for multi-tenant support
   // All existing data gets assigned to user_id = 1 (the first/admin user)
   addColumnIfNotExists(database, 'accounts', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+
+  // Migration 4: Add email column to users table for password reset
+  addColumnIfNotExists(database, 'users', 'email', 'TEXT UNIQUE');
   addColumnIfNotExists(database, 'categories', 'user_id', 'INTEGER');
   addColumnIfNotExists(database, 'category_rules', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'budgets', 'user_id', 'INTEGER NOT NULL DEFAULT 1');

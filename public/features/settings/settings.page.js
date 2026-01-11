@@ -62,7 +62,10 @@ function render() {
             <h2 class="settings-section-title">Accounts</h2>
             <p class="settings-section-description">Manage your bank accounts and their details</p>
           </div>
-          <button class="btn btn-primary btn-sm" id="add-account-btn">+ Add Account</button>
+          <div class="settings-section-actions">
+            <button class="btn btn-secondary btn-sm" id="import-csv-btn">Import CSV</button>
+            <button class="btn btn-primary btn-sm" id="add-account-btn">+ Add Account</button>
+          </div>
         </div>
         <div id="accounts-container" class="accounts-grid">
           <div class="section-loading">
@@ -245,6 +248,16 @@ function render() {
  * Attach event listeners with delegation
  */
 function attachEventListeners() {
+  // Import CSV button - navigates to transactions page with import modal
+  const importCsvBtn = container.querySelector('#import-csv-btn');
+  if (importCsvBtn) {
+    const handler = () => {
+      window.location.hash = '#/transactions?import=1';
+    };
+    importCsvBtn.addEventListener('click', handler);
+    onCleanup(() => importCsvBtn.removeEventListener('click', handler));
+  }
+
   // Add Account button
   const addAccountBtn = container.querySelector('#add-account-btn');
   if (addAccountBtn) {
@@ -664,9 +677,9 @@ function confirmDeleteAccount(account) {
  * Show test data generation modal for an account
  */
 function showTestDataModal(account) {
-  showModal({
+  createModal({
     title: `Generate Test Data - ${escapeHtml(account.account_name)}`,
-    body: `
+    content: `
       <form id="testdata-form">
         <div class="form-group">
           <label class="form-label" for="testdata-months">Number of Months</label>
@@ -708,7 +721,10 @@ function showTestDataModal(account) {
         </div>
       </form>
     `,
-    saveText: 'Generate Test Data',
+    footer: `
+      <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="modal-save">Generate Test Data</button>
+    `,
     onSave: async () => {
       const months = parseInt(document.getElementById('testdata-months').value);
       const txnCount = parseInt(document.getElementById('testdata-txn-count').value);
@@ -726,7 +742,7 @@ function showTestDataModal(account) {
           includeShopping,
           includeDining
         });
-        showToast(`Generated ${result.data.count} test transactions`, 'success');
+        showToast(`Generated ${result.count} test transactions`, 'success');
         await loadAccounts();
         return true;
       } catch (err) {

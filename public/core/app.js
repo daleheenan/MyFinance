@@ -34,9 +34,11 @@ import * as subscriptionsPage from '../features/subscriptions/subscriptions.page
 import * as networthPage from '../features/networth/networth.page.js';
 import * as forecastingPage from '../features/forecasting/forecasting.page.js';
 import * as loginPage from '../features/auth/login.page.js';
+import * as forgotPasswordPage from '../features/auth/forgot-password.page.js';
+import * as resetPasswordPage from '../features/auth/reset-password.page.js';
 
 // Public routes that don't require authentication
-const PUBLIC_ROUTES = ['/login'];
+const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password'];
 
 /**
  * Setup hamburger menu toggle for mobile
@@ -112,6 +114,8 @@ function setupKeyboardShortcuts() {
 function registerRoutes() {
   // Public routes
   router.register('/login', loginPage);
+  router.register('/forgot-password', forgotPasswordPage);
+  router.register('/reset-password', resetPasswordPage);
 
   // Protected routes
   router.register('/overview', overviewPage);

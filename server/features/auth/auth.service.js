@@ -1,4 +1,5 @@
 import { getDb } from '../../core/database.js';
+import { sendPasswordResetEmail, isEmailConfigured } from '../../core/email.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -6,6 +7,7 @@ const BCRYPT_ROUNDS = 12;
 const SESSION_DURATION_HOURS = 24;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
+const PASSWORD_RESET_EXPIRY_HOURS = 1;
 
 // Password complexity requirements
 const PASSWORD_MIN_LENGTH = 8;
@@ -433,4 +435,174 @@ export function hasUsers() {
   const db = getDb();
   const result = db.prepare('SELECT COUNT(*) as count FROM users').get();
   return result.count > 0;
+}
+
+/**
+ * Update user email
+ * @param {number} userId
+ * @param {string} email
+ * @returns {{success: boolean, error?: string}}
+ */
+export function updateUserEmail(userId, email) {
+  const db = getDb();
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { success: false, error: 'Invalid email format' };
+  }
+
+  // Check if email is already in use by another user
+  const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, userId);
+  if (existing) {
+    return { success: false, error: 'Email already in use' };
+  }
+
+  try {
+    db.prepare('UPDATE users SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(email, userId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: 'Failed to update email' };
+  }
+}
+
+/**
+ * Get user email
+ * @param {number} userId
+ * @returns {string|null}
+ */
+export function getUserEmail(userId) {
+  const db = getDb();
+  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(userId);
+  return user?.email || null;
+}
+
+/**
+ * Request password reset - sends email with reset link
+ * @param {string} email
+ * @param {string} baseUrl - Base URL for the app
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function requestPasswordReset(email, baseUrl) {
+  const db = getDb();
+
+  // Check if email service is configured
+  if (!isEmailConfigured()) {
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  // Find user by email
+  const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email);
+
+  // Always return success to prevent email enumeration
+  // But only actually send email if user exists
+  if (!user) {
+    // Delay to prevent timing attacks
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { success: true };
+  }
+
+  // Generate secure token
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+
+  // Invalidate any existing tokens for this user
+  db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE user_id = ?').run(user.id);
+
+  // Create new token
+  db.prepare(`
+    INSERT INTO password_reset_tokens (user_id, token, expires_at)
+    VALUES (?, ?, ?)
+  `).run(user.id, token, expiresAt);
+
+  // Send email
+  const emailResult = await sendPasswordResetEmail(email, token, baseUrl);
+
+  if (!emailResult.success) {
+    console.error('Failed to send password reset email:', emailResult.error);
+    // Don't expose email sending failures to prevent information disclosure
+    return { success: true };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Validate a password reset token
+ * @param {string} token
+ * @returns {{valid: boolean, userId?: number}}
+ */
+export function validateResetToken(token) {
+  const db = getDb();
+
+  const resetToken = db.prepare(`
+    SELECT user_id, expires_at, used
+    FROM password_reset_tokens
+    WHERE token = ?
+  `).get(token);
+
+  if (!resetToken) {
+    return { valid: false };
+  }
+
+  // Check if expired
+  if (new Date(resetToken.expires_at) < new Date()) {
+    return { valid: false };
+  }
+
+  // Check if already used
+  if (resetToken.used) {
+    return { valid: false };
+  }
+
+  return { valid: true, userId: resetToken.user_id };
+}
+
+/**
+ * Reset password using a reset token
+ * @param {string} token
+ * @param {string} newPassword
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function resetPassword(token, newPassword) {
+  const db = getDb();
+
+  // Validate token
+  const tokenValidation = validateResetToken(token);
+  if (!tokenValidation.valid) {
+    return { success: false, error: 'Invalid or expired reset link' };
+  }
+
+  // Validate new password complexity
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.valid) {
+    return { success: false, error: passwordValidation.errors.join('. ') };
+  }
+
+  // Hash new password
+  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  // Update password
+  db.prepare(`
+    UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(newHash, tokenValidation.userId);
+
+  // Mark token as used
+  db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token);
+
+  // Invalidate all sessions for this user (security measure)
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(tokenValidation.userId);
+
+  return { success: true };
+}
+
+/**
+ * Clean up expired password reset tokens
+ * @returns {{cleaned: number}}
+ */
+export function cleanupExpiredResetTokens() {
+  const db = getDb();
+  const result = db.prepare("DELETE FROM password_reset_tokens WHERE expires_at < datetime('now') OR used = 1").run();
+  return { cleaned: result.changes };
 }

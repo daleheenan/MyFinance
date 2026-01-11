@@ -8,8 +8,14 @@ import {
   getActiveSessions,
   revokeSession,
   hasUsers,
-  createUser
+  createUser,
+  requestPasswordReset,
+  validateResetToken,
+  resetPassword,
+  updateUserEmail,
+  getUserEmail
 } from './auth.service.js';
+import { isEmailConfigured } from '../../core/email.js';
 import { requireAuth, getClientIP } from './auth.middleware.js';
 import {
   setSessionCookie,
@@ -298,6 +304,163 @@ router.post('/setup', async (req, res) => {
       error: 'Failed to create account'
     });
   }
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset email
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Get base URL from request
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    const result = await requestPasswordReset(email, baseUrl);
+
+    // Always return success to prevent email enumeration
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a reset link has been sent.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process request'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/reset-password/:token
+ * Validate a password reset token
+ */
+router.get('/reset-password/:token', (req, res) => {
+  try {
+    const { token } = req.params;
+    const result = validateResetToken(token);
+
+    res.json({
+      success: true,
+      valid: result.valid
+    });
+  } catch (error) {
+    console.error('Validate reset token error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to validate token'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using a token
+ */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token and password are required'
+      });
+    }
+
+    const result = await resetPassword(token, password);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset password'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/email
+ * Get current user's email
+ */
+router.get('/email', requireAuth, (req, res) => {
+  try {
+    const email = getUserEmail(req.user.id);
+    res.json({
+      success: true,
+      email
+    });
+  } catch (error) {
+    console.error('Get email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get email'
+    });
+  }
+});
+
+/**
+ * PUT /api/auth/email
+ * Update current user's email
+ */
+router.put('/email', requireAuth, (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    const result = updateUserEmail(req.user.id, email);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update email'
+    });
+  }
+});
+
+/**
+ * GET /api/auth/email-configured
+ * Check if email service is configured (for UI to show/hide forgot password)
+ */
+router.get('/email-configured', (req, res) => {
+  res.json({
+    success: true,
+    configured: isEmailConfigured()
+  });
 });
 
 export default router;

@@ -111,6 +111,33 @@
   cursor: not-allowed;
 }
 
+.login-links {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.login-link {
+  color: #6366f1;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+}
+
+.login-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+.login-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .login-card {

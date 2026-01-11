@@ -41,6 +41,12 @@
   margin-top: var(--space-xs);
 }
 
+.settings-section-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
 /* ===== ACCOUNT CARDS ===== */
 
 .accounts-grid {

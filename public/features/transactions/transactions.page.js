@@ -96,9 +96,20 @@ export function mount(el, params) {
   filters.endDate = params.get('end_date') || '';
   filters.categoryId = params.get('category') || '';
   filters.search = params.get('search') || '';
+  const shouldOpenImport = params.get('import') === '1';
 
   render();
-  loadInitialData();
+  loadInitialData().then(() => {
+    // Auto-open import modal if requested via query param
+    if (shouldOpenImport) {
+      openImportModal();
+      // Clear the import param from URL to prevent re-opening on refresh
+      const newHash = window.location.hash.replace(/[?&]import=1/, '');
+      if (newHash !== window.location.hash) {
+        history.replaceState(null, '', newHash);
+      }
+    }
+  });
 }
 
 export function unmount() {
@@ -169,12 +180,7 @@ function render() {
         <div id="pagination-container" class="pagination-controls"></div>
       </div>
 
-      <div class="import-section">
-        <button type="button" id="import-csv-btn" class="btn btn-secondary">
-          Import CSV
-        </button>
-      </div>
-
+      
       <div id="import-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
@@ -329,11 +335,6 @@ function attachEventListeners() {
   paginationContainer.addEventListener('keypress', paginationKeypressHandler);
   onCleanup(() => paginationContainer.removeEventListener('click', paginationHandler));
   onCleanup(() => paginationContainer.removeEventListener('keypress', paginationKeypressHandler));
-
-  const importBtn = container.querySelector('#import-csv-btn');
-  const importBtnHandler = () => openImportModal();
-  importBtn.addEventListener('click', importBtnHandler);
-  onCleanup(() => importBtn.removeEventListener('click', importBtnHandler));
 
   // Import modal events
   setupImportModalEvents();

@@ -108,12 +108,15 @@ export function calculateDateRange(range, startDate = null, endDate = null) {
 export function getSpendingByCategory(db, startDate, endDate, userId, accountId = null) {
   // Build query with user and optional account filter
   let accountFilter = '';
-  const params = [userId, startDate, endDate];
+  const params = [startDate, endDate];
 
   if (accountId) {
     accountFilter = 'AND t.account_id = ?';
     params.push(accountId);
   }
+
+  // Add userId params for the WHERE clause
+  params.push(userId, userId);
 
   // Get spending by category (debits only, excluding transfers)
   const spending = db.prepare(`
@@ -137,7 +140,7 @@ export function getSpendingByCategory(db, startDate, endDate, userId, accountId 
     GROUP BY c.id, c.name, c.colour, c.icon
     HAVING total > 0
     ORDER BY total DESC
-  `).all(...params, userId, userId);
+  `).all(...params);
 
   // Calculate total spending for percentages
   const totalSpending = spending.reduce((sum, cat) => sum + cat.total, 0);
