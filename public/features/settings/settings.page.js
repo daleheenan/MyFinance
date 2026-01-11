@@ -350,6 +350,10 @@ function handleDelegatedClick(e) {
     showAccountModal(item);
     return;
   }
+  if ((item = findItemByButtonId(target, '.account-testdata-btn', accounts))) {
+    showTestDataModal(item);
+    return;
+  }
   if ((item = findItemByButtonId(target, '.account-delete-btn', accounts))) {
     confirmDeleteAccount(item);
     return;
@@ -493,6 +497,7 @@ function renderAccounts() {
       </div>
       <div class="account-card-actions">
         <button class="btn btn-secondary btn-sm account-edit-btn" data-id="${account.id}">Edit</button>
+        <button class="btn btn-primary btn-sm account-testdata-btn" data-id="${account.id}">Test Data</button>
         <button class="btn btn-danger btn-sm account-delete-btn" data-id="${account.id}">Delete</button>
       </div>
     `;
@@ -650,6 +655,83 @@ function confirmDeleteAccount(account) {
         await loadAccounts();
       } catch (err) {
         showToast(`Failed to delete account: ${err.message}`, 'error');
+      }
+    }
+  });
+}
+
+/**
+ * Show test data generation modal for an account
+ */
+function showTestDataModal(account) {
+  showModal({
+    title: `Generate Test Data - ${escapeHtml(account.account_name)}`,
+    body: `
+      <form id="testdata-form">
+        <div class="form-group">
+          <label class="form-label" for="testdata-months">Number of Months</label>
+          <input type="number" class="form-input" id="testdata-months"
+                 value="3" min="1" max="24" required>
+          <small class="text-secondary">Generate transactions for this many months back from today</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="testdata-txn-count">Transactions per Month</label>
+          <input type="number" class="form-input" id="testdata-txn-count"
+                 value="30" min="5" max="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transaction Types</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="testdata-income" checked>
+              Include income (salary, transfers in)
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="testdata-bills" checked>
+              Include bills (utilities, subscriptions)
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="testdata-shopping" checked>
+              Include shopping (groceries, retail)
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="testdata-dining" checked>
+              Include dining & entertainment
+            </label>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: var(--space-md); padding: var(--space-md); background: var(--warning-bg); border-radius: var(--radius-md);">
+          <p style="margin: 0; color: var(--warning-text); font-size: var(--text-sm);">
+            <strong>Warning:</strong> This will add test transactions to your account.
+            Use the "Clear Transactions" option in Edit to remove them later.
+          </p>
+        </div>
+      </form>
+    `,
+    saveText: 'Generate Test Data',
+    onSave: async () => {
+      const months = parseInt(document.getElementById('testdata-months').value);
+      const txnCount = parseInt(document.getElementById('testdata-txn-count').value);
+      const includeIncome = document.getElementById('testdata-income').checked;
+      const includeBills = document.getElementById('testdata-bills').checked;
+      const includeShopping = document.getElementById('testdata-shopping').checked;
+      const includeDining = document.getElementById('testdata-dining').checked;
+
+      try {
+        const result = await api.post(`/accounts/${account.id}/test-data`, {
+          months,
+          transactionsPerMonth: txnCount,
+          includeIncome,
+          includeBills,
+          includeShopping,
+          includeDining
+        });
+        showToast(`Generated ${result.data.count} test transactions`, 'success');
+        await loadAccounts();
+        return true;
+      } catch (err) {
+        showToast(`Failed to generate test data: ${err.message}`, 'error');
+        return false;
       }
     }
   });

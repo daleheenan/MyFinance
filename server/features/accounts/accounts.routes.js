@@ -710,6 +710,227 @@ router.get('/:id/balance-trend', (req, res, next) => {
 });
 
 // ==========================================================================
+// POST /api/accounts/:id/test-data - Generate test transaction data
+// ==========================================================================
+router.post('/:id/test-data', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+    const userId = req.user.id;
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists and belongs to user
+    const account = db.prepare('SELECT id, account_name, account_type FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    const {
+      months = 3,
+      transactionsPerMonth = 20,
+      includeIncome = true,
+      includeBills = true,
+      includeShopping = true,
+      includeDining = true
+    } = req.body;
+
+    // Validate inputs
+    if (months < 1 || months > 24) {
+      return res.status(400).json({
+        success: false,
+        error: 'Months must be between 1 and 24'
+      });
+    }
+    if (transactionsPerMonth < 1 || transactionsPerMonth > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transactions per month must be between 1 and 100'
+      });
+    }
+
+    // Get categories for the user (or defaults)
+    const categories = db.prepare(`
+      SELECT id, name, type FROM categories
+      WHERE user_id = ? OR user_id IS NULL
+      ORDER BY user_id DESC, id
+    `).all(userId);
+
+    // Build category pools based on selections
+    const incomeCategories = categories.filter(c => c.type === 'income');
+    const expenseCategories = categories.filter(c => c.type === 'expense');
+
+    // Transaction templates
+    const incomeTemplates = [
+      { desc: 'SALARY PAYMENT', min: 2000, max: 5000 },
+      { desc: 'FREELANCE WORK', min: 200, max: 1500 },
+      { desc: 'DIVIDEND PAYMENT', min: 50, max: 500 },
+      { desc: 'REFUND', min: 10, max: 200 },
+      { desc: 'BANK INTEREST', min: 1, max: 50 }
+    ];
+
+    const billTemplates = [
+      { desc: 'BRITISH GAS', min: 50, max: 150 },
+      { desc: 'VIRGIN MEDIA', min: 30, max: 80 },
+      { desc: 'COUNCIL TAX', min: 100, max: 200 },
+      { desc: 'WATER BILL', min: 20, max: 60 },
+      { desc: 'ELECTRICITY', min: 40, max: 120 },
+      { desc: 'MOBILE PHONE', min: 15, max: 50 },
+      { desc: 'CAR INSURANCE', min: 30, max: 80 },
+      { desc: 'HOME INSURANCE', min: 20, max: 60 },
+      { desc: 'NETFLIX', min: 8, max: 16 },
+      { desc: 'SPOTIFY', min: 10, max: 15 },
+      { desc: 'GYM MEMBERSHIP', min: 20, max: 50 }
+    ];
+
+    const shoppingTemplates = [
+      { desc: 'TESCO STORES', min: 20, max: 150 },
+      { desc: 'SAINSBURYS', min: 15, max: 120 },
+      { desc: 'ASDA', min: 25, max: 100 },
+      { desc: 'AMAZON UK', min: 10, max: 200 },
+      { desc: 'PRIMARK', min: 15, max: 80 },
+      { desc: 'BOOTS', min: 5, max: 50 },
+      { desc: 'JOHN LEWIS', min: 20, max: 300 },
+      { desc: 'NEXT RETAIL', min: 20, max: 150 },
+      { desc: 'ARGOS', min: 15, max: 100 },
+      { desc: 'WILKO', min: 5, max: 40 }
+    ];
+
+    const diningTemplates = [
+      { desc: 'COSTA COFFEE', min: 3, max: 8 },
+      { desc: 'STARBUCKS', min: 4, max: 10 },
+      { desc: 'MCDONALDS', min: 5, max: 15 },
+      { desc: 'NANDOS', min: 15, max: 40 },
+      { desc: 'PIZZA EXPRESS', min: 20, max: 50 },
+      { desc: 'DELIVEROO', min: 15, max: 40 },
+      { desc: 'UBER EATS', min: 12, max: 35 },
+      { desc: 'GREGGS', min: 3, max: 10 },
+      { desc: 'WETHERSPOONS', min: 10, max: 30 },
+      { desc: 'PRET A MANGER', min: 5, max: 15 }
+    ];
+
+    // Build active templates
+    const activeExpenseTemplates = [];
+    if (includeBills) activeExpenseTemplates.push(...billTemplates);
+    if (includeShopping) activeExpenseTemplates.push(...shoppingTemplates);
+    if (includeDining) activeExpenseTemplates.push(...diningTemplates);
+
+    if (!includeIncome && activeExpenseTemplates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one transaction type must be selected'
+      });
+    }
+
+    // Helper to get random item from array
+    const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    // Helper to get random amount in range
+    const randomAmount = (min, max) => {
+      const amount = min + Math.random() * (max - min);
+      return Math.round(amount * 100) / 100;
+    };
+
+    // Helper to get random date in month
+    const randomDateInMonth = (year, month) => {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const day = Math.floor(Math.random() * daysInMonth) + 1;
+      return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    };
+
+    // Generate transactions
+    const transactions = [];
+    const today = new Date();
+
+    for (let m = 0; m < months; m++) {
+      const targetDate = new Date(today.getFullYear(), today.getMonth() - m, 1);
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth();
+
+      // Generate income transactions (1-3 per month if enabled)
+      if (includeIncome && incomeCategories.length > 0) {
+        const incomeCount = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < incomeCount; i++) {
+          const template = randomItem(incomeTemplates);
+          const category = randomItem(incomeCategories);
+          transactions.push({
+            date: randomDateInMonth(year, month),
+            description: template.desc,
+            credit: randomAmount(template.min, template.max),
+            debit: 0,
+            categoryId: category.id
+          });
+        }
+      }
+
+      // Generate expense transactions
+      if (activeExpenseTemplates.length > 0 && expenseCategories.length > 0) {
+        const expenseCount = transactionsPerMonth - (includeIncome ? 2 : 0);
+        for (let i = 0; i < expenseCount; i++) {
+          const template = randomItem(activeExpenseTemplates);
+          const category = randomItem(expenseCategories);
+          transactions.push({
+            date: randomDateInMonth(year, month),
+            description: template.desc,
+            credit: 0,
+            debit: randomAmount(template.min, template.max),
+            categoryId: category.id
+          });
+        }
+      }
+    }
+
+    // Sort by date
+    transactions.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Insert transactions in a single transaction
+    const insertTransaction = db.prepare(`
+      INSERT INTO transactions (account_id, transaction_date, description, original_description,
+                                debit_amount, credit_amount, category_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `);
+
+    const insertAll = db.transaction(() => {
+      for (const txn of transactions) {
+        insertTransaction.run(
+          accountId,
+          txn.date,
+          txn.description,
+          txn.description,
+          txn.debit,
+          txn.credit,
+          txn.categoryId
+        );
+      }
+    });
+
+    insertAll();
+
+    // Recalculate running balances
+    calculateRunningBalances(db, accountId);
+
+    res.json({
+      success: true,
+      data: {
+        count: transactions.length,
+        message: `Generated ${transactions.length} test transactions for ${account.account_name}`
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
 // GET /api/accounts/:id/monthly - Get month-by-month summary for last 12 months
 // ==========================================================================
 router.get('/:id/monthly', (req, res, next) => {
