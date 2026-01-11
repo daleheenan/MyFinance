@@ -521,6 +521,14 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+
+export async function mount(container, params) {
+  await render();
+}
+
+export function unmount() {
+  destroy();
+}
 export function destroy() {
   users = [];
   selectedUser = null;
