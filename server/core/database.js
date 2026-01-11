@@ -82,6 +82,34 @@ export function initDb(dbPath) {
     db.exec(schema);
   }
 
+  // Check if we have orphaned data referencing user_id = 1 but no user exists
+  // This can happen when migrating an existing database to multi-user
+  const hasOrphanedData = db.prepare(`
+    SELECT 1 FROM accounts WHERE user_id = 1 LIMIT 1
+  `).get();
+  const userExists = db.prepare(`
+    SELECT 1 FROM users WHERE id = 1 LIMIT 1
+  `).get();
+
+  if (hasOrphanedData && !userExists) {
+    // Clear orphaned data - user will need to set up fresh
+    console.log('Clearing orphaned data from previous installation...');
+    db.exec(`
+      DELETE FROM transactions;
+      DELETE FROM accounts;
+      DELETE FROM category_rules;
+      DELETE FROM budgets;
+      DELETE FROM recurring_patterns;
+      DELETE FROM settings;
+      DELETE FROM merchants;
+      DELETE FROM subscriptions;
+      DELETE FROM net_worth_snapshots;
+      DELETE FROM anomalies;
+      DELETE FROM sessions;
+      DELETE FROM login_attempts;
+    `);
+  }
+
   // Now enable foreign keys for runtime operations
   db.pragma('foreign_keys = ON');
 
