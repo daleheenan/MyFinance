@@ -8,6 +8,9 @@ import { escapeHtml, formatCurrency, formatDate } from '../../core/utils.js';
 import { auth } from '../../core/auth.js';
 
 let container = null;
+let billingConfig = null;
+let subscriptionStatus = null;
+let userEmail = null;
 let cleanupFunctions = [];
 let accounts = [];
 let categories = [];
@@ -166,10 +169,54 @@ function render() {
         </div>
       </section>
 
+      <section class="settings-section" id="profile-section">
+        <div class="settings-section-header">
+          <div>
+            <h2 class="settings-section-title">Profile</h2>
+            <p class="settings-section-description">Manage your account details and email</p>
+          </div>
+        </div>
+
+        <div class="user-management-card">
+          <div class="user-management-header">
+            <span class="user-management-icon">📧</span>
+            <div>
+              <h3 class="user-management-title">Email Address</h3>
+              <p class="user-management-description">Used for password recovery and notifications</p>
+            </div>
+          </div>
+          <form id="email-form" class="email-form">
+            <div class="form-group">
+              <label class="form-label" for="user-email">Email</label>
+              <input type="email" class="form-input" id="user-email" placeholder="your@email.com">
+              <small class="text-secondary">Required for password reset functionality</small>
+            </div>
+            <div id="email-error" class="form-error" style="display: none;"></div>
+            <div id="email-success" class="form-success" style="display: none;"></div>
+            <button type="submit" class="btn btn-primary" id="save-email-btn">Save Email</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="settings-section" id="subscription-section">
+        <div class="settings-section-header">
+          <div>
+            <h2 class="settings-section-title">Subscription</h2>
+            <p class="settings-section-description">Manage your FinanceFlow subscription</p>
+          </div>
+        </div>
+
+        <div id="subscription-container" class="subscription-container">
+          <div class="section-loading">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="settings-section" id="user-section">
         <div class="settings-section-header">
           <div>
-            <h2 class="settings-section-title">User Management</h2>
+            <h2 class="settings-section-title">Security</h2>
             <p class="settings-section-description">Manage your account security and view login activity</p>
           </div>
         </div>
@@ -339,6 +386,14 @@ function attachEventListeners() {
     refreshSessionsBtn.addEventListener('click', handler);
     onCleanup(() => refreshSessionsBtn.removeEventListener('click', handler));
   }
+
+  // Email form
+  const emailForm = container.querySelector('#email-form');
+  if (emailForm) {
+    const handler = (e) => handleSaveEmail(e);
+    emailForm.addEventListener('submit', handler);
+    onCleanup(() => emailForm.removeEventListener('submit', handler));
+  }
 }
 
 /**
@@ -438,7 +493,10 @@ async function loadAllData() {
     loadImportBatches(),
     loadRecurringPatterns(),
     loadLoginHistory(),
-    loadActiveSessions()
+    loadActiveSessions(),
+    loadUserEmail(),
+    loadBillingConfig(),
+    loadSubscriptionStatus()
   ]);
 }
 
@@ -1988,4 +2046,311 @@ function getDeviceName(userAgent) {
   else if (ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
 
   return os ? `${browser} on ${os}` : browser;
+}
+
+// ============= PROFILE SECTION =============
+
+/**
+ * Load user email
+ */
+async function loadUserEmail() {
+  try {
+    const response = await api.get('/auth/email');
+    userEmail = response.email || '';
+    const emailInput = document.getElementById('user-email');
+    if (emailInput) {
+      emailInput.value = userEmail;
+    }
+  } catch (err) {
+    console.error('Failed to load email:', err);
+  }
+}
+
+/**
+ * Handle save email form submission
+ */
+async function handleSaveEmail(e) {
+  e.preventDefault();
+
+  const emailInput = document.getElementById('user-email');
+  const errorDiv = document.getElementById('email-error');
+  const successDiv = document.getElementById('email-success');
+  const submitBtn = document.getElementById('save-email-btn');
+  const email = emailInput.value.trim();
+
+  // Clear previous messages
+  errorDiv.style.display = 'none';
+  successDiv.style.display = 'none';
+
+  if (!email) {
+    errorDiv.textContent = 'Please enter an email address';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    errorDiv.textContent = 'Please enter a valid email address';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+
+  try {
+    await api.put('/auth/email', { email });
+    userEmail = email;
+    successDiv.textContent = 'Email saved successfully';
+    successDiv.style.display = 'block';
+    showToast('Email updated successfully', 'success');
+  } catch (err) {
+    errorDiv.textContent = err.message || 'Failed to save email';
+    errorDiv.style.display = 'block';
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Save Email';
+}
+
+// ============= SUBSCRIPTION SECTION =============
+
+/**
+ * Load billing configuration
+ */
+async function loadBillingConfig() {
+  try {
+    const response = await api.get('/billing/config');
+    billingConfig = response;
+  } catch (err) {
+    console.error('Failed to load billing config:', err);
+    billingConfig = { configured: false };
+  }
+}
+
+/**
+ * Load subscription status
+ */
+async function loadSubscriptionStatus() {
+  try {
+    const response = await api.get('/billing/status');
+    subscriptionStatus = response.subscription;
+    renderSubscription();
+  } catch (err) {
+    console.error('Failed to load subscription status:', err);
+    subscriptionStatus = { plan: 'free', isActive: false, isPro: false };
+    renderSubscription();
+  }
+}
+
+/**
+ * Render subscription section
+ */
+function renderSubscription() {
+  const container = document.getElementById('subscription-container');
+  if (!container) return;
+
+  if (!billingConfig || !billingConfig.configured) {
+    container.innerHTML = `
+      <div class="subscription-card">
+        <div class="subscription-plan">
+          <span class="subscription-plan-name">Free Plan</span>
+          <span class="subscription-plan-badge free">Current Plan</span>
+        </div>
+        <p class="subscription-description">
+          You're currently on the free plan with basic features.
+        </p>
+        <div class="subscription-note">
+          <p>Premium subscriptions are not yet available. All features are currently free!</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const isPro = subscriptionStatus?.isPro;
+  const isCanceled = subscriptionStatus?.cancelAtPeriodEnd;
+  const periodEnd = subscriptionStatus?.currentPeriodEnd;
+
+  if (isPro) {
+    container.innerHTML = `
+      <div class="subscription-card pro">
+        <div class="subscription-plan">
+          <span class="subscription-plan-name">Pro Plan</span>
+          <span class="subscription-plan-badge pro">Active</span>
+          ${isCanceled ? '<span class="subscription-plan-badge canceled">Cancels at period end</span>' : ''}
+        </div>
+        <div class="subscription-price">
+          <span class="subscription-amount">${billingConfig.plans.pro.price.toFixed(2)}</span>
+          <span class="subscription-interval">/ ${billingConfig.plans.pro.interval}</span>
+        </div>
+        ${periodEnd ? `
+          <p class="subscription-period">
+            ${isCanceled ? 'Access until' : 'Next billing date'}: ${formatDate(periodEnd)}
+          </p>
+        ` : ''}
+        <div class="subscription-features">
+          <h4>Your Pro features:</h4>
+          <ul>
+            ${billingConfig.plans.pro.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="subscription-actions">
+          ${isCanceled ? `
+            <button class="btn btn-primary" id="resume-subscription-btn">Resume Subscription</button>
+          ` : `
+            <button class="btn btn-secondary" id="manage-subscription-btn">Manage Subscription</button>
+            <button class="btn btn-danger" id="cancel-subscription-btn">Cancel Subscription</button>
+          `}
+        </div>
+      </div>
+    `;
+
+    // Attach event listeners
+    const manageBtn = container.querySelector('#manage-subscription-btn');
+    if (manageBtn) {
+      manageBtn.addEventListener('click', handleManageSubscription);
+    }
+
+    const cancelBtn = container.querySelector('#cancel-subscription-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', handleCancelSubscription);
+    }
+
+    const resumeBtn = container.querySelector('#resume-subscription-btn');
+    if (resumeBtn) {
+      resumeBtn.addEventListener('click', handleResumeSubscription);
+    }
+  } else {
+    // Free plan
+    container.innerHTML = `
+      <div class="subscription-card">
+        <div class="subscription-plan">
+          <span class="subscription-plan-name">Free Plan</span>
+          <span class="subscription-plan-badge free">Current Plan</span>
+        </div>
+        <p class="subscription-description">
+          Upgrade to Pro to unlock all features
+        </p>
+        <div class="subscription-comparison">
+          <div class="plan-column free">
+            <h4>Free</h4>
+            <ul>
+              ${billingConfig.plans.free.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="plan-column pro">
+            <h4>Pro - ${billingConfig.plans.pro.price.toFixed(2)}/month</h4>
+            <ul>
+              ${billingConfig.plans.pro.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+        <div class="subscription-actions">
+          <button class="btn btn-primary btn-lg" id="upgrade-btn">Upgrade to Pro</button>
+        </div>
+      </div>
+    `;
+
+    // Attach upgrade button listener
+    const upgradeBtn = container.querySelector('#upgrade-btn');
+    if (upgradeBtn) {
+      upgradeBtn.addEventListener('click', handleUpgrade);
+    }
+  }
+}
+
+/**
+ * Handle upgrade to Pro
+ */
+async function handleUpgrade() {
+  const upgradeBtn = document.getElementById('upgrade-btn');
+  if (!upgradeBtn) return;
+
+  // Check if user has email set
+  if (!userEmail) {
+    showToast('Please set your email address before upgrading', 'warning');
+    const emailInput = document.getElementById('user-email');
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  upgradeBtn.disabled = true;
+  upgradeBtn.textContent = 'Loading...';
+
+  try {
+    const response = await api.post('/billing/checkout', {});
+    if (response.url) {
+      window.location.href = response.url;
+    }
+  } catch (err) {
+    showToast(err.message || 'Failed to start checkout', 'error');
+    upgradeBtn.disabled = false;
+    upgradeBtn.textContent = 'Upgrade to Pro';
+  }
+}
+
+/**
+ * Handle manage subscription (open Stripe portal)
+ */
+async function handleManageSubscription() {
+  const manageBtn = document.getElementById('manage-subscription-btn');
+  if (!manageBtn) return;
+
+  manageBtn.disabled = true;
+  manageBtn.textContent = 'Loading...';
+
+  try {
+    const response = await api.post('/billing/portal', {});
+    if (response.url) {
+      window.location.href = response.url;
+    }
+  } catch (err) {
+    showToast(err.message || 'Failed to open billing portal', 'error');
+    manageBtn.disabled = false;
+    manageBtn.textContent = 'Manage Subscription';
+  }
+}
+
+/**
+ * Handle cancel subscription
+ */
+async function handleCancelSubscription() {
+  showConfirmDialog({
+    title: 'Cancel Subscription',
+    message: 'Are you sure you want to cancel your Pro subscription?<br><br>You will continue to have access until the end of your current billing period.',
+    type: 'warning',
+    confirmText: 'Cancel Subscription',
+    onConfirm: async () => {
+      try {
+        await api.post('/billing/cancel', {});
+        showToast('Subscription will be canceled at the end of the billing period', 'success');
+        await loadSubscriptionStatus();
+      } catch (err) {
+        showToast(err.message || 'Failed to cancel subscription', 'error');
+      }
+    }
+  });
+}
+
+/**
+ * Handle resume subscription
+ */
+async function handleResumeSubscription() {
+  const resumeBtn = document.getElementById('resume-subscription-btn');
+  if (!resumeBtn) return;
+
+  resumeBtn.disabled = true;
+  resumeBtn.textContent = 'Resuming...';
+
+  try {
+    await api.post('/billing/resume', {});
+    showToast('Subscription resumed successfully', 'success');
+    await loadSubscriptionStatus();
+  } catch (err) {
+    showToast(err.message || 'Failed to resume subscription', 'error');
+    resumeBtn.disabled = false;
+    resumeBtn.textContent = 'Resume Subscription';
+  }
 }

@@ -11,6 +11,8 @@ import { cleanupExpiredSessions } from './features/auth/auth.service.js';
 import { csrfProtection } from './core/csrf.js';
 import authRouter from './features/auth/auth.routes.js';
 import cmsRouter from './features/cms/cms.routes.js';
+import contactRouter from './features/contact/contact.routes.js';
+import billingRouter from './features/billing/billing.routes.js';
 import { getPublishedPageBySlug } from './features/cms/cms.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,8 +31,10 @@ async function preloadRoutes() {
     return;
   }
 
+  // Exclude features that are registered manually (auth, cms, contact, billing)
+  const manualFeatures = ['auth', 'cms', 'contact', 'billing'];
   const features = readdirSync(featuresPath, { withFileTypes: true })
-    .filter(d => d.isDirectory())
+    .filter(d => d.isDirectory() && !manualFeatures.includes(d.name))
     .map(d => d.name);
 
   for (const feature of features) {
@@ -112,6 +116,11 @@ export function createApp(db = null, options = {}) {
   // Reset password page
   app.get('/reset-password', (req, res) => {
     res.sendFile(join(__dirname, '../public/marketing/reset-password.html'));
+  });
+
+  // Account recovery page (set email for accounts without one)
+  app.get('/account-recovery', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/account-recovery.html'));
   });
 
   // Dynamic CMS pages (public, fetched from database)
@@ -253,6 +262,14 @@ export function createApp(db = null, options = {}) {
   // CMS routes (public page fetch + admin routes with internal auth)
   app.use('/api/cms', cmsRouter);
   console.log('Registered: /api/cms');
+
+  // Contact routes (public POST + admin routes with internal auth)
+  app.use('/api/contact', contactRouter);
+  console.log('Registered: /api/contact');
+
+  // Billing routes (public config + webhook + protected routes with internal auth)
+  app.use('/api/billing', billingRouter);
+  console.log('Registered: /api/billing');
 
   // Apply authentication and CSRF protection to all other API routes
   if (!skipAuth) {

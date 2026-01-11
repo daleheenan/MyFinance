@@ -463,4 +463,62 @@ router.get('/email-configured', (req, res) => {
   });
 });
 
+/**
+ * POST /api/auth/set-email
+ * Set email for an account using username/password authentication
+ * This allows users without email to set one for password recovery
+ * Note: Does NOT create a session - just updates email
+ */
+router.post('/set-email', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+
+    if (!username || !password || !email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username, password, and email are required'
+      });
+    }
+
+    const ipAddress = getClientIP(req);
+    const userAgent = req.headers['user-agent'];
+
+    // Verify credentials (this handles lockout, etc.)
+    const loginResult = await login(username, password, ipAddress, userAgent);
+
+    if (!loginResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: loginResult.error
+      });
+    }
+
+    // Login succeeded - now update email
+    const emailResult = updateUserEmail(loginResult.user.id, email);
+
+    // Logout the temporary session we just created
+    logout(loginResult.token);
+    clearSessionCookie(res);
+    clearCsrfCookie(res);
+
+    if (!emailResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: emailResult.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully. You can now use forgot password or sign in.'
+    });
+  } catch (error) {
+    console.error('Set email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to set email'
+    });
+  }
+});
+
 export default router;

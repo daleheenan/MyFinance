@@ -331,3 +331,59 @@ CREATE TABLE IF NOT EXISTS cms_images (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cms_images_filename ON cms_images(filename);
+
+-- ===== CONTACT MESSAGES =====
+
+-- Contact form messages
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    ip_address TEXT,
+    is_read INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_contact_messages_read ON contact_messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_created ON contact_messages(created_at);
+
+-- ===== STRIPE SUBSCRIPTIONS =====
+
+-- User subscription status
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    stripe_customer_id TEXT UNIQUE,
+    stripe_subscription_id TEXT UNIQUE,
+    plan TEXT DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
+    status TEXT DEFAULT 'inactive' CHECK(status IN ('inactive', 'active', 'past_due', 'canceled', 'trialing')),
+    current_period_start TEXT,
+    current_period_end TEXT,
+    cancel_at_period_end INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user ON user_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_customer ON user_subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_sub ON user_subscriptions(stripe_subscription_id);
+
+-- Payment history
+CREATE TABLE IF NOT EXISTS payment_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    stripe_payment_intent_id TEXT UNIQUE,
+    stripe_invoice_id TEXT,
+    amount INTEGER NOT NULL,
+    currency TEXT DEFAULT 'gbp',
+    status TEXT CHECK(status IN ('pending', 'succeeded', 'failed', 'refunded')),
+    description TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_history_user ON payment_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_history_status ON payment_history(status);
