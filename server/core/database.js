@@ -44,7 +44,16 @@ function runMigrations(database) {
   addColumnIfNotExists(database, 'accounts', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
 
   // Migration 4: Add email column to users table for password reset
-  addColumnIfNotExists(database, 'users', 'email', 'TEXT UNIQUE');
+  // Note: SQLite cannot add UNIQUE column via ALTER TABLE, so we add column first, then create unique index
+  const emailAdded = addColumnIfNotExists(database, 'users', 'email', 'TEXT');
+  if (emailAdded) {
+    // Create unique index on email column (only if we just added it)
+    try {
+      database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+    } catch (e) {
+      // Index may already exist from schema.sql, ignore error
+    }
+  }
   addColumnIfNotExists(database, 'categories', 'user_id', 'INTEGER');
   addColumnIfNotExists(database, 'category_rules', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'budgets', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
