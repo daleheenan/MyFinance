@@ -69,10 +69,7 @@ router.get('/status', requireAuth, (req, res) => {
     const db = getDb();
     const status = getSubscriptionStatus(db, req.user.id);
 
-    res.json({
-      success: true,
-      subscription: status
-    });
+    res.json({ success: true, data: { subscription: status } });
   } catch (error) {
     console.error('Get subscription status error:', error);
     res.status(500).json({

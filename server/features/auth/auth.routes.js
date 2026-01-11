@@ -411,10 +411,7 @@ router.post('/reset-password', async (req, res) => {
 router.get('/email', requireAuth, (req, res) => {
   try {
     const email = getUserEmail(req.user.id);
-    res.json({
-      success: true,
-      email
-    });
+    res.json({ success: true, data: { email } });
   } catch (error) {
     console.error('Get email error:', error);
     res.status(500).json({
