@@ -345,7 +345,7 @@ img {
   z-index: 2;
   max-width: var(--marketing-container-max);
   margin: 0 auto;
-  padding: var(--marketing-space-3xl) var(--marketing-container-padding);
+  padding: 20px var(--marketing-container-padding) var(--marketing-space-3xl);
   width: 100%;
   display: flex;
   justify-content: flex-end;
@@ -364,7 +364,7 @@ img {
 }
 
 .marketing-hero-image h1 {
-  font-size: 3.5rem;
+  font-size: 2.75rem;
   font-weight: 700;
   color: var(--marketing-text-heading);
   margin-bottom: var(--marketing-space-md);
@@ -373,6 +373,7 @@ img {
   -webkit-text-fill-color: unset;
   background-clip: unset;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .marketing-hero-image .marketing-hero-subtitle {

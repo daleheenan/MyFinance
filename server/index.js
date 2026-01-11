@@ -138,7 +138,7 @@ export function createApp(db = null, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${page.meta_title || page.title} - FinanceFlow</title>
+  <title>${page.meta_title || page.title} - Flow Money Manager</title>
   <meta name="description" content="${page.meta_description || ''}">
   <link rel="stylesheet" href="/marketing/css/marketing.css">
   <style>${page.css || ''}</style>
@@ -148,7 +148,7 @@ export function createApp(db = null, options = {}) {
     <nav class="marketing-nav">
       <a href="/" class="marketing-logo">
         <span class="marketing-logo-icon">&#163;</span>
-        FinanceFlow
+        Flow Money Manager
       </a>
       <button class="marketing-nav-toggle" aria-label="Toggle navigation" data-action="nav-toggle">
         <span></span>
@@ -158,7 +158,6 @@ export function createApp(db = null, options = {}) {
       <div class="marketing-nav-links">
         <a href="/features">Features</a>
         <a href="/pricing">Pricing</a>
-        <a href="/about">About</a>
         <a href="#" class="btn btn-primary" data-action="sign-in">Sign In</a>
       </div>
     </nav>
@@ -171,9 +170,8 @@ export function createApp(db = null, options = {}) {
       <div class="marketing-footer-links">
         <a href="/page/privacy">Privacy</a>
         <a href="/page/terms">Terms</a>
-        <a href="/contact">Contact</a>
       </div>
-      <p>&copy; ${new Date().getFullYear()} FinanceFlow. All rights reserved.</p>
+      <p>&copy; ${new Date().getFullYear()} Flow Money Manager. All rights reserved.</p>
     </div>
   </footer>
   <div id="signInModal" class="modal-overlay">
@@ -185,7 +183,7 @@ export function createApp(db = null, options = {}) {
       </button>
       <div class="modal-header">
         <h2>Welcome Back</h2>
-        <p>Sign in to your FinanceFlow account</p>
+        <p>Sign in to your Flow Money Manager account</p>
       </div>
       <div class="modal-body">
         <form id="signInForm">
