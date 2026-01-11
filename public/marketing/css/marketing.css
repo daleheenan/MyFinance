@@ -949,10 +949,10 @@ img {
    ============================================================================= */
 
 .marketing-auth-section {
-  padding: var(--marketing-space-4xl) 0;
+  padding: 48px 0 var(--marketing-space-4xl);
   min-height: calc(100vh - 200px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   background: var(--marketing-bg-light);
 }
 

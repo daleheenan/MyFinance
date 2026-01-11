@@ -130,6 +130,14 @@
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // Store token and user in localStorage for the app to pick up
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
+        if (data.user) {
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        }
+
         // Check if user needs to set up email for password recovery
         if (data.requiresEmail) {
           // Redirect to email setup page within the app
