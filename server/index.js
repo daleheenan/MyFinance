@@ -20,25 +20,36 @@ import { getPublishedPageBySlug } from './features/cms/cms.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Read version from package.json and append git info
+// Read version - prefer pre-built version.json (Docker), then try git, then package.json
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
 let APP_VERSION = packageJson.version;
 
-// Try to get git commit info for more specific versioning
-try {
-  const gitCommit = execSync('git rev-parse --short HEAD', {
-    cwd: join(__dirname, '..'),
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'ignore']
-  }).trim();
-  const gitCommitCount = execSync('git rev-list --count HEAD', {
-    cwd: join(__dirname, '..'),
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'ignore']
-  }).trim();
-  APP_VERSION = `${packageJson.version}.${gitCommitCount}+${gitCommit}`;
-} catch (err) {
-  // Git not available or not a git repo, use package.json version only
+// First try to read version.json (created during Docker build)
+const versionJsonPath = join(__dirname, '../version.json');
+if (existsSync(versionJsonPath)) {
+  try {
+    const versionData = JSON.parse(readFileSync(versionJsonPath, 'utf8'));
+    APP_VERSION = versionData.version;
+  } catch (err) {
+    // Fall through to git method
+  }
+} else {
+  // Try to get git commit info for more specific versioning (development)
+  try {
+    const gitCommit = execSync('git rev-parse --short HEAD', {
+      cwd: join(__dirname, '..'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    }).trim();
+    const gitCommitCount = execSync('git rev-list --count HEAD', {
+      cwd: join(__dirname, '..'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    }).trim();
+    APP_VERSION = `${packageJson.version}.${gitCommitCount}+${gitCommit}`;
+  } catch (err) {
+    // Git not available or not a git repo, use package.json version only
+  }
 }
 
 // Pre-load all feature routes synchronously at module load time

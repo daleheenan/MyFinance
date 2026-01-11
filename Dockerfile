@@ -3,8 +3,8 @@
 
 FROM node:22-alpine AS builder
 
-# Install build dependencies for better-sqlite3 native module
-RUN apk add --no-cache python3 make g++
+# Install build dependencies for better-sqlite3 native module and git for versioning
+RUN apk add --no-cache python3 make g++ git
 
 # Set working directory
 WORKDIR /app
@@ -15,8 +15,19 @@ COPY package*.json ./
 # Install ALL dependencies (need full npm install for native module compilation)
 RUN npm ci
 
-# Copy application code
+# Copy application code (including .git for versioning)
 COPY . .
+
+# Generate version file from git info at build time
+RUN if [ -d .git ]; then \
+      COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+      COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0"); \
+      VERSION=$(node -e "console.log(require('./package.json').version)"); \
+      echo "{\"version\":\"${VERSION}.${COUNT}+${COMMIT}\"}" > version.json; \
+    else \
+      VERSION=$(node -e "console.log(require('./package.json').version)"); \
+      echo "{\"version\":\"${VERSION}\"}" > version.json; \
+    fi
 
 # Production stage - smaller final image
 FROM node:22-alpine
@@ -28,6 +39,7 @@ COPY --from=builder /app/node_modules ./node_modules
 
 # Copy application code (exclude dev/test files via .dockerignore)
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/version.json ./
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/public ./public
 
