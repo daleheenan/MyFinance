@@ -819,7 +819,19 @@ function showTestDataModal(account) {
 async function loadCategories() {
   const container = document.getElementById('categories-container');
   try {
-    categories = await api.get('/categories');
+    const rawCategories = await api.get('/categories');
+    // Deduplicate by name - prefer user categories (is_default = 0) over default categories
+    const categoryMap = new Map();
+    rawCategories.forEach(cat => {
+      const existing = categoryMap.get(cat.name);
+      // If no existing, add it. If existing is default and this is user category, replace it.
+      if (!existing || (existing.is_default === 1 && cat.is_default === 0)) {
+        categoryMap.set(cat.name, cat);
+      }
+    });
+    categories = Array.from(categoryMap.values());
+    // Sort by sort_order, then by id
+    categories.sort((a, b) => (a.sort_order - b.sort_order) || (a.id - b.id));
     renderCategories();
   } catch (err) {
     container.innerHTML = `
@@ -1020,7 +1032,16 @@ function confirmDeleteCategory(category) {
 async function loadCategoryRules() {
   const container = document.getElementById('rules-container');
   try {
-    categoryRules = await api.get('/category-rules');
+    const rawRules = await api.get('/category-rules');
+    // Deduplicate rules by pattern - keep highest priority version
+    const ruleMap = new Map();
+    rawRules.forEach(rule => {
+      const existing = ruleMap.get(rule.pattern);
+      if (!existing || rule.priority > existing.priority) {
+        ruleMap.set(rule.pattern, rule);
+      }
+    });
+    categoryRules = Array.from(ruleMap.values());
     renderCategoryRules();
   } catch (err) {
     container.innerHTML = `
@@ -1049,6 +1070,48 @@ function renderCategoryRules() {
   // Sort by priority
   const sortedRules = [...categoryRules].sort((a, b) => (a.priority || 0) - (b.priority || 0));
 
+  // Suggest a category based on pattern keywords
+  function suggestCategory(pattern) {
+    const patternLower = pattern.toLowerCase();
+    const suggestions = {
+      'restaurant': 'Dining Out',
+      'cafe': 'Dining Out',
+      'coffee': 'Dining Out',
+      'food': 'Groceries',
+      'grocery': 'Groceries',
+      'supermarket': 'Groceries',
+      'tesco': 'Groceries',
+      'sainsbury': 'Groceries',
+      'amazon': 'Shopping',
+      'ebay': 'Shopping',
+      'shop': 'Shopping',
+      'store': 'Shopping',
+      'uber': 'Transport',
+      'taxi': 'Transport',
+      'bus': 'Transport',
+      'train': 'Transport',
+      'fuel': 'Transport',
+      'petrol': 'Transport',
+      'netflix': 'Subscriptions',
+      'spotify': 'Subscriptions',
+      'subscription': 'Subscriptions',
+      'salary': 'Salary Income',
+      'wage': 'Salary Income',
+      'payroll': 'Salary Income',
+      'transfer': 'Transfers'
+    };
+
+    for (const [keyword, categoryName] of Object.entries(suggestions)) {
+      if (patternLower.includes(keyword)) {
+        const match = categories.find(c => c.name === categoryName);
+        if (match) return match;
+      }
+    }
+
+    // Default to "Other" category
+    return categories.find(c => c.name === 'Other') || categories.find(c => c.type === 'expense');
+  }
+
   container.innerHTML = `
     <table class="rules-table">
       <thead>
@@ -1061,20 +1124,28 @@ function renderCategoryRules() {
       </thead>
       <tbody>
         ${sortedRules.map(rule => {
-          const category = categories.find(c => c.id === rule.category_id);
+          let category = categories.find(c => c.id === rule.category_id);
+          const isUnknown = !category;
+          const suggestedCategory = isUnknown ? suggestCategory(rule.pattern) : null;
+
           return `
-            <tr>
+            <tr class="${isUnknown ? 'rule-needs-update' : ''}">
               <td><span class="rule-pattern">${escapeHtml(rule.pattern)}</span></td>
               <td>
                 ${category ? `
                   <span class="category-badge" style="background-color: ${category.colour}20; color: ${category.colour}">
                     ${category.icon || ''} ${escapeHtml(category.name)}
                   </span>
-                ` : '<span class="text-tertiary">Unknown</span>'}
+                ` : `
+                  <span class="text-warning">Unassigned</span>
+                  ${suggestedCategory ? `
+                    <span class="suggested-category">→ ${escapeHtml(suggestedCategory.name)}</span>
+                  ` : ''}
+                `}
               </td>
               <td class="rule-priority">${rule.priority || 0}</td>
               <td class="rule-actions">
-                <button class="btn btn-secondary btn-sm rule-edit-btn" data-id="${rule.id}">Edit</button>
+                <button class="btn btn-secondary btn-sm rule-edit-btn" data-id="${rule.id}">${isUnknown ? 'Fix' : 'Edit'}</button>
                 <button class="btn btn-danger btn-sm rule-delete-btn" data-id="${rule.id}">Delete</button>
               </td>
             </tr>

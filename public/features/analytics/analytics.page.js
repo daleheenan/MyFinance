@@ -16,6 +16,19 @@ let currentRange = 'this_month';
 let currentStartDate = null;
 let currentEndDate = null;
 
+// Category pagination state
+let categoryData = [];
+let categoryPage = 0;
+const CATEGORIES_PER_PAGE = 5;
+
+// Merchant filter state
+let merchantFilter = 'all_time';
+let merchantsData = [];
+
+// Year-over-year data
+let yoyData = null;
+let selectedYears = [];
+
 /**
  * Register cleanup function to be called on unmount
  * @param {function} fn - Cleanup function
@@ -156,6 +169,16 @@ function render() {
         </div>
       </section>
 
+      <!-- Year-over-Year Comparison -->
+      <section class="yoy-section">
+        <div id="yoy-container" class="card yoy-card">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading year comparison...</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Monthly Expense Breakdown -->
       <section class="expense-breakdown-section">
         <div id="expense-breakdown-container" class="card expense-breakdown-card">
@@ -254,21 +277,35 @@ async function loadData() {
 
   try {
     // Fetch all data in parallel
-    const [categoryData, incomeExpenseData, trendsData, summaryData, merchantsData, expenseBreakdownData] = await Promise.all([
+    const [categoryDataResp, incomeExpenseData, trendsData, summaryData, merchantsDataResp, expenseBreakdownData, yoyDataResp] = await Promise.all([
       api.get(`/analytics/spending-by-category?${queryParams}`),
       api.get('/analytics/income-vs-expenses?months=12'),
       api.get(`/analytics/trends?${queryParams}&group_by=day`),
       api.get(`/analytics/summary?${queryParams}`),
       api.get('/merchants/top?by=spend&limit=10'),
-      api.get('/analytics/monthly-breakdown?months=3')
+      api.get('/analytics/monthly-breakdown?months=3'),
+      api.get('/analytics/year-over-year')
     ]);
+
+    // Store data for pagination/filtering
+    categoryData = categoryDataResp.categories || [];
+    categoryPage = 0;
+    merchantsData = merchantsDataResp;
+    yoyData = yoyDataResp;
+
+    // Determine which years to show by default (current year + previous year if available)
+    if (yoyData && yoyData.years) {
+      const availableYears = yoyData.years.map(y => y.year).sort((a, b) => b - a);
+      selectedYears = availableYears.slice(0, 2); // Show most recent 2 years
+    }
 
     // Render each section
     renderSummaryStats(summaryData);
-    renderCategorySpending(categoryData);
+    renderCategorySpending(categoryDataResp);
     renderIncomeVsExpenses(incomeExpenseData);
     renderTrends(trendsData);
     renderTopMerchants(merchantsData);
+    renderYearOverYear();
     renderExpenseBreakdown(expenseBreakdownData);
   } catch (err) {
     showGlobalError(err.message);
@@ -311,12 +348,13 @@ function renderSummaryStats(data) {
 }
 
 /**
- * Render spending by category
+ * Render spending by category with pagination
  * @param {Object} data - Category spending data from API
  */
 function renderCategorySpending(data) {
   const categoryContainer = container.querySelector('#category-spending-container');
-  const { categories, range } = data;
+  const { range } = data;
+  const categories = categoryData;
 
   categoryContainer.innerHTML = `
     <div class="card-header">
@@ -334,13 +372,20 @@ function renderCategorySpending(data) {
     return;
   }
 
+  // Paginate categories
+  const startIdx = categoryPage * CATEGORIES_PER_PAGE;
+  const endIdx = startIdx + CATEGORIES_PER_PAGE;
+  const pageCategories = categories.slice(startIdx, endIdx);
+  const totalPages = Math.ceil(categories.length / CATEGORIES_PER_PAGE);
+
   const listElement = document.createElement('div');
   listElement.className = 'category-list';
+  listElement.id = 'category-list';
 
   const fragment = document.createDocumentFragment();
-  const maxAmount = categories[0].total; // Already sorted by total desc
+  const maxAmount = categories[0].total; // Global max for consistent bar sizing
 
-  categories.forEach(category => {
+  pageCategories.forEach(category => {
     const row = document.createElement('div');
     row.className = 'category-item';
 
@@ -363,6 +408,36 @@ function renderCategorySpending(data) {
 
   listElement.appendChild(fragment);
   categoryContainer.appendChild(listElement);
+
+  // Add pagination controls if more than one page
+  if (totalPages > 1) {
+    const paginationEl = document.createElement('div');
+    paginationEl.className = 'category-pagination';
+    paginationEl.innerHTML = `
+      <button class="pagination-btn" id="cat-prev-btn" ${categoryPage === 0 ? 'disabled' : ''}>&#8249;</button>
+      <span class="pagination-info">${categoryPage + 1} / ${totalPages}</span>
+      <button class="pagination-btn" id="cat-next-btn" ${categoryPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>
+    `;
+    categoryContainer.appendChild(paginationEl);
+
+    // Attach pagination event listeners
+    const prevBtn = paginationEl.querySelector('#cat-prev-btn');
+    const nextBtn = paginationEl.querySelector('#cat-next-btn');
+
+    prevBtn.addEventListener('click', () => {
+      if (categoryPage > 0) {
+        categoryPage--;
+        renderCategorySpending({ range });
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (categoryPage < totalPages - 1) {
+        categoryPage++;
+        renderCategorySpending({ range });
+      }
+    });
+  }
 }
 
 /**
@@ -575,18 +650,49 @@ function formatTrendLabel(period, groupBy) {
 }
 
 /**
- * Render top merchants
+ * Render top merchants with date filter
  * @param {Array} data - Top merchants data from API
  */
 function renderTopMerchants(data) {
   const merchantsContainer = container.querySelector('#merchants-container');
 
+  // Filter labels
+  const filterLabels = {
+    'this_month': 'This Month',
+    'last_month': 'Last Month',
+    'last_3_months': 'Last 3 Months',
+    'ytd': 'Year to Date',
+    'last_year': 'Last Year',
+    'all_time': 'All Time'
+  };
+
   merchantsContainer.innerHTML = `
     <div class="card-header">
       <h3 class="card-title">Top Merchants</h3>
-      <span class="card-subtitle">By total spending</span>
+      <span class="card-subtitle">By total spending - ${filterLabels[merchantFilter]}</span>
+    </div>
+    <div class="merchants-filter" id="merchants-filter">
+      <button class="merchants-filter-btn ${merchantFilter === 'this_month' ? 'active' : ''}" data-filter="this_month">This Month</button>
+      <button class="merchants-filter-btn ${merchantFilter === 'last_month' ? 'active' : ''}" data-filter="last_month">Last Month</button>
+      <button class="merchants-filter-btn ${merchantFilter === 'last_3_months' ? 'active' : ''}" data-filter="last_3_months">Last 3 Months</button>
+      <button class="merchants-filter-btn ${merchantFilter === 'ytd' ? 'active' : ''}" data-filter="ytd">YTD</button>
+      <button class="merchants-filter-btn ${merchantFilter === 'last_year' ? 'active' : ''}" data-filter="last_year">Last Year</button>
+      <button class="merchants-filter-btn ${merchantFilter === 'all_time' ? 'active' : ''}" data-filter="all_time">All Time</button>
     </div>
   `;
+
+  // Attach filter event listeners
+  const filterContainer = merchantsContainer.querySelector('#merchants-filter');
+  filterContainer.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.merchants-filter-btn');
+    if (!btn) return;
+
+    const filter = btn.dataset.filter;
+    if (filter === merchantFilter) return;
+
+    merchantFilter = filter;
+    await loadMerchantsWithFilter();
+  });
 
   if (!data || data.length === 0) {
     merchantsContainer.innerHTML += `
@@ -599,6 +705,7 @@ function renderTopMerchants(data) {
 
   const listElement = document.createElement('div');
   listElement.className = 'merchants-list';
+  listElement.id = 'merchants-list';
 
   const maxSpend = data[0].totalSpend || data[0].total_spent || 1;
 
@@ -627,6 +734,247 @@ function renderTopMerchants(data) {
   });
 
   merchantsContainer.appendChild(listElement);
+}
+
+/**
+ * Load merchants with current filter
+ */
+async function loadMerchantsWithFilter() {
+  const merchantsContainer = container.querySelector('#merchants-container');
+  const listEl = merchantsContainer.querySelector('#merchants-list');
+  if (listEl) {
+    listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  }
+
+  try {
+    // Build date filter params
+    let params = 'by=spend&limit=10';
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (merchantFilter) {
+      case 'this_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = now;
+        break;
+      case 'last_month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      case 'last_3_months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        endDate = now;
+        break;
+      case 'ytd':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = now;
+        break;
+      case 'last_year':
+        startDate = new Date(now.getFullYear() - 1, 0, 1);
+        endDate = new Date(now.getFullYear() - 1, 11, 31);
+        break;
+      case 'all_time':
+      default:
+        startDate = null;
+        endDate = null;
+        break;
+    }
+
+    if (startDate && endDate) {
+      params += `&start_date=${startDate.toISOString().split('T')[0]}&end_date=${endDate.toISOString().split('T')[0]}`;
+    }
+
+    merchantsData = await api.get(`/merchants/top?${params}`);
+    renderTopMerchants(merchantsData);
+  } catch (err) {
+    console.error('Error loading merchants:', err);
+  }
+}
+
+/**
+ * Render year-over-year comparison
+ */
+function renderYearOverYear() {
+  const yoyContainer = container.querySelector('#yoy-container');
+
+  if (!yoyData || !yoyData.years || yoyData.years.length === 0) {
+    yoyContainer.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">Year-over-Year Comparison</h3>
+      </div>
+      <div class="empty-state">
+        <p>No yearly data available yet</p>
+      </div>
+    `;
+    return;
+  }
+
+  const availableYears = yoyData.years.map(y => y.year).sort((a, b) => b - a);
+
+  // Build year selector buttons
+  const yearButtons = availableYears.map(year => {
+    const isActive = selectedYears.includes(year);
+    return `<button class="yoy-year-btn ${isActive ? 'active' : ''}" data-year="${year}">${year}</button>`;
+  }).join('');
+
+  yoyContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Year-over-Year Comparison</h3>
+      <span class="card-subtitle">Monthly income & expenses by year</span>
+    </div>
+    <div class="yoy-controls">
+      <span class="filter-label">Compare Years:</span>
+      <div class="yoy-year-selector" id="yoy-year-selector">
+        ${yearButtons}
+      </div>
+    </div>
+  `;
+
+  // Attach year selector event listeners
+  const yearSelector = yoyContainer.querySelector('#yoy-year-selector');
+  yearSelector.addEventListener('click', (e) => {
+    const btn = e.target.closest('.yoy-year-btn');
+    if (!btn) return;
+
+    const year = parseInt(btn.dataset.year);
+    if (selectedYears.includes(year)) {
+      // Deselect (but keep at least one selected)
+      if (selectedYears.length > 1) {
+        selectedYears = selectedYears.filter(y => y !== year);
+        renderYearOverYear();
+      }
+    } else {
+      // Select
+      selectedYears.push(year);
+      selectedYears.sort((a, b) => b - a);
+      renderYearOverYear();
+    }
+  });
+
+  // Filter data to selected years
+  const selectedData = yoyData.years.filter(y => selectedYears.includes(y.year));
+
+  if (selectedData.length === 0) {
+    yoyContainer.innerHTML += `
+      <div class="empty-state">
+        <p>Select years to compare</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Year colors for chart
+  const yearColors = [
+    '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'
+  ];
+
+  // Create chart container
+  const chartContainer = document.createElement('div');
+  chartContainer.className = 'yoy-chart-container';
+
+  const chartEl = document.createElement('div');
+  chartEl.className = 'yoy-chart';
+
+  // Month names
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Find max value for scaling
+  let maxValue = 0;
+  selectedData.forEach(yearData => {
+    yearData.months.forEach(m => {
+      maxValue = Math.max(maxValue, m.income || 0, m.expenses || 0);
+    });
+  });
+  maxValue = maxValue || 1;
+
+  // Build month groups
+  for (let month = 1; month <= 12; month++) {
+    const monthGroup = document.createElement('div');
+    monthGroup.className = 'yoy-month-group';
+
+    const barsEl = document.createElement('div');
+    barsEl.className = 'yoy-bars';
+
+    selectedData.forEach((yearData, yearIdx) => {
+      const monthData = yearData.months.find(m => m.month === month) || { income: 0, expenses: 0 };
+      const color = yearColors[yearIdx % yearColors.length];
+
+      // Income bar
+      const incomeHeight = (monthData.income / maxValue) * 150;
+      const incomeBar = document.createElement('div');
+      incomeBar.className = 'yoy-bar';
+      incomeBar.style.height = `${Math.max(2, incomeHeight)}px`;
+      incomeBar.style.backgroundColor = color;
+      incomeBar.style.opacity = '0.6';
+      incomeBar.title = `${yearData.year} ${monthNames[month - 1]} Income: ${formatCurrency(monthData.income)}`;
+
+      // Expense bar
+      const expenseHeight = (monthData.expenses / maxValue) * 150;
+      const expenseBar = document.createElement('div');
+      expenseBar.className = 'yoy-bar';
+      expenseBar.style.height = `${Math.max(2, expenseHeight)}px`;
+      expenseBar.style.backgroundColor = color;
+      expenseBar.title = `${yearData.year} ${monthNames[month - 1]} Expenses: ${formatCurrency(monthData.expenses)}`;
+
+      barsEl.appendChild(incomeBar);
+      barsEl.appendChild(expenseBar);
+    });
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'yoy-month-label';
+    labelEl.textContent = monthNames[month - 1];
+
+    monthGroup.appendChild(barsEl);
+    monthGroup.appendChild(labelEl);
+    chartEl.appendChild(monthGroup);
+  }
+
+  chartContainer.appendChild(chartEl);
+  yoyContainer.appendChild(chartContainer);
+
+  // Legend
+  const legendEl = document.createElement('div');
+  legendEl.className = 'yoy-legend';
+
+  selectedData.forEach((yearData, idx) => {
+    const color = yearColors[idx % yearColors.length];
+    legendEl.innerHTML += `
+      <div class="yoy-legend-item">
+        <span class="yoy-legend-color" style="background-color: ${color}"></span>
+        <span class="yoy-legend-label">${yearData.year} (lighter = income, solid = expenses)</span>
+      </div>
+    `;
+  });
+
+  yoyContainer.appendChild(legendEl);
+
+  // Summary stats
+  const summaryEl = document.createElement('div');
+  summaryEl.className = 'yoy-summary';
+
+  selectedData.forEach((yearData, idx) => {
+    const totalIncome = yearData.months.reduce((sum, m) => sum + (m.income || 0), 0);
+    const totalExpenses = yearData.months.reduce((sum, m) => sum + (m.expenses || 0), 0);
+    const net = totalIncome - totalExpenses;
+    const netClass = net >= 0 ? 'amount-positive' : 'amount-negative';
+
+    summaryEl.innerHTML += `
+      <div class="yoy-summary-stat">
+        <div class="yoy-summary-label">${yearData.year} Income</div>
+        <div class="yoy-summary-value amount-positive">${formatCurrency(totalIncome)}</div>
+      </div>
+      <div class="yoy-summary-stat">
+        <div class="yoy-summary-label">${yearData.year} Expenses</div>
+        <div class="yoy-summary-value amount-negative">${formatCurrency(totalExpenses)}</div>
+      </div>
+      <div class="yoy-summary-stat">
+        <div class="yoy-summary-label">${yearData.year} Net</div>
+        <div class="yoy-summary-value ${netClass}">${net >= 0 ? '+' : ''}${formatCurrency(net)}</div>
+      </div>
+    `;
+  });
+
+  yoyContainer.appendChild(summaryEl);
 }
 
 /**

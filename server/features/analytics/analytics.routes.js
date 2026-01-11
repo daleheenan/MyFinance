@@ -19,7 +19,8 @@ import {
   getSummaryStats,
   getYearOverYearComparison,
   getMonthlyYoYComparison,
-  getMonthlyExpenseBreakdown
+  getMonthlyExpenseBreakdown,
+  getAllYearsComparison
 } from './analytics.service.js';
 import anomaliesRouter from '../anomalies/anomalies.routes.js';
 
@@ -356,6 +357,26 @@ router.get('/monthly-breakdown', (req, res, next) => {
     }
 
     const data = getMonthlyExpenseBreakdown(db, months, userId);
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
+// GET /api/analytics/year-over-year
+// All years comparison with monthly data
+// ==========================================================================
+router.get('/year-over-year', (req, res, next) => {
+  try {
+    const db = getDb();
+    const userId = req.user.id;
+
+    const data = getAllYearsComparison(db, userId);
 
     res.json({
       success: true,

@@ -661,6 +661,70 @@ export function getMonthlyExpenseBreakdown(db, months = 3, userId = null) {
   };
 }
 
+/**
+ * Get all available years with monthly income/expense data for year-over-year chart.
+ * Returns data for all calendar years that have transaction data.
+ *
+ * @param {Database} db - The database instance
+ * @param {number} userId - User ID to filter by
+ * @returns {{
+ *   years: Array<{
+ *     year: number,
+ *     months: Array<{
+ *       month: number,
+ *       income: number,
+ *       expenses: number
+ *     }>
+ *   }>
+ * }}
+ */
+export function getAllYearsComparison(db, userId) {
+  // Get all distinct years with transactions
+  const yearsResult = db.prepare(`
+    SELECT DISTINCT strftime('%Y', transaction_date) as year
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE a.user_id = ?
+      AND t.is_transfer = 0
+    ORDER BY year DESC
+  `).all(userId);
+
+  const years = yearsResult.map(r => parseInt(r.year));
+
+  // For each year, get monthly income and expenses
+  const result = years.map(year => {
+    const monthlyData = [];
+
+    for (let month = 1; month <= 12; month++) {
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+      const monthResult = db.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN credit_amount > 0 THEN credit_amount ELSE 0 END), 0) AS income,
+          COALESCE(SUM(CASE WHEN debit_amount > 0 THEN debit_amount ELSE 0 END), 0) AS expenses
+        FROM transactions t
+        JOIN accounts a ON t.account_id = a.id
+        WHERE a.user_id = ?
+          AND strftime('%Y-%m', t.transaction_date) = ?
+          AND t.is_transfer = 0
+      `).get(userId, monthStr);
+
+      monthlyData.push({
+        month,
+        income: pennyPrecision(monthResult.income || 0),
+        expenses: pennyPrecision(monthResult.expenses || 0)
+      });
+    }
+
+    return {
+      year,
+      months: monthlyData
+    };
+  });
+
+  return { years: result };
+}
+
 export function getMonthlyYoYComparison(db, month, options = {}) {
   // Validate month format
   if (!month || !/^(0[1-9]|1[0-2])$/.test(month)) {

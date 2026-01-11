@@ -284,7 +284,21 @@
 .rule-actions {
   display: flex;
   gap: var(--space-xs);
-  justify-content: flex-end;
+}
+
+.rule-needs-update {
+  background: rgba(255, 149, 0, 0.1);
+}
+
+.text-warning {
+  color: var(--orange);
+  font-weight: var(--font-medium);
+}
+
+.suggested-category {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-left: var(--space-xs);
 }
 
 /* Rule Tester */
