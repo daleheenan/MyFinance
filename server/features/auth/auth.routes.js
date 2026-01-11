@@ -65,7 +65,8 @@ router.post('/login', async (req, res) => {
     res.json({
       success: true,
       token: result.token, // Still return token for backwards compatibility
-      user: result.user
+      user: result.user,
+      requiresEmail: result.requiresEmail
     });
   } catch (error) {
     console.error('Login error:', error);

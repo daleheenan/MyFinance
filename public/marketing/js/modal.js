@@ -122,7 +122,7 @@
         headers: headers,
         credentials: 'include',
         body: JSON.stringify({
-          email: email,
+          username: email,
           password: password
         })
       });
@@ -130,12 +130,18 @@
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Redirect to app on success
-        window.location.href = '/app#/overview';
+        // Check if user needs to set up email for password recovery
+        if (data.requiresEmail) {
+          // Redirect to email setup page within the app
+          window.location.href = '/app#/settings/email-setup';
+        } else {
+          // Redirect to app on success
+          window.location.href = '/app#/overview';
+        }
       } else {
-        // Show error message
+        // Show error message from server
         if (formError) {
-          formError.textContent = data.message || 'Invalid email or password. Please try again.';
+          formError.textContent = data.error || data.message || 'Invalid email or password. Please try again.';
           formError.classList.add('visible');
         }
         if (submitBtn) {

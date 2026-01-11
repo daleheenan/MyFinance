@@ -182,7 +182,8 @@ export async function login(username, password, ipAddress, userAgent) {
     user: {
       id: user.id,
       username: user.username
-    }
+    },
+    requiresEmail: !user.email
   };
 }
 

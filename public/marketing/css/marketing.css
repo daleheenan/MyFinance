@@ -317,7 +317,7 @@ img {
   position: relative;
   min-height: 500px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   overflow: hidden;
   padding: 0;
   text-align: left;
@@ -345,7 +345,7 @@ img {
   z-index: 2;
   max-width: var(--marketing-container-max);
   margin: 0 auto;
-  padding: 20px var(--marketing-container-padding) var(--marketing-space-3xl);
+  padding: 10px var(--marketing-container-padding) var(--marketing-space-3xl);
   width: 100%;
   display: flex;
   justify-content: flex-end;
