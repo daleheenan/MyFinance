@@ -89,6 +89,31 @@ export function createApp(db = null, options = {}) {
     res.sendFile(join(__dirname, '../public/marketing/pricing.html'));
   });
 
+  // Marketing about page
+  app.get('/about', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/about.html'));
+  });
+
+  // Marketing contact page
+  app.get('/contact', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/contact.html'));
+  });
+
+  // Registration page
+  app.get('/register', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/register.html'));
+  });
+
+  // Forgot password page
+  app.get('/forgot-password', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/forgot-password.html'));
+  });
+
+  // Reset password page
+  app.get('/reset-password', (req, res) => {
+    res.sendFile(join(__dirname, '../public/marketing/reset-password.html'));
+  });
+
   // Dynamic CMS pages (public, fetched from database)
   app.get('/page/:slug', (req, res) => {
     const db = getDb();
@@ -104,7 +129,7 @@ export function createApp(db = null, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${page.meta_title || page.title} - Flow Finance Manager</title>
+  <title>${page.meta_title || page.title} - FinanceFlow</title>
   <meta name="description" content="${page.meta_description || ''}">
   <link rel="stylesheet" href="/marketing/css/marketing.css">
   <style>${page.css || ''}</style>
@@ -112,11 +137,20 @@ export function createApp(db = null, options = {}) {
 <body>
   <header class="marketing-header">
     <nav class="marketing-nav">
-      <a href="/" class="marketing-logo">Flow Finance</a>
+      <a href="/" class="marketing-logo">
+        <span class="marketing-logo-icon">&#163;</span>
+        FinanceFlow
+      </a>
+      <button class="marketing-nav-toggle" aria-label="Toggle navigation" data-action="nav-toggle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <div class="marketing-nav-links">
         <a href="/features">Features</a>
         <a href="/pricing">Pricing</a>
-        <a href="/app#/login" class="btn btn-primary">Sign In</a>
+        <a href="/about">About</a>
+        <a href="#" class="btn btn-primary" data-action="sign-in">Sign In</a>
       </div>
     </nav>
   </header>
@@ -124,8 +158,54 @@ export function createApp(db = null, options = {}) {
     ${page.content}
   </main>
   <footer class="marketing-footer">
-    <p>&copy; ${new Date().getFullYear()} Flow Finance Manager. All rights reserved.</p>
+    <div class="marketing-footer-content">
+      <div class="marketing-footer-links">
+        <a href="/page/privacy">Privacy</a>
+        <a href="/page/terms">Terms</a>
+        <a href="/contact">Contact</a>
+      </div>
+      <p>&copy; ${new Date().getFullYear()} FinanceFlow. All rights reserved.</p>
+    </div>
   </footer>
+  <div id="signInModal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close modal">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="modal-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your FinanceFlow account</p>
+      </div>
+      <div class="modal-body">
+        <form id="signInForm">
+          <div class="form-group">
+            <label for="email">Email or Username</label>
+            <input type="text" id="email" name="email" placeholder="Enter your email or username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          </div>
+          <div id="formError" class="form-error">Invalid email or password. Please try again.</div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+          </div>
+          <div class="form-links">
+            <a href="/forgot-password">Forgot Password?</a>
+          </div>
+          <div class="form-divider">
+            <span>or</span>
+          </div>
+          <div class="form-links">
+            Don't have an account? <a href="/register">Create Account</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="/marketing/js/modal.js"></script>
 </body>
 </html>`;
 

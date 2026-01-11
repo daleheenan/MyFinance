@@ -882,6 +882,218 @@ img {
 }
 
 /* =============================================================================
+   Auth Pages (Register, Forgot Password, Reset Password)
+   ============================================================================= */
+
+.marketing-auth-section {
+  padding: var(--marketing-space-4xl) 0;
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  background: var(--marketing-bg-light);
+}
+
+.marketing-auth-card {
+  max-width: 450px;
+  margin: 0 auto;
+  background: var(--marketing-bg-white);
+  border-radius: var(--marketing-radius-lg);
+  box-shadow: var(--marketing-shadow-lg);
+  padding: var(--marketing-space-xl);
+}
+
+.marketing-auth-header {
+  text-align: center;
+  margin-bottom: var(--marketing-space-xl);
+}
+
+.marketing-auth-header h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--marketing-space-sm);
+}
+
+.marketing-auth-header p {
+  color: var(--marketing-text-body);
+}
+
+.marketing-auth-terms {
+  margin-top: var(--marketing-space-lg);
+  padding-top: var(--marketing-space-lg);
+  border-top: 1px solid var(--marketing-border);
+  font-size: 0.75rem;
+  color: var(--marketing-text-muted);
+  text-align: center;
+}
+
+.marketing-auth-terms a {
+  color: var(--marketing-primary);
+}
+
+.marketing-auth-message {
+  text-align: center;
+  padding: var(--marketing-space-lg);
+  color: var(--marketing-text-body);
+}
+
+/* =============================================================================
+   About Page
+   ============================================================================= */
+
+.marketing-about-content {
+  padding: var(--marketing-space-4xl) 0;
+  background: var(--marketing-bg-white);
+}
+
+.marketing-about-section {
+  max-width: 800px;
+  margin: 0 auto var(--marketing-space-3xl);
+}
+
+.marketing-about-section:last-child {
+  margin-bottom: 0;
+}
+
+.marketing-about-section h2 {
+  font-size: 1.75rem;
+  margin-bottom: var(--marketing-space-lg);
+  color: var(--marketing-text-heading);
+}
+
+.marketing-about-section p {
+  color: var(--marketing-text-body);
+  line-height: 1.7;
+  margin-bottom: var(--marketing-space-md);
+}
+
+.marketing-values-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.marketing-values-list li {
+  padding: var(--marketing-space-md) 0;
+  border-bottom: 1px solid var(--marketing-border-light);
+  color: var(--marketing-text-body);
+  line-height: 1.6;
+}
+
+.marketing-values-list li:last-child {
+  border-bottom: none;
+}
+
+.marketing-values-list strong {
+  color: var(--marketing-text-heading);
+}
+
+/* =============================================================================
+   Contact Page
+   ============================================================================= */
+
+.marketing-contact-section {
+  padding: var(--marketing-space-4xl) 0;
+  background: var(--marketing-bg-white);
+}
+
+.marketing-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: var(--marketing-space-3xl);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .marketing-contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.marketing-contact-form-wrapper {
+  background: var(--marketing-bg-white);
+}
+
+.marketing-contact-form .form-group textarea,
+.marketing-contact-form .form-group select {
+  width: 100%;
+  padding: var(--marketing-space-sm) var(--marketing-space-md);
+  border: 1px solid var(--marketing-border);
+  border-radius: var(--marketing-radius-md);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color var(--marketing-transition), box-shadow var(--marketing-transition);
+}
+
+.marketing-contact-form .form-group textarea:focus,
+.marketing-contact-form .form-group select:focus {
+  outline: none;
+  border-color: var(--marketing-primary);
+  box-shadow: 0 0 0 3px var(--marketing-primary-light);
+}
+
+.marketing-contact-form .form-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.marketing-contact-info {
+  padding: var(--marketing-space-xl);
+  background: var(--marketing-bg-light);
+  border-radius: var(--marketing-radius-lg);
+}
+
+.marketing-contact-info h3 {
+  margin-bottom: var(--marketing-space-xl);
+  font-size: 1.25rem;
+}
+
+.marketing-contact-method {
+  display: flex;
+  gap: var(--marketing-space-md);
+  margin-bottom: var(--marketing-space-lg);
+}
+
+.marketing-contact-method:last-child {
+  margin-bottom: 0;
+}
+
+.marketing-contact-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.marketing-contact-method h4 {
+  font-size: 0.875rem;
+  margin-bottom: var(--marketing-space-xs);
+  color: var(--marketing-text-heading);
+}
+
+.marketing-contact-method p {
+  font-size: 0.875rem;
+  color: var(--marketing-text-body);
+  margin: 0;
+}
+
+.marketing-contact-method a {
+  color: var(--marketing-primary);
+}
+
+/* Form Success Message */
+.form-success {
+  color: #059669;
+  font-size: 0.875rem;
+  margin-top: var(--marketing-space-xs);
+  display: none;
+  background: #D1FAE5;
+  padding: var(--marketing-space-sm) var(--marketing-space-md);
+  border-radius: var(--marketing-radius-sm);
+}
+
+.form-success.visible {
+  display: block;
+}
+
+/* =============================================================================
    Utility Classes
    ============================================================================= */
 
