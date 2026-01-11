@@ -58,6 +58,42 @@ export async function render() {
         </div>
       </div>
 
+      <!-- Edit User Modal -->
+      <div id="editUserModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+          <button class="modal-close" data-action="close-modal">&times;</button>
+          <h2>Edit User</h2>
+          <form id="editUserForm">
+            <input type="hidden" id="editUserId" name="user_id">
+            <div class="form-group">
+              <label for="editEmail">Email</label>
+              <input type="email" id="editEmail" name="email">
+            </div>
+            <div class="form-group">
+              <label for="editFullName">Full Name</label>
+              <input type="text" id="editFullName" name="full_name">
+            </div>
+            <div class="form-group">
+              <label for="editSubscription">Subscription Status</label>
+              <select id="editSubscription" name="subscription_status">
+                <option value="trial">Trial</option>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="canceled">Canceled</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editTrialEnd">Trial End Date</label>
+              <input type="date" id="editTrialEnd" name="trial_end_date">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-outline" data-action="close-modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- Add User Modal -->
       <div id="addUserModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
@@ -120,6 +156,7 @@ function setupEventListeners() {
   document.getElementById('refreshBtn').addEventListener('click', loadUsers);
 
   document.getElementById('addUserForm').addEventListener('submit', handleAddUser);
+  document.getElementById('editUserForm').addEventListener('submit', handleEditUser);
 
   // Close modals
   document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
@@ -185,6 +222,9 @@ function renderUsersTable() {
           <button class="btn btn-sm btn-outline" data-action="view" data-user-id="${user.id}" title="View Details">
             View
           </button>
+          <button class="btn btn-sm btn-outline" data-action="edit" data-user-id="${user.id}" title="Edit User">
+            Edit
+          </button>
           ${!user.is_admin ? `
             <button class="btn btn-sm btn-danger" data-action="delete" data-user-id="${user.id}" title="Delete User">
               Delete
@@ -215,8 +255,47 @@ async function handleTableAction(e) {
 
   if (action === 'view') {
     await showUserDetail(userId);
+  } else if (action === 'edit') {
+    await showEditUser(userId);
   } else if (action === 'delete') {
     showDeleteConfirmation(userId);
+  }
+}
+
+async function showEditUser(userId) {
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+
+  selectedUser = user;
+
+  document.getElementById('editUserId').value = user.id;
+  document.getElementById('editEmail').value = user.email || '';
+  document.getElementById('editFullName').value = user.full_name || '';
+  document.getElementById('editSubscription').value = user.subscription_status || 'trial';
+  document.getElementById('editTrialEnd').value = user.trial_end_date ? user.trial_end_date.split('T')[0] : '';
+
+  document.getElementById('editUserModal').style.display = 'flex';
+}
+
+async function handleEditUser(e) {
+  e.preventDefault();
+  if (!selectedUser) return;
+
+  const formData = new FormData(e.target);
+  const updates = {
+    email: formData.get('email') || null,
+    full_name: formData.get('full_name') || null,
+    subscription_status: formData.get('subscription_status'),
+    trial_end_date: formData.get('trial_end_date') || null
+  };
+
+  try {
+    await api.put(`/admin/users/${selectedUser.id}`, updates);
+    showToast('User updated successfully', 'success');
+    document.getElementById('editUserModal').style.display = 'none';
+    await loadUsers();
+  } catch (err) {
+    showToast(err.message || 'Failed to update user', 'error');
   }
 }
 
@@ -227,20 +306,13 @@ async function showUserDetail(userId) {
   modal.style.display = 'flex';
 
   try {
-    const [userResponse, historyResponse, sessionsResponse] = await Promise.all([
+    // API returns data directly, errors are thrown
+    const [user, history, sessions] = await Promise.all([
       api.get(`/admin/users/${userId}`),
-      api.get(`/admin/users/${userId}/login-history?limit=20`),
-      api.get(`/admin/users/${userId}/sessions`)
+      api.get(`/admin/users/${userId}/login-history?limit=20`).catch(() => []),
+      api.get(`/admin/users/${userId}/sessions`).catch(() => [])
     ]);
 
-    if (!userResponse.success) {
-      content.innerHTML = `<p class="error">${userResponse.error}</p>`;
-      return;
-    }
-
-    const user = userResponse.data;
-    const history = historyResponse.success ? historyResponse.data : [];
-    const sessions = sessionsResponse.success ? sessionsResponse.data : [];
     selectedUser = user;
 
     content.innerHTML = `
@@ -289,7 +361,7 @@ async function showUserDetail(userId) {
             <h3>Security</h3>
             <dl>
               <dt>Failed Login Attempts</dt>
-              <dd>${user.failed_login_count}</dd>
+              <dd>${user.failed_login_count || 0}</dd>
               <dt>Locked Until</dt>
               <dd>${user.locked_until && new Date(user.locked_until) > new Date() ? formatDateTime(user.locked_until) : 'Not locked'}</dd>
             </dl>
@@ -306,9 +378,9 @@ async function showUserDetail(userId) {
             <h3>Usage Stats</h3>
             <dl>
               <dt>Accounts</dt>
-              <dd>${user.account_count}</dd>
+              <dd>${user.account_count || 0}</dd>
               <dt>Transactions</dt>
-              <dd>${user.transaction_count}</dd>
+              <dd>${user.transaction_count || 0}</dd>
             </dl>
           </div>
         </div>
@@ -378,86 +450,66 @@ async function showUserDetail(userId) {
 }
 
 async function handleUserAction(action, userId) {
-  switch (action) {
-    case 'extend-trial':
-      const newDate = prompt('Enter new trial end date (YYYY-MM-DD):');
-      if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-        const result = await api.post(`/admin/users/${userId}/extend-trial`, { end_date: newDate });
-        if (result.success) {
+  try {
+    switch (action) {
+      case 'extend-trial':
+        const newDate = prompt('Enter new trial end date (YYYY-MM-DD):');
+        if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+          await api.post(`/admin/users/${userId}/extend-trial`, { end_date: newDate });
           showToast('Trial extended successfully', 'success');
           await showUserDetail(userId);
           await loadUsers();
-        } else {
-          showToast(result.error || 'Failed to extend trial', 'error');
+        } else if (newDate) {
+          showToast('Invalid date format. Use YYYY-MM-DD', 'error');
         }
-      } else if (newDate) {
-        showToast('Invalid date format. Use YYYY-MM-DD', 'error');
-      }
-      break;
+        break;
 
-    case 'activate':
-      if (confirm('Activate this user\'s subscription?')) {
-        const result = await api.post(`/admin/users/${userId}/activate`);
-        if (result.success) {
+      case 'activate':
+        if (confirm('Activate this user\'s subscription?')) {
+          await api.post(`/admin/users/${userId}/activate`);
           showToast('User activated successfully', 'success');
           await showUserDetail(userId);
           await loadUsers();
-        } else {
-          showToast(result.error || 'Failed to activate user', 'error');
         }
-      }
-      break;
+        break;
 
-    case 'lock':
-      if (confirm('Lock this user account?')) {
-        const result = await api.post(`/admin/users/${userId}/lock`);
-        if (result.success) {
+      case 'lock':
+        if (confirm('Lock this user account?')) {
+          await api.post(`/admin/users/${userId}/lock`);
           showToast('Account locked', 'success');
           await showUserDetail(userId);
           await loadUsers();
-        } else {
-          showToast(result.error || 'Failed to lock account', 'error');
         }
-      }
-      break;
+        break;
 
-    case 'unlock':
-      const unlockResult = await api.post(`/admin/users/${userId}/unlock`);
-      if (unlockResult.success) {
+      case 'unlock':
+        await api.post(`/admin/users/${userId}/unlock`);
         showToast('Account unlocked', 'success');
         await showUserDetail(userId);
         await loadUsers();
-      } else {
-        showToast(unlockResult.error || 'Failed to unlock account', 'error');
-      }
-      break;
+        break;
 
-    case 'reset-password':
-      const newPassword = prompt('Enter new password (min 8 characters):');
-      if (newPassword && newPassword.length >= 8) {
-        const result = await api.post(`/admin/users/${userId}/reset-password`, { password: newPassword });
-        if (result.success) {
+      case 'reset-password':
+        const newPassword = prompt('Enter new password (min 8 characters):');
+        if (newPassword && newPassword.length >= 8) {
+          await api.post(`/admin/users/${userId}/reset-password`, { password: newPassword });
           showToast('Password reset successfully', 'success');
           await showUserDetail(userId);
-        } else {
-          showToast(result.error || 'Failed to reset password', 'error');
+        } else if (newPassword) {
+          showToast('Password must be at least 8 characters', 'error');
         }
-      } else if (newPassword) {
-        showToast('Password must be at least 8 characters', 'error');
-      }
-      break;
+        break;
 
-    case 'revoke-sessions':
-      if (confirm('Revoke all sessions for this user? They will be logged out everywhere.')) {
-        const result = await api.post(`/admin/users/${userId}/revoke-sessions`);
-        if (result.success) {
-          showToast(`Revoked ${result.data.revoked} session(s)`, 'success');
+      case 'revoke-sessions':
+        if (confirm('Revoke all sessions for this user? They will be logged out everywhere.')) {
+          const result = await api.post(`/admin/users/${userId}/revoke-sessions`);
+          showToast(`Revoked ${result.revoked} session(s)`, 'success');
           await showUserDetail(userId);
-        } else {
-          showToast(result.error || 'Failed to revoke sessions', 'error');
         }
-      }
-      break;
+        break;
+    }
+  } catch (err) {
+    showToast(err.message || 'Operation failed', 'error');
   }
 }
 
@@ -467,21 +519,21 @@ function showDeleteConfirmation(userId) {
 
   selectedUser = user;
   document.getElementById('deleteConfirmText').textContent =
-    `Are you sure you want to delete user "${user.username}"? They have ${user.account_count} account(s) and ${user.transaction_count} transaction(s).`;
+    `Are you sure you want to delete user "${user.username}"? They have ${user.account_count || 0} account(s) and ${user.transaction_count || 0} transaction(s).`;
   document.getElementById('confirmDeleteModal').style.display = 'flex';
 }
 
 async function handleConfirmDelete() {
   if (!selectedUser) return;
 
-  const result = await api.delete(`/admin/users/${selectedUser.id}`);
-  if (result.success) {
-    showToast(`Deleted user "${result.data.username}" with ${result.data.accounts} accounts and ${result.data.transactions} transactions`, 'success');
+  try {
+    const result = await api.delete(`/admin/users/${selectedUser.id}`);
+    showToast(`Deleted user "${result.username}" with ${result.accounts} accounts and ${result.transactions} transactions`, 'success');
     document.getElementById('confirmDeleteModal').style.display = 'none';
     selectedUser = null;
     await loadUsers();
-  } else {
-    showToast(result.error || 'Failed to delete user', 'error');
+  } catch (err) {
+    showToast(err.message || 'Failed to delete user', 'error');
   }
 }
 
@@ -498,14 +550,14 @@ async function handleAddUser(e) {
     trial_days: parseInt(formData.get('trial_days'), 10) || 7
   };
 
-  const result = await api.post('/admin/users', userData);
-  if (result.success) {
-    showToast(`User "${result.data.username}" created successfully`, 'success');
+  try {
+    const result = await api.post('/admin/users', userData);
+    showToast(`User "${result.username}" created successfully`, 'success');
     document.getElementById('addUserModal').style.display = 'none';
     form.reset();
     await loadUsers();
-  } else {
-    showToast(result.error || 'Failed to create user', 'error');
+  } catch (err) {
+    showToast(err.message || 'Failed to create user', 'error');
   }
 }
 
@@ -516,7 +568,6 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-
 export async function mount(container, params) {
   await render();
 }
@@ -524,6 +575,7 @@ export async function mount(container, params) {
 export function unmount() {
   destroy();
 }
+
 export function destroy() {
   users = [];
   selectedUser = null;
