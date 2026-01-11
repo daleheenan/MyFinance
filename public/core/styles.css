@@ -595,6 +595,52 @@ p {
   font-size: var(--text-lg);
 }
 
+/* Standardized empty state with icon, title, description, and CTA */
+.empty-state__icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: var(--space-md);
+  opacity: 0.8;
+}
+
+.empty-state__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.empty-state__description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin: 0 auto var(--space-lg);
+  line-height: 1.5;
+}
+
+.empty-state__cta {
+  margin-top: var(--space-sm);
+}
+
+/* Compact variant for smaller containers */
+.empty-state--compact {
+  padding: var(--space-lg);
+}
+
+.empty-state--compact .empty-state__icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-sm);
+}
+
+.empty-state--compact .empty-state__title {
+  font-size: var(--text-base);
+}
+
+.empty-state--compact .empty-state__description {
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-md);
+}
+
 /* ===== AMOUNT COLOURS ===== */
 
 .amount-positive {

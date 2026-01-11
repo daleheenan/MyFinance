@@ -399,12 +399,9 @@ Sample data no longer reappears:
 | FEAT-BANK-01 | Open Banking API integration (TrueLayer/Plaid/Yapily) | CRITICAL | TODO | Emma, Money Dashboard |
 | FEAT-BANK-02 | Automatic transaction import from banks | CRITICAL | TODO | All competitors |
 | FEAT-BANK-03 | Real-time balance sync | HIGH | TODO | Emma, Plum |
-| FEAT-MOB-01 | Progressive Web App (PWA) with offline support | CRITICAL | TODO | All competitors |
-| FEAT-MOB-02 | Native iOS app | HIGH | TODO | All competitors |
 | FEAT-MOB-03 | Native Android app | HIGH | TODO | All competitors |
 | FEAT-GOAL-01 | Savings goals with target amounts and dates | HIGH | TODO | YNAB, Moneybox |
 | FEAT-GOAL-02 | Visual progress circles/bars for goals | HIGH | TODO | Moneybox, Plum |
-| FEAT-NOTIF-01 | Push notifications system | HIGH | TODO | All competitors |
 | FEAT-NOTIF-02 | Budget warning notifications | HIGH | TODO | YNAB, Emma |
 | FEAT-NOTIF-03 | Bill reminder notifications | HIGH | TODO | Mint, Emma |
 | FEAT-NOTIF-04 | Unusual spending alerts | HIGH | TODO | Emma, Plum |
@@ -417,13 +414,12 @@ Sample data no longer reappears:
 | FEAT-INSIGHT-02 | "You spent X% more this month" insights | MEDIUM | TODO | Emma |
 | FEAT-INSIGHT-03 | Subscription price increase detection | MEDIUM | TODO | Emma |
 | FEAT-INSIGHT-04 | "Could save X by switching" suggestions | LOW | TODO | Emma |
-| FEAT-POTS-01 | Virtual savings pots/spaces | MEDIUM | TODO | Emma, Moneybox, Plum |
-| FEAT-POTS-02 | Money segregation within accounts | MEDIUM | TODO | Emma |
 | FEAT-TAG-01 | Custom transaction tags (multi-label) | MEDIUM | TODO | Money Dashboard, Mint |
 | FEAT-TAG-02 | Filter and report by tags | MEDIUM | TODO | Money Dashboard |
 | FEAT-DEBT-01 | Debt paydown tracker | MEDIUM | TODO | YNAB |
 | FEAT-DEBT-02 | Avalanche/snowball debt strategies | MEDIUM | TODO | YNAB |
 | FEAT-DEBT-03 | Debt freedom date calculator | MEDIUM | TODO | YNAB |
+
 
 ### Priority 3: Engagement & Retention
 
@@ -445,8 +441,6 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status | Inspiration |
 |----|------|----------|--------|-------------|
-| FEAT-CREDIT-01 | Credit score integration (Experian/TransUnion API) | LOW | TODO | Mint |
-| FEAT-RECEIPT-01 | Receipt photo scanning with OCR | LOW | TODO | QuickBooks |
 | FEAT-PAYDAY-01 | Payday-based budget cycles | LOW | TODO | Emma |
 | FEAT-SUB-01 | Subscription cancellation assistance links | LOW | TODO | Emma |
 | FEAT-FAMILY-01 | Family/shared account access | MEDIUM | TODO | - |

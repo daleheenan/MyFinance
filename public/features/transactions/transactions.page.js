@@ -74,6 +74,10 @@ let editingCell = null;
 let isLoading = false;
 let scrollPosition = 0;
 
+// Multi-select mode state
+let isSelectMode = false;
+let selectedTransactionIds = new Set();
+
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
 }
@@ -88,6 +92,8 @@ export function mount(el, params) {
   editingCell = null;
   isLoading = false;
   scrollPosition = 0;
+  isSelectMode = false;
+  selectedTransactionIds = new Set();
 
   // Parse route params
   filters.accountId = params.get('account') || null;
@@ -126,6 +132,8 @@ export function unmount() {
   transactions = [];
   expandedRowId = null;
   editingCell = null;
+  isSelectMode = false;
+  selectedTransactionIds = new Set();
 }
 
 function render() {
@@ -162,8 +170,23 @@ function render() {
           </div>
           <div class="filter-group filter-actions">
             <button type="button" id="apply-filters-btn" class="btn btn-primary">Apply</button>
-            <button type="button" id="clear-filters-btn" class="btn btn-secondary">Clear</button>
+            <button type="button" id="clear-filters-btn" class="btn btn-secondary">
+              Clear
+              <span id="active-filter-badge" class="filter-badge hidden">0</span>
+            </button>
+            <button type="button" id="select-mode-btn" class="btn btn-secondary" title="Select multiple transactions">Select</button>
           </div>
+        </div>
+      </div>
+
+      <div id="bulk-action-bar" class="bulk-action-bar hidden">
+        <div class="bulk-action-info">
+          <span id="bulk-selected-count">0</span> selected
+        </div>
+        <div class="bulk-action-buttons">
+          <button type="button" id="bulk-select-all-btn" class="btn btn-secondary btn-sm">Select All</button>
+          <button type="button" id="bulk-categorize-btn" class="btn btn-primary btn-sm">Categorize</button>
+          <button type="button" id="bulk-cancel-btn" class="btn btn-secondary btn-sm">Cancel</button>
         </div>
       </div>
 
@@ -345,6 +368,9 @@ function attachEventListeners() {
   // Delete modal events
   setupDeleteModalEvents();
 
+  // Select mode events
+  setupSelectModeEvents();
+
   // Global Escape key handler for modals
   const escapeHandler = (e) => {
     if (e.key === 'Escape') {
@@ -396,6 +422,9 @@ async function loadInitialData() {
 
     // Load transactions
     await loadTransactions();
+
+    // Update filter badge on initial load
+    updateFilterBadge();
   } catch (err) {
     showError(`Failed to load data: ${err.message}`);
   }
@@ -506,9 +535,16 @@ function renderTransactionsTable() {
   const txnContainer = container.querySelector('#transactions-container');
 
   if (transactions.length === 0) {
+    const hasFilters = filters.startDate || filters.endDate || filters.categoryId || filters.search;
     txnContainer.innerHTML = `
       <div class="empty-state">
-        <p>No transactions found</p>
+        <div class="empty-state__icon">${hasFilters ? '🔍' : '📋'}</div>
+        <h3 class="empty-state__title">${hasFilters ? 'No matching transactions' : 'No transactions yet'}</h3>
+        <p class="empty-state__description">
+          ${hasFilters
+            ? 'Try adjusting your filters or search criteria to find what you\'re looking for.'
+            : 'Import transactions from your bank statement or add them manually.'}
+        </p>
       </div>
     `;
     return;
@@ -516,10 +552,11 @@ function renderTransactionsTable() {
 
   const fragment = document.createDocumentFragment();
   const table = document.createElement('table');
-  table.className = 'transactions-table';
+  table.className = `transactions-table ${isSelectMode ? 'select-mode' : ''}`;
   table.innerHTML = `
     <thead>
       <tr>
+        ${isSelectMode ? '<th class="col-select"><input type="checkbox" id="select-all-checkbox" title="Select all"></th>' : ''}
         <th class="col-date">Date</th>
         <th class="col-description">Description</th>
         <th class="col-category">Category</th>
@@ -536,9 +573,11 @@ function renderTransactionsTable() {
   transactions.forEach(txn => {
     // Main row
     const row = document.createElement('tr');
-    row.className = `transaction-row ${expandedRowId === txn.id ? 'expanded' : ''}`;
+    const isSelected = selectedTransactionIds.has(txn.id);
+    row.className = `transaction-row ${expandedRowId === txn.id ? 'expanded' : ''} ${isSelected ? 'selected' : ''}`;
     row.dataset.id = txn.id;
     row.innerHTML = `
+      ${isSelectMode ? `<td class="col-select"><input type="checkbox" class="txn-checkbox" data-id="${txn.id}" ${isSelected ? 'checked' : ''}></td>` : ''}
       <td class="col-date">${formatDate(txn.transaction_date)}</td>
       <td class="col-description">
         <span class="editable-description" data-field="description" data-id="${txn.id}">
@@ -565,7 +604,7 @@ function renderTransactionsTable() {
       const detailRow = document.createElement('tr');
       detailRow.className = 'transaction-detail-row';
       detailRow.innerHTML = `
-        <td colspan="6">
+        <td colspan="${isSelectMode ? 7 : 6}">
           <div class="transaction-details">
             <div class="detail-grid">
               <div class="detail-item">
@@ -682,9 +721,24 @@ function handleTableClick(e) {
     return;
   }
 
-  // Row click to expand/collapse
+  // Row click to expand/collapse (but not when clicking checkbox or in select mode)
   const row = target.closest('.transaction-row');
-  if (row && !target.closest('.editable-description') && !target.closest('.editable-category')) {
+  if (row && !target.closest('.editable-description') && !target.closest('.editable-category') && !target.closest('.txn-checkbox') && !target.closest('.col-select')) {
+    // In select mode, clicking the row toggles selection
+    if (isSelectMode) {
+      const id = parseInt(row.dataset.id, 10);
+      if (selectedTransactionIds.has(id)) {
+        selectedTransactionIds.delete(id);
+      } else {
+        selectedTransactionIds.add(id);
+      }
+      updateBulkSelectionCount();
+      row.classList.toggle('selected', selectedTransactionIds.has(id));
+      const checkbox = row.querySelector('.txn-checkbox');
+      if (checkbox) checkbox.checked = selectedTransactionIds.has(id);
+      return;
+    }
+    // Normal mode: expand/collapse
     const id = parseInt(row.dataset.id, 10);
     expandedRowId = expandedRowId === id ? null : id;
     renderTransactionsTable();
@@ -1223,6 +1277,233 @@ function renderImportResult(result) {
 }
 
 /**
+ * Setup select mode event handlers
+ */
+function setupSelectModeEvents() {
+  const selectModeBtn = container.querySelector('#select-mode-btn');
+  const bulkActionBar = container.querySelector('#bulk-action-bar');
+  const bulkSelectAllBtn = container.querySelector('#bulk-select-all-btn');
+  const bulkCategorizeBtn = container.querySelector('#bulk-categorize-btn');
+  const bulkCancelBtn = container.querySelector('#bulk-cancel-btn');
+
+  // Toggle select mode
+  const toggleHandler = () => {
+    isSelectMode = !isSelectMode;
+    selectedTransactionIds.clear();
+    selectModeBtn.textContent = isSelectMode ? 'Done' : 'Select';
+    selectModeBtn.classList.toggle('btn-primary', isSelectMode);
+    selectModeBtn.classList.toggle('btn-secondary', !isSelectMode);
+    bulkActionBar.classList.toggle('hidden', !isSelectMode);
+    updateBulkSelectionCount();
+    renderTransactionsTable();
+  };
+  selectModeBtn.addEventListener('click', toggleHandler);
+  onCleanup(() => selectModeBtn.removeEventListener('click', toggleHandler));
+
+  // Select all on current page
+  const selectAllHandler = () => {
+    const allSelected = transactions.every(txn => selectedTransactionIds.has(txn.id));
+    if (allSelected) {
+      // Deselect all
+      transactions.forEach(txn => selectedTransactionIds.delete(txn.id));
+    } else {
+      // Select all on current page
+      transactions.forEach(txn => selectedTransactionIds.add(txn.id));
+    }
+    updateBulkSelectionCount();
+    renderTransactionsTable();
+  };
+  bulkSelectAllBtn.addEventListener('click', selectAllHandler);
+  onCleanup(() => bulkSelectAllBtn.removeEventListener('click', selectAllHandler));
+
+  // Cancel select mode
+  const cancelHandler = () => {
+    isSelectMode = false;
+    selectedTransactionIds.clear();
+    selectModeBtn.textContent = 'Select';
+    selectModeBtn.classList.remove('btn-primary');
+    selectModeBtn.classList.add('btn-secondary');
+    bulkActionBar.classList.add('hidden');
+    renderTransactionsTable();
+  };
+  bulkCancelBtn.addEventListener('click', cancelHandler);
+  onCleanup(() => bulkCancelBtn.removeEventListener('click', cancelHandler));
+
+  // Open bulk categorize modal
+  const categorizeHandler = () => {
+    if (selectedTransactionIds.size === 0) {
+      showError('Please select at least one transaction');
+      return;
+    }
+    openBulkCategoryPicker();
+  };
+  bulkCategorizeBtn.addEventListener('click', categorizeHandler);
+  onCleanup(() => bulkCategorizeBtn.removeEventListener('click', categorizeHandler));
+
+  // Handle checkbox clicks via event delegation (on transactions container)
+  const txnContainer = container.querySelector('#transactions-container');
+  const checkboxHandler = (e) => {
+    // Individual checkbox
+    if (e.target.classList.contains('txn-checkbox')) {
+      const txnId = parseInt(e.target.dataset.id, 10);
+      if (e.target.checked) {
+        selectedTransactionIds.add(txnId);
+      } else {
+        selectedTransactionIds.delete(txnId);
+      }
+      updateBulkSelectionCount();
+      // Update row selected state
+      const row = e.target.closest('.transaction-row');
+      if (row) {
+        row.classList.toggle('selected', e.target.checked);
+      }
+      return;
+    }
+
+    // Select all checkbox in header
+    if (e.target.id === 'select-all-checkbox') {
+      if (e.target.checked) {
+        transactions.forEach(txn => selectedTransactionIds.add(txn.id));
+      } else {
+        transactions.forEach(txn => selectedTransactionIds.delete(txn.id));
+      }
+      updateBulkSelectionCount();
+      renderTransactionsTable();
+    }
+  };
+  txnContainer.addEventListener('change', checkboxHandler);
+  onCleanup(() => txnContainer.removeEventListener('change', checkboxHandler));
+}
+
+/**
+ * Update the bulk selection count display
+ */
+function updateBulkSelectionCount() {
+  const countEl = container.querySelector('#bulk-selected-count');
+  if (countEl) {
+    countEl.textContent = selectedTransactionIds.size;
+  }
+
+  // Update select all button text
+  const selectAllBtn = container.querySelector('#bulk-select-all-btn');
+  if (selectAllBtn) {
+    const allSelected = transactions.length > 0 && transactions.every(txn => selectedTransactionIds.has(txn.id));
+    selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
+  }
+
+  // Update header checkbox state
+  const headerCheckbox = container.querySelector('#select-all-checkbox');
+  if (headerCheckbox) {
+    const allSelected = transactions.length > 0 && transactions.every(txn => selectedTransactionIds.has(txn.id));
+    const someSelected = transactions.some(txn => selectedTransactionIds.has(txn.id));
+    headerCheckbox.checked = allSelected;
+    headerCheckbox.indeterminate = someSelected && !allSelected;
+  }
+}
+
+/**
+ * Open bulk category picker modal
+ */
+function openBulkCategoryPicker() {
+  const modal = container.querySelector('#category-modal');
+  const list = container.querySelector('#category-picker-list');
+  const similarSection = container.querySelector('#similar-transactions-section');
+  const modalTitle = container.querySelector('#category-modal-title');
+
+  // Update modal title for bulk mode
+  modalTitle.textContent = `Categorize ${selectedTransactionIds.size} Transaction${selectedTransactionIds.size !== 1 ? 's' : ''}`;
+
+  // Hide similar transactions section for bulk mode
+  similarSection.classList.add('hidden');
+
+  list.innerHTML = categories.map(cat => `
+    <button type="button" class="category-option bulk-category-option" data-category-id="${cat.id}">
+      <span class="category-badge" style="background-color: ${cat.colour}20; color: ${cat.colour}">
+        ${cat.icon || getDefaultIcon(cat.name)} ${escapeHtml(cat.name)}
+      </span>
+    </button>
+  `).join('');
+
+  // Add bulk category selection handler
+  const selectHandler = async (e) => {
+    const option = e.target.closest('.bulk-category-option');
+    if (!option) return;
+
+    const categoryId = parseInt(option.dataset.categoryId, 10);
+
+    try {
+      // Bulk update all selected transactions
+      const updatePromises = Array.from(selectedTransactionIds).map(txnId =>
+        api.put(`/transactions/${txnId}`, { category_id: categoryId })
+      );
+
+      await Promise.all(updatePromises);
+
+      // Update local data
+      const cat = categories.find(c => c.id === categoryId);
+      transactions.forEach(txn => {
+        if (selectedTransactionIds.has(txn.id)) {
+          txn.category_id = categoryId;
+          txn.category_name = cat?.name || '';
+          txn.category_colour = cat?.colour || '#636366';
+          txn.category_icon = cat?.icon || '';
+        }
+      });
+
+      // Clear selection and exit select mode
+      selectedTransactionIds.clear();
+      isSelectMode = false;
+      const selectModeBtn = container.querySelector('#select-mode-btn');
+      selectModeBtn.textContent = 'Select';
+      selectModeBtn.classList.remove('btn-primary');
+      selectModeBtn.classList.add('btn-secondary');
+      container.querySelector('#bulk-action-bar').classList.add('hidden');
+
+      renderTransactionsTable();
+      modal.classList.add('hidden');
+      modalTitle.textContent = 'Select Category';
+
+      // Remove this handler after use
+      list.removeEventListener('click', selectHandler);
+    } catch (err) {
+      showError(`Failed to update categories: ${err.message}`);
+    }
+  };
+  list.addEventListener('click', selectHandler);
+
+  // Remove handler when modal closes
+  const closeHandler = () => {
+    list.removeEventListener('click', selectHandler);
+    modalTitle.textContent = 'Select Category';
+  };
+  modal.querySelector('#category-modal-close').addEventListener('click', closeHandler, { once: true });
+  modal.querySelector('.modal-backdrop').addEventListener('click', closeHandler, { once: true });
+
+  modal.classList.remove('hidden');
+}
+
+/**
+ * Update the active filter count badge
+ */
+function updateFilterBadge() {
+  const badge = container.querySelector('#active-filter-badge');
+  if (!badge) return;
+
+  let count = 0;
+  if (filters.startDate) count++;
+  if (filters.endDate) count++;
+  if (filters.categoryId) count++;
+  if (filters.search) count++;
+
+  if (count > 0) {
+    badge.textContent = count;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+/**
  * Update URL with current filters (without page reload)
  */
 function updateUrl() {
@@ -1240,5 +1521,8 @@ function updateUrl() {
 
   // Update without triggering navigation
   history.replaceState(null, '', `#${newHash}`);
+
+  // Update filter badge
+  updateFilterBadge();
 }
 

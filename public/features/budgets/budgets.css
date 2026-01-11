@@ -544,6 +544,37 @@ textarea.form-input {
   padding: var(--space-xl);
 }
 
+/* Enhanced empty state for budgets */
+.empty-state--budgets {
+  padding: var(--space-2xl) var(--space-xl);
+  text-align: center;
+}
+
+.empty-state__icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  line-height: 1;
+}
+
+.empty-state__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.empty-state__description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 360px;
+  margin: 0 auto var(--space-lg);
+  line-height: 1.5;
+}
+
+.empty-state__cta {
+  margin-top: var(--space-sm);
+}
+
 .summary-card .loading,
 .summary-card .empty-state {
   min-height: 100px;

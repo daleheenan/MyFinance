@@ -340,7 +340,7 @@ function renderSummary() {
         </div>
         <div class="status-item status-warning">
           <span class="status-count">${summary.status.warning}</span>
-          <span class="status-label">Warning</span>
+          <span class="status-label">Near Limit</span>
         </div>
         <div class="status-item status-over">
           <span class="status-count">${summary.status.overBudget}</span>
@@ -356,11 +356,26 @@ function renderBudgets() {
 
   if (budgets.length === 0) {
     budgetsContainer.innerHTML = `
-      <div class="empty-state">
-        <p>No budgets set for ${formatMonthDisplay(currentMonth)}</p>
-        <p class="text-secondary">Click "Add Budget" to create one</p>
+      <div class="empty-state empty-state--budgets">
+        <div class="empty-state__icon">📊</div>
+        <h3 class="empty-state__title">No budgets set for ${formatMonthDisplay(currentMonth)}</h3>
+        <p class="empty-state__description">
+          Start tracking your spending by creating a budget for each category.
+          You'll see progress bars and alerts when you're close to your limits.
+        </p>
+        <button type="button" class="btn btn-primary empty-state__cta" id="empty-add-budget-btn">
+          Create Your First Budget
+        </button>
       </div>
     `;
+
+    // Add event listener for the CTA button
+    const ctaBtn = budgetsContainer.querySelector('#empty-add-budget-btn');
+    if (ctaBtn) {
+      const ctaHandler = () => openBudgetModal(null);
+      ctaBtn.addEventListener('click', ctaHandler);
+      onCleanup(() => ctaBtn.removeEventListener('click', ctaHandler));
+    }
     return;
   }
 

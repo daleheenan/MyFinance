@@ -5,6 +5,7 @@
 
 import { api } from '../../core/api.js';
 import { escapeHtml } from '../../core/utils.js';
+import { createModal, showConfirmDialog } from '../../core/modal.js';
 
 let container = null;
 let cleanupFunctions = [];
@@ -202,8 +203,10 @@ function renderCategories() {
   const categoriesContainer = document.getElementById('categories-container');
   if (!categories.length) {
     categoriesContainer.innerHTML = `
-      <div class="empty-state">
-        <p>No categories found</p>
+      <div class="empty-state empty-state--compact">
+        <div class="empty-state__icon">📁</div>
+        <h3 class="empty-state__title">No categories found</h3>
+        <p class="empty-state__description">Create categories to organize your transactions.</p>
       </div>
     `;
     return;
@@ -398,9 +401,10 @@ function renderCategoryRules() {
   const rulesContainer = document.getElementById('rules-container');
   if (!categoryRules.length) {
     rulesContainer.innerHTML = `
-      <div class="empty-state">
-        <p>No category rules configured</p>
-        <p class="text-secondary">Add rules to auto-categorize transactions</p>
+      <div class="empty-state empty-state--compact">
+        <div class="empty-state__icon">⚙️</div>
+        <h3 class="empty-state__title">No category rules configured</h3>
+        <p class="empty-state__description">Add rules to auto-categorize transactions based on patterns in descriptions.</p>
       </div>
     `;
     return;
@@ -632,104 +636,8 @@ function testRule() {
   }
 }
 
-// ============= MODAL UTILITIES =============
-
-function createModal({ title, content, footer, onMount, onSave }) {
-  const existingModal = document.querySelector('.modal-overlay');
-  if (existingModal) existingModal.remove();
-
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">${escapeHtml(title)}</h3>
-        <button class="modal-close" id="modal-close-x" aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-body">
-        ${content}
-      </div>
-      ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  const closeModal = () => overlay.remove();
-
-  const closeX = overlay.querySelector('#modal-close-x');
-  if (closeX) closeX.addEventListener('click', closeModal);
-
-  const cancelBtn = overlay.querySelector('#modal-cancel');
-  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal();
-  });
-
-  const escHandler = (e) => {
-    if (e.key === 'Escape') {
-      closeModal();
-      document.removeEventListener('keydown', escHandler);
-    }
-  };
-  document.addEventListener('keydown', escHandler);
-
-  const saveBtn = overlay.querySelector('#modal-save');
-  if (saveBtn && onSave) {
-    saveBtn.addEventListener('click', async () => {
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
-      const success = await onSave();
-      if (success) {
-        closeModal();
-      } else {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-      }
-    });
-  }
-
-  if (onMount) onMount();
-
-  const firstInput = overlay.querySelector('input:not([disabled]), select:not([disabled])');
-  if (firstInput) firstInput.focus();
-
-  return overlay;
-}
-
-function showConfirmDialog({ title, message, type = 'warning', confirmText = 'Confirm', onConfirm }) {
-  const iconMap = {
-    warning: '!',
-    danger: '!',
-    info: 'i'
-  };
-
-  createModal({
-    title,
-    content: `
-      <div class="confirm-dialog">
-        <div class="confirm-dialog-icon ${type}">${iconMap[type] || iconMap.warning}</div>
-        <div class="confirm-dialog-message">${message}</div>
-      </div>
-    `,
-    footer: `
-      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
-      <button class="btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}" id="modal-confirm">${confirmText}</button>
-    `,
-    onMount: () => {
-      const confirmBtn = document.getElementById('modal-confirm');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
-          confirmBtn.disabled = true;
-          await onConfirm();
-          const overlay = document.querySelector('.modal-overlay');
-          if (overlay) overlay.remove();
-        });
-      }
-    }
-  });
-}
+// ============= TOAST UTILITIES =============
+// Modal utilities imported from ../../core/modal.js
 
 function showToast(message, type = 'info') {
   const toastContainer = document.querySelector('.toast-container') || createToastContainer();

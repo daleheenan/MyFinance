@@ -6,6 +6,7 @@
 import { api } from '../../core/api.js';
 import { escapeHtml, formatCurrency, formatDate } from '../../core/utils.js';
 import { auth } from '../../core/auth.js';
+import { createModal, showConfirmDialog } from '../../core/modal.js';
 
 let container = null;
 let billingConfig = null;
@@ -450,116 +451,8 @@ function showImportDetails(batchId) {
 }
 
 // ============= MODAL UTILITIES =============
-
-/**
- * Create and show a modal
- */
-function createModal({ title, content, footer, onMount, onSave }) {
-  // Remove any existing modal
-  const existingModal = document.querySelector('.modal-overlay');
-  if (existingModal) existingModal.remove();
-
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">${escapeHtml(title)}</h3>
-        <button class="modal-close" id="modal-close-x" aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-body">
-        ${content}
-      </div>
-      ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  // Close handlers
-  const closeModal = () => overlay.remove();
-
-  const closeX = overlay.querySelector('#modal-close-x');
-  if (closeX) closeX.addEventListener('click', closeModal);
-
-  const cancelBtn = overlay.querySelector('#modal-cancel');
-  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-
-  // Click outside to close
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal();
-  });
-
-  // Escape key to close
-  const escHandler = (e) => {
-    if (e.key === 'Escape') {
-      closeModal();
-      document.removeEventListener('keydown', escHandler);
-    }
-  };
-  document.addEventListener('keydown', escHandler);
-
-  // Save handler
-  const saveBtn = overlay.querySelector('#modal-save');
-  if (saveBtn && onSave) {
-    saveBtn.addEventListener('click', async () => {
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
-      const success = await onSave();
-      if (success) {
-        closeModal();
-      } else {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-      }
-    });
-  }
-
-  // Run onMount callback
-  if (onMount) onMount();
-
-  // Focus first input
-  const firstInput = overlay.querySelector('input:not([disabled]), select:not([disabled])');
-  if (firstInput) firstInput.focus();
-
-  return overlay;
-}
-
-/**
- * Show a confirmation dialog
- */
-function showConfirmDialog({ title, message, type = 'warning', confirmText = 'Confirm', onConfirm }) {
-  const iconMap = {
-    warning: '!',
-    danger: '!',
-    info: 'i'
-  };
-
-  createModal({
-    title,
-    content: `
-      <div class="confirm-dialog">
-        <div class="confirm-dialog-icon ${type}">${iconMap[type] || iconMap.warning}</div>
-        <div class="confirm-dialog-message">${message}</div>
-      </div>
-    `,
-    footer: `
-      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
-      <button class="btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}" id="modal-confirm">${confirmText}</button>
-    `,
-    onMount: () => {
-      const confirmBtn = document.getElementById('modal-confirm');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
-          confirmBtn.disabled = true;
-          await onConfirm();
-          const modalOverlay = document.querySelector('.modal-overlay');
-          if (modalOverlay) modalOverlay.remove();
-        });
-      }
-    }
-  });
-}
+// Using shared modal utilities from '../../core/modal.js' with full accessibility support
+// (focus trap, focus return, ARIA attributes, Escape key handling)
 
 // ============= TOAST NOTIFICATIONS =============
 
