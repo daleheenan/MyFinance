@@ -23,13 +23,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Read version - prefer pre-built version.json (Docker), then try git, then package.json
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
 let APP_VERSION = packageJson.version;
+let APP_CHANGELOG = null;
 
-// First try to read version.json (created during Docker build)
+// First try to read version.json (created during Docker build or generate-version.js)
 const versionJsonPath = join(__dirname, '../version.json');
 if (existsSync(versionJsonPath)) {
   try {
     const versionData = JSON.parse(readFileSync(versionJsonPath, 'utf8'));
     APP_VERSION = versionData.version;
+    APP_CHANGELOG = versionData.changelog || null;
   } catch (err) {
     // Fall through to git method
   }
@@ -47,6 +49,14 @@ if (existsSync(versionJsonPath)) {
       stdio: ['pipe', 'pipe', 'ignore']
     }).trim();
     APP_VERSION = `${packageJson.version}.${gitCommitCount}+${gitCommit}`;
+
+    // Get commit message for changelog
+    const commitMessage = execSync('git log -1 --format=%s', {
+      cwd: join(__dirname, '..'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    }).trim();
+    APP_CHANGELOG = commitMessage;
   } catch (err) {
     // Git not available or not a git repo, use package.json version only
   }
@@ -406,8 +416,8 @@ if (isMain) {
       console.error('Session cleanup failed:', err.message);
     }
 
-    // Record current version in history
-    recordVersion(APP_VERSION);
+    // Record current version in history with changelog
+    recordVersion(APP_VERSION, APP_CHANGELOG);
   });
 
   // Graceful shutdown

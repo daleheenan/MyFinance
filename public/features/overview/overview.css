@@ -300,6 +300,33 @@
   color: var(--text-primary);
 }
 
+/* Year-over-Year Legend */
+.balance-trend-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-sm) 0;
+  margin-bottom: var(--space-sm);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legend-color {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
 /* ===== ACCOUNTS SECTION ===== */
 
 .accounts-section {

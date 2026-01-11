@@ -710,6 +710,120 @@ router.get('/:id/balance-trend', (req, res, next) => {
 });
 
 // ==========================================================================
+// GET /api/accounts/:id/balance-yoy - Get year-over-year balance comparison
+// Returns balance data for each calendar year, aligned by month for overlay chart
+// ==========================================================================
+router.get('/:id/balance-yoy', (req, res, next) => {
+  try {
+    const accountId = parseAccountId(req.params.id);
+    const userId = req.user.id;
+
+    if (accountId === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid account ID'
+      });
+    }
+
+    const db = getDb();
+
+    // Check if account exists and belongs to user
+    const account = db.prepare('SELECT id, opening_balance FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+
+    // Get all transactions for this account ordered by date
+    const transactions = db.prepare(`
+      SELECT transaction_date, balance_after
+      FROM transactions
+      WHERE account_id = ?
+      ORDER BY transaction_date ASC, id ASC
+    `).all(accountId);
+
+    if (transactions.length === 0) {
+      return res.json({
+        success: true,
+        data: { years: [] }
+      });
+    }
+
+    // Group transactions by year and month
+    const yearlyData = {};
+    let runningBalance = account.opening_balance;
+
+    // Find all unique years in the data
+    const years = [...new Set(transactions.map(t => t.transaction_date.substring(0, 4)))].sort();
+
+    // For each year, build monthly end-of-month balances
+    years.forEach(year => {
+      yearlyData[year] = {};
+      // Initialize all 12 months as null
+      for (let m = 0; m < 12; m++) {
+        yearlyData[year][m] = null;
+      }
+    });
+
+    // Process transactions to get running balance at end of each month
+    let currentBalance = account.opening_balance;
+    let lastDate = null;
+
+    transactions.forEach(t => {
+      const year = t.transaction_date.substring(0, 4);
+      const month = parseInt(t.transaction_date.substring(5, 7), 10) - 1; // 0-indexed
+
+      currentBalance = t.balance_after;
+      yearlyData[year][month] = currentBalance;
+      lastDate = t.transaction_date;
+    });
+
+    // Forward-fill nulls with previous balance
+    years.forEach(year => {
+      let lastKnown = null;
+      // Find starting balance for this year (last balance from previous year)
+      const yearIndex = years.indexOf(year);
+      if (yearIndex > 0) {
+        const prevYear = years[yearIndex - 1];
+        for (let m = 11; m >= 0; m--) {
+          if (yearlyData[prevYear][m] !== null) {
+            lastKnown = yearlyData[prevYear][m];
+            break;
+          }
+        }
+      }
+      if (lastKnown === null) lastKnown = account.opening_balance;
+
+      for (let m = 0; m < 12; m++) {
+        if (yearlyData[year][m] === null) {
+          yearlyData[year][m] = lastKnown;
+        } else {
+          lastKnown = yearlyData[year][m];
+        }
+      }
+    });
+
+    // Convert to array format for frontend
+    const result = years.map(year => ({
+      year: parseInt(year, 10),
+      balances: Array.from({ length: 12 }, (_, m) => yearlyData[year][m])
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        years: result,
+        months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================================================
 // POST /api/accounts/:id/test-data - Generate test transaction data
 // ==========================================================================
 router.post('/:id/test-data', (req, res, next) => {

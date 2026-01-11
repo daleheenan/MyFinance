@@ -134,19 +134,19 @@ function render() {
 async function loadData() {
   try {
     // Fetch all data in parallel
-    const [overviewStats, recentTransactions, categories, mainAccountTrend, anomalies] = await Promise.all([
+    const [overviewStats, recentTransactions, categories, balanceYoY, anomalies] = await Promise.all([
       api.get('/accounts/overview/stats'),
       api.get('/accounts/overview/recent-transactions?limit=15'),
       api.get('/categories?include_totals=true').catch(() => []),
-      api.get('/accounts/1/balance-trend?days=365').catch(() => []), // Main account 12-month trend
+      api.get('/accounts/1/balance-yoy').catch(() => ({ years: [], months: [] })), // Year-over-year balance
       api.get('/analytics/anomalies?dismissed=false&limit=5').catch(() => [])
     ]);
 
     // Render quick stats first
     renderQuickStats(overviewStats.totals, overviewStats.month);
 
-    // Render 12-month balance trend for Main Account
-    renderBalanceTrend(mainAccountTrend);
+    // Render year-over-year balance trend for Main Account
+    renderBalanceTrendYoY(balanceYoY);
 
     // Render anomaly alerts (before accounts)
     renderAnomalies(anomalies);
@@ -372,6 +372,173 @@ function renderBalanceTrend(data) {
         <circle cx="${points[points.length - 1].x}" cy="${points[points.length - 1].y}" r="8"
                 fill="${trendColor}" opacity="0.2"/>
       </svg>
+    </div>
+    <div class="balance-trend-footer">
+      <span class="trend-min">Low: ${formatCurrency(rawMin)}</span>
+      <span class="trend-current">Current: ${formatCurrency(lastBalance)}</span>
+      <span class="trend-max">High: ${formatCurrency(rawMax)}</span>
+    </div>
+  `;
+}
+
+/**
+ * Render year-over-year balance comparison chart
+ * Shows each calendar year as a different colored line, aligned by month
+ * @param {Object} data - { years: [{year, balances: [12 values]}], months: ['Jan',...] }
+ */
+function renderBalanceTrendYoY(data) {
+  const trendContainer = container.querySelector('#balance-trend-container');
+
+  if (!data || !data.years || data.years.length === 0) {
+    trendContainer.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
+      </div>
+      <div class="empty-state">
+        <p>No balance data available</p>
+      </div>
+    `;
+    return;
+  }
+
+  const { years, months } = data;
+
+  // Color palette for different years (most recent gets primary color)
+  const yearColors = [
+    'var(--primary)',      // Current year - teal
+    'var(--purple)',       // Last year - purple
+    'var(--orange)',       // 2 years ago - orange
+    'var(--blue)',         // 3 years ago - blue
+    'var(--pink)',         // 4 years ago - pink
+    'var(--green)',        // 5 years ago - green
+  ];
+
+  // Get all balances to calculate min/max across all years
+  const allBalances = years.flatMap(y => y.balances.filter(b => b !== null));
+  if (allBalances.length === 0) {
+    trendContainer.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
+      </div>
+      <div class="empty-state">
+        <p>No balance data available</p>
+      </div>
+    `;
+    return;
+  }
+
+  const rawMin = Math.min(...allBalances);
+  const rawMax = Math.max(...allBalances);
+  const { minBal, maxBal, yAxisLabels } = calculateYAxisScale(rawMin, rawMax);
+  const range = maxBal - minBal || 1;
+
+  // Chart dimensions
+  const svgWidth = 800;
+  const svgHeight = 220;
+  const padding = { top: 20, right: 30, bottom: 50, left: 70 };
+  const chartWidth = svgWidth - padding.left - padding.right;
+  const chartHeight = svgHeight - padding.top - padding.bottom;
+
+  // Generate Y-axis grid lines and labels
+  const yAxisElements = yAxisLabels.map(val => {
+    const y = padding.top + chartHeight - ((val - minBal) / range) * chartHeight;
+    return {
+      y,
+      label: formatCompactCurrency(val),
+      gridLine: `M ${padding.left} ${y} L ${svgWidth - padding.right} ${y}`
+    };
+  });
+
+  // Generate X-axis labels for all 12 months
+  const monthLabels = months.map((month, i) => {
+    const x = padding.left + (i / (months.length - 1 || 1)) * chartWidth;
+    return { x, label: month };
+  });
+
+  // Generate paths for each year
+  const yearPaths = years.map((yearData, yearIndex) => {
+    const color = yearColors[yearIndex % yearColors.length];
+    const points = [];
+
+    yearData.balances.forEach((balance, monthIndex) => {
+      if (balance !== null) {
+        const x = padding.left + (monthIndex / (months.length - 1 || 1)) * chartWidth;
+        const y = padding.top + chartHeight - ((balance - minBal) / range) * chartHeight;
+        points.push({ x, y, balance, month: months[monthIndex] });
+      }
+    });
+
+    if (points.length < 2) return null;
+
+    // Create smooth path
+    const smoothPath = createSmoothPath(points);
+
+    return {
+      year: yearData.year,
+      color,
+      path: smoothPath,
+      points,
+      lastBalance: yearData.balances.filter(b => b !== null).pop()
+    };
+  }).filter(Boolean);
+
+  // Sort years so current year renders last (on top)
+  yearPaths.reverse();
+
+  // Calculate stats for current year
+  const currentYearData = years[0];
+  const currentYearBalances = currentYearData.balances.filter(b => b !== null);
+  const firstBalance = currentYearBalances[0];
+  const lastBalance = currentYearBalances[currentYearBalances.length - 1];
+  const changeAmount = lastBalance - firstBalance;
+  const changePercent = firstBalance !== 0 ? ((changeAmount / Math.abs(firstBalance)) * 100).toFixed(1) : 0;
+  const changeSign = changeAmount >= 0 ? '+' : '';
+
+  trendContainer.innerHTML = `
+    <div class="card-header">
+      <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
+      <div class="trend-change ${changeAmount >= 0 ? 'trend-positive' : 'trend-negative'}">
+        ${changeSign}${formatCurrency(changeAmount)} (${changeSign}${changePercent}%) YTD
+      </div>
+    </div>
+    <div class="balance-trend-chart">
+      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" class="trend-svg">
+        <!-- Y-axis grid lines -->
+        ${yAxisElements.map(el => `
+          <line x1="${padding.left}" y1="${el.y}" x2="${svgWidth - padding.right}" y2="${el.y}"
+                stroke="var(--border-color, #e5e5e5)" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+        `).join('')}
+
+        <!-- Y-axis labels -->
+        ${yAxisElements.map(el => `
+          <text x="${padding.left - 10}" y="${el.y + 4}"
+                text-anchor="end" font-size="12" fill="var(--text-secondary)">${el.label}</text>
+        `).join('')}
+
+        <!-- X-axis labels (all 12 months) -->
+        ${monthLabels.map(ml => `
+          <text x="${ml.x}" y="${svgHeight - 25}"
+                text-anchor="middle" font-size="12" fill="var(--text-secondary)">${ml.label}</text>
+        `).join('')}
+
+        <!-- Year lines (oldest first so newest is on top) -->
+        ${yearPaths.map(yp => `
+          <path d="${yp.path}" fill="none" stroke="${yp.color}" stroke-width="${yp.year === currentYearData.year ? 3 : 2}"
+                stroke-linecap="round" stroke-linejoin="round" opacity="${yp.year === currentYearData.year ? 1 : 0.7}"/>
+          ${yp.points.map((p, i) => `
+            <circle cx="${p.x}" cy="${p.y}" r="${i === yp.points.length - 1 ? 5 : 3}"
+                    fill="${yp.color}" stroke="var(--bg-secondary)" stroke-width="1.5" opacity="${yp.year === currentYearData.year ? 1 : 0.8}"/>
+          `).join('')}
+        `).join('')}
+      </svg>
+    </div>
+    <div class="balance-trend-legend">
+      ${years.map((y, i) => `
+        <span class="legend-item">
+          <span class="legend-color" style="background-color: ${yearColors[i % yearColors.length]}"></span>
+          <span class="legend-label">${y.year}</span>
+        </span>
+      `).join('')}
     </div>
     <div class="balance-trend-footer">
       <span class="trend-min">Low: ${formatCurrency(rawMin)}</span>

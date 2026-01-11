@@ -16,6 +16,7 @@ const packageJson = JSON.parse(readFileSync(join(projectRoot, 'package.json'), '
 const baseVersion = packageJson.version;
 
 let version = baseVersion;
+let changelog = null;
 
 try {
   // Try to get git info
@@ -31,8 +32,38 @@ try {
     stdio: ['pipe', 'pipe', 'ignore']
   }).trim();
 
+  // Get the commit message for changelog
+  const commitMessage = execSync('git log -1 --format=%s', {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore']
+  }).trim();
+
+  // Get the commit body (extended description) if any
+  const commitBody = execSync('git log -1 --format=%b', {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore']
+  }).trim();
+
   version = `${baseVersion}.${gitCommitCount}+${gitCommit}`;
+
+  // Build changelog from commit info
+  changelog = commitMessage;
+  if (commitBody && !commitBody.includes('Generated with')) {
+    // Filter out auto-generated footer text
+    const cleanBody = commitBody
+      .split('\n')
+      .filter(line => !line.includes('Generated with') && !line.includes('Co-Authored-By'))
+      .join('\n')
+      .trim();
+    if (cleanBody) {
+      changelog += '\n' + cleanBody;
+    }
+  }
+
   console.log(`Generated version from git: ${version}`);
+  console.log(`Changelog: ${changelog.substring(0, 100)}${changelog.length > 100 ? '...' : ''}`);
 } catch (err) {
   // Git not available, use build timestamp
   const buildTime = new Date().toISOString().replace(/[-:T]/g, '').substring(0, 12);
@@ -41,7 +72,7 @@ try {
 }
 
 // Write version.json
-const versionData = { version };
+const versionData = { version, changelog };
 writeFileSync(
   join(projectRoot, 'version.json'),
   JSON.stringify(versionData, null, 2) + '\n',
