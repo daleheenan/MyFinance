@@ -15,7 +15,7 @@
         <span class="marketing-logo-icon">&#163;</span>
         FinanceFlow
       </a>
-      <button class="marketing-nav-toggle" aria-label="Toggle navigation" onclick="this.nextElementSibling.classList.toggle('open')">
+      <button class="marketing-nav-toggle" aria-label="Toggle navigation" data-action="nav-toggle">
         <span></span>
         <span></span>
         <span></span>
@@ -24,7 +24,7 @@
         <a href="/features">Features</a>
         <a href="/pricing">Pricing</a>
         <a href="/about">About</a>
-        <a href="#" class="btn btn-primary" onclick="openSignInModal(event)">Sign In</a>
+        <a href="#" class="btn btn-primary" data-action="sign-in">Sign In</a>
       </div>
     </nav>
   </header>
@@ -55,7 +55,7 @@
             <li>All analytics &amp; reports</li>
             <li>No credit card required</li>
           </ul>
-          <a href="#" class="btn btn-secondary btn-lg" style="width: 100%;" onclick="openSignInModal(event)">Start Free Trial</a>
+          <a href="#" class="btn btn-secondary btn-lg" style="width: 100%;" data-action="sign-in">Start Free Trial</a>
         </div>
         <div class="marketing-pricing-card featured">
           <h3>Pro</h3>
@@ -70,7 +70,7 @@
             <li>Custom categories</li>
             <li>Data export</li>
           </ul>
-          <a href="#" class="btn btn-primary btn-lg" style="width: 100%;" onclick="openSignInModal(event)">Get Started</a>
+          <a href="#" class="btn btn-primary btn-lg" style="width: 100%;" data-action="sign-in">Get Started</a>
         </div>
       </div>
     </div>
@@ -116,7 +116,7 @@
     <div class="marketing-container">
       <h2>Start Your Financial Journey Today</h2>
       <p>Try FinanceFlow free for 7 days. No credit card required.</p>
-      <a href="#" class="btn btn-primary btn-lg" onclick="openSignInModal(event)">Start Free Trial</a>
+      <a href="#" class="btn btn-primary btn-lg" data-action="sign-in">Start Free Trial</a>
     </div>
   </section>
 
@@ -133,9 +133,9 @@
   </footer>
 
   <!-- Sign In Modal -->
-  <div id="signInModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeSignInModal()" aria-label="Close modal">
+  <div id="signInModal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close modal">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -145,7 +145,7 @@
         <p>Sign in to your FinanceFlow account</p>
       </div>
       <div class="modal-body">
-        <form id="signInForm" onsubmit="handleSignIn(event)">
+        <form id="signInForm">
           <div class="form-group">
             <label for="email">Email or Username</label>
             <input type="text" id="email" name="email" placeholder="Enter your email or username" required>
@@ -172,97 +172,6 @@
     </div>
   </div>
 
-  <script>
-    // Modal functionality
-    function openSignInModal(event) {
-      if (event) event.preventDefault();
-      document.getElementById('signInModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
-      // Focus on email field
-      setTimeout(() => {
-        document.getElementById('email').focus();
-      }, 100);
-    }
-
-    function closeSignInModal() {
-      document.getElementById('signInModal').classList.remove('active');
-      document.body.style.overflow = '';
-      // Reset form
-      document.getElementById('signInForm').reset();
-      document.getElementById('formError').classList.remove('visible');
-    }
-
-    function closeModalOnOverlay(event) {
-      if (event.target === event.currentTarget) {
-        closeSignInModal();
-      }
-    }
-
-    // Close on Escape key
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') {
-        closeSignInModal();
-      }
-    });
-
-    // Handle sign in form submission
-    async function handleSignIn(event) {
-      event.preventDefault();
-
-      const form = event.target;
-      const email = form.email.value;
-      const password = form.password.value;
-      const errorEl = document.getElementById('formError');
-      const submitBtn = form.querySelector('button[type="submit"]');
-
-      // Hide previous error
-      errorEl.classList.remove('visible');
-
-      // Disable button during request
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Signing in...';
-
-      try {
-        // Get CSRF token if available
-        let csrfToken = '';
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        if (csrfMeta) {
-          csrfToken = csrfMeta.getAttribute('content');
-        }
-
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            email: email,
-            password: password
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          // Redirect to app on success
-          window.location.href = '/app#/overview';
-        } else {
-          // Show error message
-          errorEl.textContent = data.message || 'Invalid email or password. Please try again.';
-          errorEl.classList.add('visible');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Sign In';
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        errorEl.textContent = 'An error occurred. Please try again.';
-        errorEl.classList.add('visible');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
-      }
-    }
-  </script>
+  <script src="/marketing/js/modal.js"></script>
 </body>
 </html>
