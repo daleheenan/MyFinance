@@ -152,7 +152,14 @@
 }
 
 .scenarios-grid--four {
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-md);
+}
+
+.scenarios-grid--four .scenario-card {
+  flex: 1;
+  min-width: 0;
 }
 
 .scenario-card {
@@ -284,6 +291,88 @@
 .chart-line--balance {
   stroke: var(--blue);
   stroke-width: 3;
+}
+
+/* Scenario-specific chart lines */
+.chart-line--subscriptions {
+  stroke: var(--purple);
+  stroke-width: 2;
+}
+
+.chart-line--optimistic {
+  stroke: var(--green);
+  stroke-width: 2;
+}
+
+.chart-line--expected {
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.chart-line--conservative {
+  stroke: var(--orange);
+  stroke-width: 2;
+}
+
+/* Scenario chart areas */
+.chart-area--subscriptions {
+  fill: rgba(175, 82, 222, 0.08);
+}
+
+.chart-area--optimistic {
+  fill: rgba(52, 199, 89, 0.08);
+}
+
+.chart-area--expected {
+  fill: rgba(0, 122, 255, 0.08);
+}
+
+.chart-area--conservative {
+  fill: rgba(255, 149, 0, 0.08);
+}
+
+/* Chart legend */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  border-top: var(--border-light);
+  flex-wrap: wrap;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.chart-legend-color {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.chart-legend-color--subscriptions {
+  background-color: var(--purple);
+}
+
+.chart-legend-color--optimistic {
+  background-color: var(--green);
+}
+
+.chart-legend-color--expected {
+  background-color: var(--blue);
+}
+
+.chart-legend-color--conservative {
+  background-color: var(--orange);
+}
+
+.chart-legend-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
 }
 
 .chart-point {
@@ -479,7 +568,12 @@
 
 @media (max-width: 1200px) {
   .scenarios-grid--four {
-    grid-template-columns: repeat(2, 1fr);
+    flex-wrap: wrap;
+  }
+
+  .scenarios-grid--four .scenario-card {
+    flex: 1 1 calc(50% - var(--space-md));
+    min-width: 200px;
   }
 }
 
@@ -508,9 +602,6 @@
     grid-template-columns: 1fr;
   }
 
-  .scenarios-grid--four {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 @media (max-width: 768px) {
@@ -538,7 +629,11 @@
   }
 
   .scenarios-grid--four {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .scenarios-grid--four .scenario-card {
+    flex: 1 1 100%;
   }
 
   .seasonal-chart {

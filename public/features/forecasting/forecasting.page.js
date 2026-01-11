@@ -430,8 +430,49 @@ function renderCashFlowChart() {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Calculate bounds
-  const allBalances = data.map(d => d.projected_balance);
+  // Get scenario projections if available
+  const hasScenarios = scenarios && scenarios.subscriptions_only && scenarios.optimistic && scenarios.expected && scenarios.conservative;
+
+  // Build scenario projection data for each month
+  let scenarioLines = [];
+  if (hasScenarios) {
+    const currentBalance = scenarios.current_balance || 0;
+    const monthCount = data.length;
+
+    // Calculate monthly projections for each scenario
+    const scenarioConfigs = [
+      { key: 'subscriptions', data: scenarios.subscriptions_only, label: 'Subscriptions Only' },
+      { key: 'optimistic', data: scenarios.optimistic, label: 'Optimistic' },
+      { key: 'expected', data: scenarios.expected, label: 'Expected' },
+      { key: 'conservative', data: scenarios.conservative, label: 'Conservative' }
+    ];
+
+    scenarioLines = scenarioConfigs.map(config => {
+      const monthlyNet = config.data.projected_net || 0;
+      const projections = [];
+      let runningBalance = currentBalance;
+
+      for (let i = 0; i < monthCount; i++) {
+        runningBalance += monthlyNet;
+        projections.push(runningBalance);
+      }
+
+      return {
+        key: config.key,
+        label: config.label,
+        projections
+      };
+    });
+  }
+
+  // Calculate bounds including all scenario data
+  let allBalances = [...data.map(d => d.projected_balance)];
+  if (scenarioLines.length > 0) {
+    scenarioLines.forEach(line => {
+      allBalances = allBalances.concat(line.projections);
+    });
+  }
+
   const minBalance = Math.min(...allBalances, 0);
   const maxBalance = Math.max(...allBalances);
   const balanceRange = maxBalance - minBalance || 1;
@@ -440,17 +481,15 @@ function renderCashFlowChart() {
   const xScale = (index) => padding.left + (index / (data.length - 1 || 1)) * chartWidth;
   const yScale = (value) => padding.top + chartHeight - ((value - minBalance) / balanceRange) * chartHeight;
 
-  // Generate balance path
-  const balancePath = data.map((d, i) => {
-    const x = xScale(i);
-    const y = yScale(d.projected_balance);
-    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
-
-  // Generate area path
-  const areaPath = balancePath +
-    ` L ${xScale(data.length - 1)} ${yScale(0)}` +
-    ` L ${xScale(0)} ${yScale(0)} Z`;
+  // Generate scenario paths
+  const scenarioPaths = scenarioLines.map(line => {
+    const path = line.projections.map((balance, i) => {
+      const x = xScale(i);
+      const y = yScale(balance);
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+    return { ...line, path };
+  });
 
   // Y-axis labels
   const yLabels = [];
@@ -484,15 +523,9 @@ function renderCashFlowChart() {
               x2="${width - padding.right}" y2="${yScale(0)}" />
       ` : ''}
 
-      <!-- Area fill -->
-      <path class="chart-area" d="${areaPath}" />
-
-      <!-- Balance line -->
-      <path class="chart-line chart-line--balance" d="${balancePath}" />
-
-      <!-- Data points -->
-      ${data.map((d, i) => `
-        <circle class="chart-point" cx="${xScale(i)}" cy="${yScale(d.projected_balance)}" r="4" />
+      <!-- Scenario lines -->
+      ${scenarioPaths.map(scenario => `
+        <path class="chart-line chart-line--${scenario.key}" d="${scenario.path}" />
       `).join('')}
 
       <!-- Y-axis labels -->
@@ -509,6 +542,26 @@ function renderCashFlowChart() {
         `).join('')}
       </g>
     </svg>
+    ${hasScenarios ? `
+    <div class="chart-legend">
+      <div class="chart-legend-item">
+        <span class="chart-legend-color chart-legend-color--subscriptions"></span>
+        <span class="chart-legend-label">Subscriptions Only</span>
+      </div>
+      <div class="chart-legend-item">
+        <span class="chart-legend-color chart-legend-color--optimistic"></span>
+        <span class="chart-legend-label">Optimistic</span>
+      </div>
+      <div class="chart-legend-item">
+        <span class="chart-legend-color chart-legend-color--expected"></span>
+        <span class="chart-legend-label">Expected</span>
+      </div>
+      <div class="chart-legend-item">
+        <span class="chart-legend-color chart-legend-color--conservative"></span>
+        <span class="chart-legend-label">Conservative</span>
+      </div>
+    </div>
+    ` : ''}
   `;
 }
 
