@@ -181,7 +181,8 @@ export async function login(username, password, ipAddress, userAgent) {
     token: sessionToken,
     user: {
       id: user.id,
-      username: user.username
+      username: user.username,
+      isAdmin: user.is_admin === 1
     },
     requiresEmail: !user.email
   };
@@ -207,7 +208,7 @@ export function verifySession(sessionToken) {
   const db = getDb();
 
   const session = db.prepare(`
-    SELECT s.*, u.username, u.is_active
+    SELECT s.*, u.username, u.is_active, u.is_admin
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.session_token = ?
@@ -239,7 +240,8 @@ export function verifySession(sessionToken) {
     valid: true,
     user: {
       id: session.user_id,
-      username: session.username
+      username: session.username,
+      isAdmin: session.is_admin === 1
     }
   };
 }

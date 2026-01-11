@@ -16,7 +16,7 @@ async function displayVersion() {
       const data = await response.json();
       const logoElement = document.querySelector('.nav-logo');
       if (logoElement) {
-        logoElement.textContent = `Flow Finance ${data.version}`;
+        logoElement.textContent = `Flow Money Manager ${data.version}`;
       }
     }
   } catch (error) {
@@ -37,6 +37,7 @@ import * as loginPage from '../features/auth/login.page.js';
 import * as forgotPasswordPage from '../features/auth/forgot-password.page.js';
 import * as resetPasswordPage from '../features/auth/reset-password.page.js';
 import * as cmsPage from '../features/cms/cms.page.js';
+import * as adminPage from '../features/admin/admin.page.js';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password'];
@@ -130,6 +131,7 @@ function registerRoutes() {
 
   // Admin routes
   router.register('/cms', cmsPage);
+  router.register('/admin', adminPage);
 }
 
 /**
@@ -138,8 +140,27 @@ function registerRoutes() {
 function updateAuthUI() {
   const nav = document.querySelector('.nav-container');
   const logoutBtn = document.getElementById('logout-btn');
+  const adminLink = document.getElementById('admin-nav-link');
 
   if (auth.isAuthenticated()) {
+    const user = auth.getUser();
+
+    // Show admin link for admin users
+    if (user?.isAdmin && !adminLink) {
+      const adminLi = document.createElement('li');
+      adminLi.innerHTML = `<a href="#/admin" class="nav-link" id="admin-nav-link" data-route="/admin">Admin</a>`;
+      const navLinks = nav.querySelector('.nav-links');
+      // Insert before Settings
+      const settingsLink = navLinks.querySelector('[data-route="/settings"]')?.closest('li');
+      if (settingsLink) {
+        navLinks.insertBefore(adminLi, settingsLink);
+      } else {
+        navLinks.appendChild(adminLi);
+      }
+    } else if (!user?.isAdmin && adminLink) {
+      adminLink.closest('li').remove();
+    }
+
     // Show logout button
     if (!logoutBtn) {
       const logoutLi = document.createElement('li');
@@ -160,6 +181,11 @@ function updateAuthUI() {
     // Remove logout button if it exists
     if (logoutBtn) {
       logoutBtn.closest('li').remove();
+    }
+
+    // Remove admin link if it exists
+    if (adminLink) {
+      adminLink.closest('li').remove();
     }
 
     // Hide nav on login page
@@ -229,7 +255,7 @@ async function init() {
   const initialPath = window.location.hash.replace('#', '') || '/overview';
   updateActiveNavLinks(initialPath);
 
-  console.log('Flow Finance Manager initialized');
+  console.log('Flow Money Manager initialized');
 }
 
 // Initialize on DOM ready

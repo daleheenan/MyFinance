@@ -317,9 +317,14 @@ router.post('/:id/categorize', (req, res, next) => {
     const db = getDb();
     const { id } = req.params;
     const { categoryId } = req.body;
+    const userId = req.user.id;
 
-    // Check if transaction exists
-    const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    // Check if transaction exists AND belongs to user
+    const existing = db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      WHERE t.id = ? AND a.user_id = ?
+    `).get(id, userId);
     if (!existing) {
       throw new ApiError('Transaction not found', 404);
     }

@@ -2,6 +2,7 @@ import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, existsSync, readFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { initDb, getDb, setDb } from './core/database.js';
 import { errorHandler, notFoundHandler } from './core/errors.js';
 import { setupMiddleware } from './core/middleware.js';
@@ -13,13 +14,31 @@ import authRouter from './features/auth/auth.routes.js';
 import cmsRouter from './features/cms/cms.routes.js';
 import contactRouter from './features/contact/contact.routes.js';
 import billingRouter from './features/billing/billing.routes.js';
+import adminRouter from './features/admin/admin.routes.js';
 import { getPublishedPageBySlug } from './features/cms/cms.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Read version from package.json
+// Read version from package.json and append git info
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
-const APP_VERSION = packageJson.version;
+let APP_VERSION = packageJson.version;
+
+// Try to get git commit info for more specific versioning
+try {
+  const gitCommit = execSync('git rev-parse --short HEAD', {
+    cwd: join(__dirname, '..'),
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore']
+  }).trim();
+  const gitCommitCount = execSync('git rev-list --count HEAD', {
+    cwd: join(__dirname, '..'),
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore']
+  }).trim();
+  APP_VERSION = `${packageJson.version}.${gitCommitCount}+${gitCommit}`;
+} catch (err) {
+  // Git not available or not a git repo, use package.json version only
+}
 
 // Pre-load all feature routes synchronously at module load time
 const featureRouters = new Map();
@@ -249,7 +268,7 @@ export function createApp(db = null, options = {}) {
   app.get('/api/version', (req, res) => {
     res.json({
       version: APP_VERSION,
-      name: 'Flow Finance Manager'
+      name: 'Flow Money Manager'
     });
   });
 
@@ -268,6 +287,10 @@ export function createApp(db = null, options = {}) {
   // Billing routes (public config + webhook + protected routes with internal auth)
   app.use('/api/billing', billingRouter);
   console.log('Registered: /api/billing');
+
+  // Admin routes (handles its own auth internally - requires admin privileges)
+  app.use('/api/admin', adminRouter);
+  console.log('Registered: /api/admin');
 
   // Apply authentication and CSRF protection to all other API routes
   if (!skipAuth) {
@@ -307,7 +330,7 @@ if (isMain) {
   const app = createApp();
 
   const server = app.listen(PORT, HOST, async () => {
-    console.log(`Flow Finance Manager server listening on port ${PORT}`);
+    console.log(`Flow Money Manager server listening on port ${PORT}`);
     console.log(`Health check available at /api/health`);
 
     // In production, the public URL is configured via Railway/custom domain

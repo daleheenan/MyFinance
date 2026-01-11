@@ -69,6 +69,23 @@ function runMigrations(database) {
   addColumnIfNotExists(database, 'subscriptions', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'net_worth_snapshots', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfNotExists(database, 'anomalies', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+
+  // Migration 5: Add admin user management columns
+  addColumnIfNotExists(database, 'users', 'full_name', 'TEXT');
+  addColumnIfNotExists(database, 'users', 'is_admin', 'INTEGER DEFAULT 0');
+  addColumnIfNotExists(database, 'users', 'trial_start_date', 'TEXT');
+  addColumnIfNotExists(database, 'users', 'trial_end_date', 'TEXT');
+  addColumnIfNotExists(database, 'users', 'subscription_status', "TEXT DEFAULT 'trial'");
+  addColumnIfNotExists(database, 'users', 'last_password_reset', 'TEXT');
+
+  // Set first user as admin if not already set
+  try {
+    database.prepare(`
+      UPDATE users SET is_admin = 1 WHERE id = 1 AND is_admin = 0
+    `).run();
+  } catch (e) {
+    // Ignore - column may not exist yet
+  }
 }
 
 export function initDb(dbPath) {
@@ -131,13 +148,15 @@ export function initDb(dbPath) {
   // Now enable foreign keys for runtime operations
   db.pragma('foreign_keys = ON');
 
-  // Run seeds only in development (not in production)
-  // Production databases should be set up manually or via migration scripts
-  if (process.env.NODE_ENV !== 'production') {
+  // Run seeds only for fresh databases (no accounts exist yet)
+  // This prevents re-seeding sample data after user has set up their accounts
+  const hasAccounts = db.prepare('SELECT COUNT(*) as count FROM accounts').get();
+  if (hasAccounts.count === 0) {
     const seedsPath = join(__dirname, '../db/seeds.sql');
     if (existsSync(seedsPath)) {
       const seeds = readFileSync(seedsPath, 'utf-8');
       db.exec(seeds);
+      console.log('Seeded fresh database with default categories and sample accounts');
     }
   }
 
