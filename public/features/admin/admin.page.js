@@ -149,13 +149,8 @@ async function loadUsers() {
   tbody.innerHTML = '<tr><td colspan="8" class="loading-cell">Loading users...</td></tr>';
 
   try {
-    const response = await api.get('/admin/users');
-    if (response.success) {
-      users = response.data;
-      renderUsersTable();
-    } else {
-      tbody.innerHTML = `<tr><td colspan="8" class="error-cell">${response.error || 'Failed to load users'}</td></tr>`;
-    }
+    users = await api.get('/admin/users');
+    renderUsersTable();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="8" class="error-cell">Error: ${err.message}</td></tr>`;
   }
