@@ -291,6 +291,67 @@ function formatMonthDisplay(month) {
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
+/**
+ * Generate a circular progress indicator SVG
+ * @param {number} percent - Percentage used (0-100+)
+ * @param {string} statusClass - CSS class for status (status-good, status-warning, status-over)
+ * @param {string} color - Category color for the circle
+ * @returns {string} SVG markup
+ */
+function generateProgressCircle(percent, statusClass, color) {
+  const size = 56;
+  const strokeWidth = 5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const cappedPercent = Math.min(percent, 100);
+  const offset = circumference - (cappedPercent / 100) * circumference;
+
+  // Determine color based on status
+  let strokeColor;
+  if (statusClass === 'status-over') {
+    strokeColor = 'var(--red)';
+  } else if (statusClass === 'status-warning') {
+    strokeColor = 'var(--orange)';
+  } else {
+    strokeColor = color || 'var(--green)';
+  }
+
+  return `
+    <svg class="progress-circle" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle
+        class="progress-circle__track"
+        cx="${size / 2}"
+        cy="${size / 2}"
+        r="${radius}"
+        fill="none"
+        stroke="var(--bg-tertiary)"
+        stroke-width="${strokeWidth}"
+      />
+      <circle
+        class="progress-circle__fill"
+        cx="${size / 2}"
+        cy="${size / 2}"
+        r="${radius}"
+        fill="none"
+        stroke="${strokeColor}"
+        stroke-width="${strokeWidth}"
+        stroke-linecap="round"
+        stroke-dasharray="${circumference}"
+        stroke-dashoffset="${offset}"
+        transform="rotate(-90 ${size / 2} ${size / 2})"
+      />
+      <text
+        x="${size / 2}"
+        y="${size / 2}"
+        text-anchor="middle"
+        dominant-baseline="central"
+        class="progress-circle__text ${statusClass}"
+        fill="currentColor"
+      >${percent}%</text>
+    </svg>
+  `;
+}
+
 function renderSummary() {
   const summaryContainer = container.querySelector('#summary-container');
 
@@ -394,44 +455,53 @@ function renderBudgets() {
 
     const progressWidth = Math.min(budget.percent_used, 100);
 
+    // Generate circular progress SVG
+    const circleProgress = generateProgressCircle(budget.percent_used, statusClass, budget.category_colour);
+
     item.innerHTML = `
-      <div class="budget-item__header">
-        <div class="budget-item__category">
-          <span class="category-badge" style="background-color: ${budget.category_colour}20; color: ${budget.category_colour}">
-            ${budget.category_icon || ''} ${escapeHtml(budget.category_name)}
-          </span>
+      <div class="budget-item__main">
+        <div class="budget-item__circle">
+          ${circleProgress}
         </div>
-        <div class="budget-item__actions">
-          <button type="button" class="btn btn-icon btn-ghost edit-budget-btn" data-id="${budget.id}" title="Edit">
-            <span class="icon-edit"></span>
-          </button>
-          <button type="button" class="btn btn-icon btn-ghost delete-budget-btn" data-id="${budget.id}" title="Delete">
-            <span class="icon-delete"></span>
-          </button>
-        </div>
-      </div>
-      <div class="budget-item__progress">
-        <div class="progress-bar">
-          <div class="progress-track">
-            <div class="progress-fill ${statusClass}" style="width: ${progressWidth}%"></div>
+        <div class="budget-item__info">
+          <div class="budget-item__header">
+            <div class="budget-item__category">
+              <span class="category-badge" style="background-color: ${budget.category_colour}20; color: ${budget.category_colour}">
+                ${budget.category_icon || ''} ${escapeHtml(budget.category_name)}
+              </span>
+            </div>
+            <div class="budget-item__actions">
+              <button type="button" class="btn btn-icon btn-ghost edit-budget-btn" data-id="${budget.id}" title="Edit">
+                <span class="icon-edit"></span>
+              </button>
+              <button type="button" class="btn btn-icon btn-ghost delete-budget-btn" data-id="${budget.id}" title="Delete">
+                <span class="icon-delete"></span>
+              </button>
+            </div>
           </div>
-        </div>
-        <span class="progress-percent ${statusClass}">${budget.percent_used}%</span>
-      </div>
-      <div class="budget-item__amounts">
-        <div class="amount-item">
-          <span class="amount-label">Spent</span>
-          <span class="amount-value">${formatCurrency(budget.spent_amount)}</span>
-        </div>
-        <div class="amount-item">
-          <span class="amount-label">Budgeted</span>
-          <span class="amount-value">${formatCurrency(budget.budgeted_amount)}</span>
-        </div>
-        <div class="amount-item">
-          <span class="amount-label">Remaining</span>
-          <span class="amount-value ${budget.remaining_amount >= 0 ? 'amount-positive' : 'amount-negative'}">
-            ${formatCurrency(budget.remaining_amount)}
-          </span>
+          <div class="budget-item__progress">
+            <div class="progress-bar">
+              <div class="progress-track">
+                <div class="progress-fill ${statusClass}" style="width: ${progressWidth}%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="budget-item__amounts">
+            <div class="amount-item">
+              <span class="amount-label">Spent</span>
+              <span class="amount-value">${formatCurrency(budget.spent_amount)}</span>
+            </div>
+            <div class="amount-item">
+              <span class="amount-label">Budget</span>
+              <span class="amount-value">${formatCurrency(budget.budgeted_amount)}</span>
+            </div>
+            <div class="amount-item">
+              <span class="amount-label">Left</span>
+              <span class="amount-value ${budget.remaining_amount >= 0 ? 'amount-positive' : 'amount-negative'}">
+                ${formatCurrency(budget.remaining_amount)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     `;

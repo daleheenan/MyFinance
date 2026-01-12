@@ -107,6 +107,51 @@ router.get('/', (req, res, next) => {
 });
 
 /**
+ * GET /api/transactions/search
+ * Global search across all transactions
+ * Query params: q (search term), limit (default 5)
+ */
+router.get('/search', (req, res, next) => {
+  try {
+    const db = getDb();
+    const userId = req.user.id;
+    const { q, limit = 5 } = req.query;
+
+    if (!q || q.length < 2) {
+      return res.json([]);
+    }
+
+    const limitNum = Math.min(parseInt(limit, 10) || 5, 20);
+    const searchTerm = `%${q}%`;
+
+    const stmt = db.prepare(`
+      SELECT
+        t.id,
+        t.account_id,
+        t.transaction_date,
+        t.description,
+        t.original_description,
+        t.debit_amount,
+        t.credit_amount,
+        c.name AS category_name,
+        c.colour AS category_colour
+      FROM transactions t
+      JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE a.user_id = ?
+        AND (t.description LIKE ? OR t.original_description LIKE ?)
+      ORDER BY t.transaction_date DESC
+      LIMIT ?
+    `);
+
+    const results = stmt.all(userId, searchTerm, searchTerm, limitNum);
+    res.json(results);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/transactions/uncategorized
  * Returns uncategorized transactions with category suggestions.
  * Query params: limit (default 50)

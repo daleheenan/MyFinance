@@ -104,6 +104,13 @@ function setupKeyboardShortcuts() {
   };
 
   document.addEventListener('keydown', (e) => {
+    // Ctrl+K or Cmd+K to open search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      openGlobalSearch();
+      return;
+    }
+
     // Only trigger if Ctrl/Cmd is held and not in an input
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
       const target = e.target;
@@ -115,6 +122,241 @@ function setupKeyboardShortcuts() {
       }
     }
   });
+}
+
+/**
+ * Setup global search functionality
+ */
+function setupGlobalSearch() {
+  const searchBtn = document.getElementById('global-search-btn');
+  const searchModal = document.getElementById('global-search-modal');
+  const searchInput = document.getElementById('global-search-input');
+  const searchResults = document.getElementById('search-results');
+  const backdrop = searchModal?.querySelector('.search-modal__backdrop');
+
+  if (!searchBtn || !searchModal) return;
+
+  // Open search modal
+  searchBtn.addEventListener('click', openGlobalSearch);
+
+  // Close on backdrop click
+  backdrop?.addEventListener('click', closeGlobalSearch);
+
+  // Close on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !searchModal.classList.contains('hidden')) {
+      closeGlobalSearch();
+    }
+  });
+
+  // Search input handler with debounce
+  let searchTimeout;
+  searchInput?.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+
+    if (query.length < 2) {
+      renderSearchPlaceholder();
+      return;
+    }
+
+    searchTimeout = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+  });
+
+  // Keyboard navigation in results
+  searchInput?.addEventListener('keydown', (e) => {
+    const items = searchResults.querySelectorAll('.search-result-item');
+    const active = searchResults.querySelector('.search-result-item.active');
+    let activeIndex = Array.from(items).indexOf(active);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (activeIndex < items.length - 1) {
+        active?.classList.remove('active');
+        items[activeIndex + 1]?.classList.add('active');
+        items[activeIndex + 1]?.scrollIntoView({ block: 'nearest' });
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (activeIndex > 0) {
+        active?.classList.remove('active');
+        items[activeIndex - 1]?.classList.add('active');
+        items[activeIndex - 1]?.scrollIntoView({ block: 'nearest' });
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const activeItem = searchResults.querySelector('.search-result-item.active');
+      if (activeItem) {
+        activeItem.click();
+      }
+    }
+  });
+}
+
+function openGlobalSearch() {
+  const searchModal = document.getElementById('global-search-modal');
+  const searchInput = document.getElementById('global-search-input');
+
+  if (searchModal) {
+    searchModal.classList.remove('hidden');
+    searchInput?.focus();
+    searchInput.value = '';
+    renderSearchPlaceholder();
+  }
+}
+
+function closeGlobalSearch() {
+  const searchModal = document.getElementById('global-search-modal');
+  if (searchModal) {
+    searchModal.classList.add('hidden');
+  }
+}
+
+function renderSearchPlaceholder() {
+  const searchResults = document.getElementById('search-results');
+  if (searchResults) {
+    searchResults.innerHTML = `
+      <div class="search-placeholder">
+        <p>Start typing to search...</p>
+        <div class="search-shortcuts">
+          <div class="search-shortcut"><kbd>↑</kbd><kbd>↓</kbd> to navigate</div>
+          <div class="search-shortcut"><kbd>Enter</kbd> to select</div>
+          <div class="search-shortcut"><kbd>Esc</kbd> to close</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function performSearch(query) {
+  const searchResults = document.getElementById('search-results');
+  if (!searchResults) return;
+
+  // Show loading state
+  searchResults.innerHTML = `
+    <div class="search-placeholder">
+      <p>Searching...</p>
+    </div>
+  `;
+
+  try {
+    const { api } = await import('./api.js');
+    const { escapeHtml, formatCurrency, formatDate } = await import('./utils.js');
+
+    // Search transactions
+    const transactions = await api.get(`/transactions/search?q=${encodeURIComponent(query)}&limit=5`).catch(() => []);
+
+    // Search categories
+    const categories = await api.get('/categories').catch(() => []);
+    const matchingCategories = categories.filter(c =>
+      c.name.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 3);
+
+    // Build results HTML
+    let html = '';
+
+    // Transactions section
+    if (transactions.length > 0) {
+      html += `
+        <div class="search-result-group">
+          <div class="search-result-group__title">Transactions</div>
+          ${transactions.map((txn, i) => `
+            <div class="search-result-item ${i === 0 ? 'active' : ''}" data-type="transaction" data-id="${txn.id}" data-account="${txn.account_id}">
+              <div class="search-result-item__icon">💳</div>
+              <div class="search-result-item__content">
+                <div class="search-result-item__title">${escapeHtml(txn.description || txn.original_description)}</div>
+                <div class="search-result-item__subtitle">${formatDate(txn.transaction_date)} • ${escapeHtml(txn.category_name || 'Uncategorised')}</div>
+              </div>
+              <div class="search-result-item__amount ${txn.credit_amount > 0 ? 'amount-positive' : 'amount-negative'}">
+                ${txn.credit_amount > 0 ? '+' : '-'}${formatCurrency(txn.credit_amount > 0 ? txn.credit_amount : txn.debit_amount)}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Categories section
+    if (matchingCategories.length > 0) {
+      html += `
+        <div class="search-result-group">
+          <div class="search-result-group__title">Categories</div>
+          ${matchingCategories.map(cat => `
+            <div class="search-result-item" data-type="category" data-id="${cat.id}">
+              <div class="search-result-item__icon" style="background-color: ${cat.colour}20; color: ${cat.colour}">${cat.icon || '📁'}</div>
+              <div class="search-result-item__content">
+                <div class="search-result-item__title">${escapeHtml(cat.name)}</div>
+                <div class="search-result-item__subtitle">${cat.type === 'expense' ? 'Expense' : 'Income'} category</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Quick actions
+    html += `
+      <div class="search-result-group">
+        <div class="search-result-group__title">Quick Actions</div>
+        <div class="search-result-item" data-type="action" data-action="transactions-search" data-query="${escapeHtml(query)}">
+          <div class="search-result-item__icon">🔍</div>
+          <div class="search-result-item__content">
+            <div class="search-result-item__title">Search all transactions for "${escapeHtml(query)}"</div>
+            <div class="search-result-item__subtitle">View full search results</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (transactions.length === 0 && matchingCategories.length === 0) {
+      html = `
+        <div class="search-no-results">
+          <div class="search-no-results__icon">🔍</div>
+          <p>No results found for "${escapeHtml(query)}"</p>
+        </div>
+        ${html}
+      `;
+    }
+
+    searchResults.innerHTML = html;
+
+    // Add click handlers
+    searchResults.querySelectorAll('.search-result-item').forEach(item => {
+      item.addEventListener('click', () => handleSearchResultClick(item));
+    });
+  } catch (err) {
+    searchResults.innerHTML = `
+      <div class="search-no-results">
+        <div class="search-no-results__icon">⚠️</div>
+        <p>Search failed. Please try again.</p>
+      </div>
+    `;
+  }
+}
+
+function handleSearchResultClick(item) {
+  const type = item.dataset.type;
+  const id = item.dataset.id;
+
+  closeGlobalSearch();
+
+  switch (type) {
+    case 'transaction':
+      const accountId = item.dataset.account;
+      window.location.hash = `#/transactions?account=${accountId}`;
+      break;
+    case 'category':
+      window.location.hash = `#/transactions?category=${id}`;
+      break;
+    case 'action':
+      if (item.dataset.action === 'transactions-search') {
+        const query = item.dataset.query;
+        window.location.hash = `#/transactions?search=${encodeURIComponent(query)}`;
+      }
+      break;
+  }
 }
 
 /**
@@ -232,6 +474,7 @@ async function init() {
   // Setup mobile navigation
   setupHamburgerMenu();
   setupKeyboardShortcuts();
+  setupGlobalSearch();
 
   // Check auth status
   auth.init();

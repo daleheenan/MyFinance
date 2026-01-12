@@ -222,6 +222,49 @@
   background: var(--bg-tertiary);
 }
 
+/* New layout with circular progress */
+.budget-item__main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.budget-item__circle {
+  flex-shrink: 0;
+}
+
+.budget-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Circular progress indicator */
+.progress-circle {
+  display: block;
+}
+
+.progress-circle__fill {
+  transition: stroke-dashoffset 0.5s ease-out;
+}
+
+.progress-circle__text {
+  font-size: 11px;
+  font-weight: var(--font-bold);
+  font-family: var(--font-sans);
+}
+
+.progress-circle__text.status-good {
+  fill: var(--green);
+}
+
+.progress-circle__text.status-warning {
+  fill: var(--orange);
+}
+
+.progress-circle__text.status-over {
+  fill: var(--red);
+}
+
 .budget-item__header {
   display: flex;
   justify-content: space-between;

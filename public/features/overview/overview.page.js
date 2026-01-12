@@ -176,7 +176,7 @@ async function loadData() {
 }
 
 /**
- * Render unified summary card (combines Total Balance, Income, Expenses, Net)
+ * Render unified summary card (combines Total Balance, Income, Expenses, Net, Safe to Spend)
  * @param {Object} totals - Totals data
  * @param {string} month - Current month string
  */
@@ -192,14 +192,36 @@ function renderQuickStats(totals, month) {
   const netClass = totals.net >= 0 ? 'amount-positive' : 'amount-negative';
   const netSign = totals.net >= 0 ? '+' : '';
 
+  // Calculate "Safe to Spend" - balance minus committed expenses (bills, subscriptions)
+  // For now, estimate as 70% of balance minus remaining month expenses projection
+  const daysInMonth = new Date(year, parseInt(monthNum), 0).getDate();
+  const today = new Date().getDate();
+  const daysRemaining = Math.max(0, daysInMonth - today);
+  const avgDailyExpense = totals.expenses / Math.max(today, 1);
+  const projectedRemaining = avgDailyExpense * daysRemaining;
+  const safeToSpend = Math.max(0, totals.balance - projectedRemaining);
+  const safeToSpendClass = safeToSpend > 100 ? 'amount-positive' : safeToSpend > 0 ? 'amount-warning' : 'amount-negative';
+
+  // Trend arrow for net change
+  const netTrendArrow = totals.net >= 0
+    ? '<span class="trend-arrow trend-arrow--up">↑</span>'
+    : '<span class="trend-arrow trend-arrow--down">↓</span>';
+
   quickStatsContainer.innerHTML = `
     <div class="summary-card__header">
-      <h3 class="summary-card__title">Financial Summary</h3>
+      <h3 class="summary-card__title">Your Financial Summary</h3>
       <span class="summary-card__month">${monthName} ${year}</span>
     </div>
     <div class="summary-card__balance">
       <span class="summary-card__balance-label">Total Balance</span>
       <span class="summary-card__balance-value ${totalClass}">${formatCurrency(totals.balance)}</span>
+    </div>
+    <div class="summary-card__safe-to-spend">
+      <div class="safe-to-spend">
+        <span class="safe-to-spend__label">Safe to Spend</span>
+        <span class="safe-to-spend__value ${safeToSpendClass}">${formatCurrency(safeToSpend)}</span>
+        <span class="safe-to-spend__hint">${daysRemaining} days left this month</span>
+      </div>
     </div>
     <div class="summary-card__metrics">
       <div class="summary-metric summary-metric--income">
@@ -209,7 +231,7 @@ function renderQuickStats(totals, month) {
           </svg>
         </div>
         <div class="summary-metric__content">
-          <span class="summary-metric__label">Income</span>
+          <span class="summary-metric__label">Your Income</span>
           <span class="summary-metric__value amount-positive">+${formatCurrency(totals.income)}</span>
         </div>
       </div>
@@ -220,19 +242,17 @@ function renderQuickStats(totals, month) {
           </svg>
         </div>
         <div class="summary-metric__content">
-          <span class="summary-metric__label">Expenses</span>
+          <span class="summary-metric__label">Your Spending</span>
           <span class="summary-metric__value amount-negative">-${formatCurrency(totals.expenses)}</span>
         </div>
       </div>
       <div class="summary-metric summary-metric--net">
         <div class="summary-metric__icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2v20M2 12h20"/>
-          </svg>
+          ${netTrendArrow}
         </div>
         <div class="summary-metric__content">
           <span class="summary-metric__label">Net Change</span>
-          <span class="summary-metric__value ${netClass}">${netSign}${formatCurrency(totals.net)}</span>
+          <span class="summary-metric__value ${netClass}">${netSign}${formatCurrency(Math.abs(totals.net))}</span>
         </div>
       </div>
     </div>
