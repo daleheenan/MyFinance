@@ -566,7 +566,7 @@
 
 /* ===== RESPONSIVE ===== */
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .scenarios-grid--four {
     flex-wrap: wrap;
   }

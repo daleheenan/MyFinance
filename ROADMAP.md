@@ -1,7 +1,7 @@
 # Flow Money Manager - Development Roadmap
 
 **Version:** 1.2.0
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-01-12
 **Status:** Active Development
 
 ---
@@ -263,6 +263,7 @@ Sample data no longer reappears:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2.1 | 2026-01-12 | Renamed Analytics to Insights, YoY chart dynamic account selector, modal styling, submenu highlighting fix, warmer microcopy |
 | 1.2.0 | 2026-01-11 | Admin user management, data isolation fixes, dynamic versioning |
 | 1.1.0 | 2026-01-11 | Version display, bug fixes, app rebranding |
 | 1.0.0 | 2026-01-10 | Initial release with core features |
@@ -282,6 +283,7 @@ Sample data no longer reappears:
 | UX-NAV-05 | Preserve scroll position when navigating back to previous pages | LOW | TODO |
 | UX-NAV-06 | Standardize URL parameter naming (account_id, category_id) | LOW | TODO |
 | UX-NAV-07 | Create Analytics landing page instead of redirect to Summary | LOW | TODO |
+| UX-NAV-08 | Fix submenu active state highlighting (exact match only) | HIGH | DONE |
 
 ### Mobile Experience
 
@@ -455,10 +457,10 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| LANG-01 | Consider renaming "Analytics" to "Insights" | LOW | TODO |
+| LANG-01 | Rename "Analytics" to "Insights" | LOW | DONE |
 | LANG-02 | Add "Safe to Spend" / "Ready to Spend" metric | MEDIUM | TODO |
 | LANG-03 | Rename "Subscriptions" to "Committed Spending" option | LOW | TODO |
-| LANG-04 | Add warmer microcopy: "Your spending", "We found" | MEDIUM | TODO |
+| LANG-04 | Add warmer microcopy to empty states | MEDIUM | DONE |
 | LANG-05 | Add encouraging messages on achievements | LOW | TODO |
 | LANG-06 | Optional emoji in notifications (user toggle) | LOW | TODO |
 
@@ -472,8 +474,10 @@ Sample data no longer reappears:
 | VIS-04 | Add trend arrows (up/down) indicators | MEDIUM | TODO |
 | VIS-05 | Develop custom illustration style | LOW | TODO |
 | VIS-06 | Add subtle micro-animations for delight | LOW | TODO |
-| VIS-07 | Global search functionality | MEDIUM | TODO |
+| VIS-07 | Global search functionality | MEDIUM | DONE |
 | VIS-08 | Setup progress tracker for onboarding | MEDIUM | TODO |
+| VIS-09 | Dynamic account selector for YoY Balance chart | LOW | DONE |
+| VIS-10 | Modal styling with border and reduced backdrop opacity | LOW | DONE |
 
 ---
 

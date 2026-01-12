@@ -114,12 +114,8 @@ function updateActiveNavLinks(path) {
   // Desktop nav
   document.querySelectorAll('.nav-link[data-route]').forEach(link => {
     const route = link.getAttribute('data-route');
-    // Exact match or sub-page match for analytics/manage
-    const isActive = route === path ||
-      (path.startsWith('/analytics/') && route.startsWith('/analytics/')) ||
-      (path.startsWith('/manage/') && route.startsWith('/manage/')) ||
-      (path === '/transactions' && route === '/transactions') ||
-      (path === '/budgets' && route === '/budgets');
+    // Exact match only - each nav link should only be active when on its exact route
+    const isActive = route === path;
     link.classList.toggle('active', isActive);
   });
 
