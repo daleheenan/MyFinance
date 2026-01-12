@@ -409,7 +409,7 @@ function renderBreakdown() {
   // Render assets
   const assets = breakdown.assets || [];
   if (assets.length === 0) {
-    assetsContainer.innerHTML = '<div class="empty-state"><p>You're debt-free! No asset accounts added yet.</p></div>';
+    assetsContainer.innerHTML = '<div class="empty-state"><p>You are debt-free! No asset accounts added yet.</p></div>';
   } else {
     // Helper to get display name for account type
     const getTypeDisplay = (type) => {
