@@ -544,10 +544,10 @@ function renderBalanceTrendYoY(data) {
   const { minBal, maxBal, yAxisLabels } = calculateYAxisScale(rawMin, rawMax);
   const range = maxBal - minBal || 1;
 
-  // Chart dimensions - reduced bottom padding since legend moved to footer
+  // Chart dimensions - increased height to fill card space
   const svgWidth = 800;
-  const svgHeight = 200;
-  const padding = { top: 15, right: 30, bottom: 30, left: 70 };
+  const svgHeight = 280;
+  const padding = { top: 20, right: 30, bottom: 35, left: 70 };
   const chartWidth = svgWidth - padding.left - padding.right;
   const chartHeight = svgHeight - padding.top - padding.bottom;
 
