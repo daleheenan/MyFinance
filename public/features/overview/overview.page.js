@@ -700,7 +700,7 @@ function renderAccounts(accounts) {
   if (!accounts || accounts.length === 0) {
     accountsContainer.innerHTML = `
       <div class="empty-state">
-        <p>No accounts found</p>
+        <p>Add your bank accounts to see balances at a glance</p>
       </div>
     `;
     return;
@@ -922,7 +922,7 @@ function renderCategories(categories) {
   if (expenseCategories.length === 0) {
     categoriesContainer.innerHTML += `
       <div class="empty-state">
-        <p>No spending data yet</p>
+        <p>Your spending breakdown will appear here once you add transactions</p>
       </div>
     `;
     return;

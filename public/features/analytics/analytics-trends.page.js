@@ -49,7 +49,7 @@ function render() {
   container.innerHTML = `
     <div class="page analytics-page">
       <div class="page-header">
-        <h1 class="page-title">Analytics</h1>
+        <h1 class="page-title">Insights</h1>
       </div>
 
       <!-- Sub-navigation with Date Range Filters -->
@@ -181,7 +181,7 @@ function renderTrends(data) {
   `;
 
   if (!trends || trends.length === 0) {
-    trendsContainer.innerHTML += `<div class="empty-state"><p>No spending data for this period</p></div>`;
+    trendsContainer.innerHTML += `<div class="empty-state"><p>Add some transactions to see your spending trends here</p></div>`;
     return;
   }
 
@@ -219,7 +219,7 @@ function renderYearOverYear() {
   if (!yoyData || !yoyData.years || yoyData.years.length === 0) {
     yoyContainer.innerHTML = `
       <div class="card-header"><h3 class="card-title">Year-over-Year Comparison</h3></div>
-      <div class="empty-state"><p>Not enough data for comparison</p></div>
+      <div class="empty-state"><p>Track your spending for a full year to unlock year-over-year insights</p></div>
     `;
     return;
   }
@@ -253,7 +253,7 @@ function renderYearOverYear() {
 
   const selectedData = yoyData.years.filter(y => selectedYears.includes(y.year));
   if (selectedData.length === 0) {
-    yoyContainer.innerHTML += `<div class="empty-state"><p>Select years to compare</p></div>`;
+    yoyContainer.innerHTML += `<div class="empty-state"><p>Click on the years above to see how your spending compares</p></div>`;
     return;
   }
 

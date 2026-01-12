@@ -73,7 +73,7 @@ function render() {
   container.innerHTML = `
     <div class="page analytics-summary-page">
       <div class="page-header">
-        <h1 class="page-title">Analytics</h1>
+        <h1 class="page-title">Insights</h1>
       </div>
 
       <!-- Sub-navigation with Date Range Filters -->
@@ -225,7 +225,7 @@ async function loadBalanceYoYData() {
     if (!mainAccountId) {
       balanceContainer.innerHTML = `
         <div class="card-header"><h3 class="card-title">Year-on-Year Balance Comparison</h3></div>
-        <div class="empty-state"><p>No accounts found</p></div>
+        <div class="empty-state"><p>Add an account to start tracking your balance over time</p></div>
       `;
       return;
     }
@@ -286,7 +286,7 @@ function renderCategorySpending(data) {
   `;
 
   if (categories.length === 0) {
-    categoryContainer.innerHTML += `<div class="empty-state"><p>No spending data for this period</p></div>`;
+    categoryContainer.innerHTML += `<div class="empty-state"><p>Add some transactions to see your spending breakdown</p></div>`;
     return;
   }
 
@@ -408,7 +408,7 @@ function renderBalanceYoY() {
         <h3 class="card-title">Year-on-Year Balance Comparison</h3>
         <span class="card-subtitle">Main Account: ${escapeHtml(balanceYoyData?.account_name || 'Unknown')}</span>
       </div>
-      <div class="empty-state"><p>No balance history available yet</p></div>
+      <div class="empty-state"><p>Keep tracking your finances to see your balance trends over time</p></div>
     `;
     return;
   }
@@ -449,7 +449,7 @@ function renderBalanceYoY() {
 
   const selectedData = balanceYoyData.years.filter(y => selectedBalanceYears.includes(y.year));
   if (selectedData.length === 0) {
-    balanceContainer.innerHTML += `<div class="empty-state"><p>Select years to compare</p></div>`;
+    balanceContainer.innerHTML += `<div class="empty-state"><p>Click on the years above to compare your balance journey</p></div>`;
     return;
   }
 

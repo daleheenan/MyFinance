@@ -43,7 +43,7 @@ function render() {
   container.innerHTML = `
     <div class="page analytics-page">
       <div class="page-header">
-        <h1 class="page-title">Analytics</h1>
+        <h1 class="page-title">Insights</h1>
       </div>
 
       <!-- Sub-navigation with Filters -->
@@ -133,7 +133,7 @@ function renderMerchants(merchants) {
   `;
 
   if (!merchants || merchants.length === 0) {
-    merchantsContainer.innerHTML += `<div class="empty-state"><p>No merchant data found</p></div>`;
+    merchantsContainer.innerHTML += `<div class="empty-state"><p>Add transactions with merchant info to see your top spending spots</p></div>`;
     return;
   }
 
@@ -220,7 +220,7 @@ async function showMerchantHistory(merchantName) {
 
 function renderMerchantHistoryChart(history) {
   if (!history || history.length === 0) {
-    return '<p class="empty-state">No history available</p>';
+    return '<p class="empty-state">Purchase history will appear after a few transactions</p>';
   }
 
   const maxSpend = Math.max(...history.map(h => h.total || h.totalSpend || 0), 1);

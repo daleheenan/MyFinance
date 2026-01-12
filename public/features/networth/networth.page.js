@@ -210,7 +210,7 @@ function renderSummary() {
         </button>
       </div>
       <div class="empty-state">
-        <p>No net worth data available</p>
+        <p>Take your first snapshot to start tracking your net worth journey</p>
       </div>
     `;
 
@@ -269,8 +269,7 @@ function renderChart() {
   if (!history || history.length === 0) {
     chartContainer.innerHTML = `
       <div class="empty-state">
-        <p>No historical data available</p>
-        <p class="text-secondary">Take a snapshot to start tracking</p>
+        <p>Your net worth chart will grow here as you take snapshots over time</p>
       </div>
     `;
     return;
@@ -396,8 +395,8 @@ function renderBreakdown() {
   const liabilitiesTotal = container.querySelector('#liabilities-total');
 
   if (!breakdown) {
-    assetsContainer.innerHTML = '<div class="empty-state"><p>No data</p></div>';
-    liabilitiesContainer.innerHTML = '<div class="empty-state"><p>No data</p></div>';
+    assetsContainer.innerHTML = '<div class="empty-state"><p>Add accounts to see your assets</p></div>';
+    liabilitiesContainer.innerHTML = '<div class="empty-state"><p>Add accounts to see your liabilities</p></div>';
     return;
   }
 
@@ -410,7 +409,7 @@ function renderBreakdown() {
   // Render assets
   const assets = breakdown.assets || [];
   if (assets.length === 0) {
-    assetsContainer.innerHTML = '<div class="empty-state"><p>No assets</p></div>';
+    assetsContainer.innerHTML = '<div class="empty-state"><p>You're debt-free! No asset accounts added yet.</p></div>';
   } else {
     // Helper to get display name for account type
     const getTypeDisplay = (type) => {
@@ -438,7 +437,7 @@ function renderBreakdown() {
   // Render liabilities
   const liabilities = breakdown.liabilities || [];
   if (liabilities.length === 0) {
-    liabilitiesContainer.innerHTML = '<div class="empty-state"><p>No liabilities</p></div>';
+    liabilitiesContainer.innerHTML = '<div class="empty-state"><p>Great news - no liabilities on record!</p></div>';
   } else {
     // Helper to get display name for account type
     const getTypeDisplay = (type) => {

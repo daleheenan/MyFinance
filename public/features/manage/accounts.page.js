@@ -132,8 +132,8 @@ function renderAccounts() {
     accountsContainer.innerHTML = `
       <div class="empty-state">
         <div class="empty-state__icon">🏦</div>
-        <p>No accounts found</p>
-        <p class="text-secondary">Add your first account to get started</p>
+        <h3 class="empty-state__title">Welcome to Flow!</h3>
+        <p class="empty-state__description">Add your first bank account to start tracking your finances</p>
       </div>
     `;
     return;

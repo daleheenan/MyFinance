@@ -42,7 +42,7 @@ function render() {
   container.innerHTML = `
     <div class="page analytics-page">
       <div class="page-header">
-        <h1 class="page-title">Analytics</h1>
+        <h1 class="page-title">Insights</h1>
       </div>
 
       <!-- Sub-navigation with Date Range Filters -->
@@ -158,7 +158,7 @@ function renderCategoryAverages(data) {
   `;
 
   if (!category_averages || category_averages.length === 0) {
-    catContainer.innerHTML += `<div class="empty-state"><p>No expense data found</p></div>`;
+    catContainer.innerHTML += `<div class="empty-state"><p>Start tracking your expenses to see category averages</p></div>`;
     return;
   }
 
@@ -200,7 +200,7 @@ function renderMonthlyBreakdown(data) {
   `;
 
   if (!monthly_breakdown || monthly_breakdown.length === 0) {
-    breakdownContainer.innerHTML += `<div class="empty-state"><p>No data available</p></div>`;
+    breakdownContainer.innerHTML += `<div class="empty-state"><p>Your monthly spending details will appear here</p></div>`;
     return;
   }
 
@@ -247,7 +247,7 @@ function renderMonthlyBreakdown(data) {
 
 function renderMonthCategories(categories, totalExpenses) {
   if (!categories || categories.length === 0) {
-    return '<div class="empty-state"><p>No expenses this month</p></div>';
+    return '<div class="empty-state"><p>No expenses recorded for this month</p></div>';
   }
 
   let html = '<div class="month-categories">';
