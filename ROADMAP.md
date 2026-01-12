@@ -10,15 +10,23 @@
 
 Flow Money Manager is a personal finance management application with budgeting, transactions, analytics, and multi-user support. This roadmap tracks all development phases from inception to production.
 
+### Subscription Model
+
+**Annual Subscription with 1 Free Month:**
+- New users get 1 month free access
+- After free month, auto-converts to annual paid subscription
+- Simple status flow: `free_month` → `active` → `cancelled`/`expired`
+- No complex trial management or countdown banners
+
 ### Backlog Summary
 
 | Category | Total Items | High Priority | Status |
 |----------|-------------|---------------|--------|
-| Core Phases (1-12) | 26 remaining | 6 | 75% Complete |
+| Core Phases (1-12) | 18 remaining | 4 | 80% Complete |
 | UX Improvements | 55 items | 12 | In Planning |
 | Feature Backlog | 53 items | 12 | In Planning |
 | Language/Visual | 14 items | 2 | In Planning |
-| **Total Backlog** | **148 items** | **32** | |
+| **Total Backlog** | **140 items** | **30** | |
 
 ---
 
@@ -28,19 +36,19 @@ Flow Money Manager is a personal finance management application with budgeting, 
 |-------|-------------|----------|--------|
 | 0 | Data Isolation Fixes | 14/14 | COMPLETE |
 | 1 | Database Schema | 4/5 | 80% |
-| 2 | Registration API | 4/8 | 50% |
-| 3 | Email Templates | 3/7 | 40% |
-| 4 | Registration Frontend | 5/7 | 70% |
-| 5 | Trial System | 0/6 | NOT STARTED |
-| 6 | Stripe Integration | 6/9 | 60% |
+| 2 | Registration API | 4/6 | 65% |
+| 3 | Email Templates | 3/5 | 60% |
+| 4 | Registration Frontend | 5/6 | 85% |
+| 5 | ~~Trial System~~ | N/A | REMOVED (replaced by annual subscription) |
+| 6 | Stripe Integration | 6/8 | 75% |
 | 7 | Admin Management | 19/19 | COMPLETE |
 | 8 | App Rebranding | 8/8 | COMPLETE |
 | 9 | Marketing & CMS | 14/14 | COMPLETE |
-| 10 | Testing & Security | 4/10 | 40% |
+| 10 | Testing & Security | 4/8 | 50% |
 | 11 | Dynamic Versioning | 4/4 | COMPLETE |
 | 12 | Seeding Fixes | 2/2 | COMPLETE |
 
-**Overall Progress:** ~75% Complete
+**Overall Progress:** ~80% Complete
 
 ---
 
@@ -133,21 +141,20 @@ Sample data no longer reappears:
 | Email verification columns | TODO | email_verified, verification_token, verification_expires |
 
 ### Phase 2: Registration API
-**Status:** 50% Complete
+**Status:** 65% Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
-| `POST /api/auth/register` | TODO | Create new user with trial |
+| `POST /api/auth/register` | TODO | Create user with 1-month free access |
 | Password validation | DONE | 8+ chars, upper, lower, number |
 | `POST /api/auth/verify-email` | TODO | Verify token from email |
-| `POST /api/auth/resend-verification` | TODO | Resend verification email |
 | `POST /api/auth/forgot-password` | DONE | Request reset email |
 | `POST /api/auth/reset-password` | DONE | Reset with token |
-| `GET /api/auth/subscription-status` | TODO | Check trial/subscription |
+| `GET /api/auth/subscription-status` | DONE | Check free_month/active/expired |
 | Rate limiting | DONE | 5 attempts / 15 min |
 
 ### Phase 3: Email Service Integration
-**Status:** 40% Complete
+**Status:** 60% Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
@@ -155,62 +162,49 @@ Sample data no longer reappears:
 | Email template system | DONE | HTML templates |
 | Email verification template | TODO | |
 | Password reset template | DONE | |
-| Welcome email template | TODO | |
-| Trial expiring (3 days) | TODO | |
-| Trial expiring (1 day) | TODO | |
-| Trial expired | TODO | |
+| Welcome email template | TODO | With subscription details |
 
 ### Phase 4: Registration Frontend
-**Status:** 70% Complete
+**Status:** 85% Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
 | Registration page | DONE | /register |
-| Password strength indicator | TODO | Visual meter |
 | Form validation | DONE | Client-side |
 | Email verification page | TODO | Token validation |
 | Forgot password page | DONE | /forgot-password |
 | Reset password page | DONE | /reset-password |
 | "Create Account" link | DONE | On login page |
 
-### Phase 5: Trial System (7 Days)
-**Status:** NOT STARTED
+### Phase 5: ~~Trial System~~ (REMOVED)
+**Status:** REMOVED
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Subscription check middleware | TODO | Block expired trials |
-| 7-day trial countdown | TODO | Calculate remaining |
-| Trial banner component | TODO | Show days remaining |
-| Expired account modal | TODO | Block access |
-| Trial status in session | TODO | Include in verify |
-| Scheduled expiration emails | TODO | Cron job |
+*Replaced by simpler annual subscription model with 1 free month. No complex trial countdown, banners, or expiration warnings needed.*
 
 ### Phase 6: Stripe Payment Integration
-**Status:** 60% Complete
+**Status:** 75% Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
 | Stripe SDK installed | DONE | v17.0.0 |
-| Create customer on registration | TODO | Link Stripe to user |
-| Checkout session endpoint | DONE | |
+| Create customer on registration | TODO | Link Stripe to user, setup free month |
+| Checkout session endpoint | DONE | Annual subscription with 1 month free |
 | Webhook handler | DONE | |
 | checkout.session.completed | DONE | |
 | subscription.updated | DONE | |
 | subscription.deleted | DONE | |
-| Subscription management page | TODO | |
+| Subscription management page | TODO | View status, cancel, update payment |
 | Customer Portal integration | DONE | |
 
 ### Phase 10: Testing & Security
-**Status:** 40% Complete
+**Status:** 50% Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
 | Unit tests: registration | TODO | |
-| Unit tests: trial logic | TODO | |
+| Unit tests: subscription logic | TODO | Free month → active → expired |
 | Unit tests: admin endpoints | TODO | |
-| E2E tests: registration | TODO | |
-| E2E tests: marketing | TODO | |
-| E2E tests: CMS admin | TODO | |
+| E2E tests: registration flow | TODO | |
 | Email enumeration prevention | DONE | Always return success |
 | Rate limiting verification | DONE | Tested |
 | Token expiration verification | DONE | Tested |
@@ -220,16 +214,17 @@ Sample data no longer reappears:
 
 ## Remaining Work Estimate
 
-| Phase | Remaining Tasks | Est. Tokens |
+| Phase | Remaining Tasks | Est. Effort |
 |-------|-----------------|-------------|
-| Phase 1 | 1 task | 1,000 |
-| Phase 2 | 4 tasks | 4,000 |
-| Phase 3 | 4 tasks | 4,000 |
-| Phase 4 | 2 tasks | 2,000 |
-| Phase 5 | 6 tasks | 12,000 |
-| Phase 6 | 3 tasks | 4,000 |
-| Phase 10 | 6 tasks | 10,000 |
-| **Total** | **26 tasks** | **~37,000** |
+| Phase 1 | 1 task | Low |
+| Phase 2 | 2 tasks | Medium |
+| Phase 3 | 2 tasks | Low |
+| Phase 4 | 1 task | Low |
+| Phase 6 | 2 tasks | Medium |
+| Phase 10 | 4 tasks | Medium |
+| **Total** | **12 tasks** | |
+
+*Simplified from 26 tasks by removing trial system complexity*
 
 ---
 
@@ -238,7 +233,7 @@ Sample data no longer reappears:
 - **Backend:** Node.js 22, Express 5.0, SQLite
 - **Frontend:** Vanilla JavaScript ES6, CSS3, SVG Charts
 - **Authentication:** bcryptjs, session cookies, CSRF protection
-- **Payments:** Stripe
+- **Payments:** Stripe (annual subscription with 1-month free trial)
 - **Email:** Nodemailer (Gmail SMTP)
 - **Testing:** Vitest, Playwright
 - **Deployment:** Railway, Docker
@@ -249,7 +244,9 @@ Sample data no longer reappears:
 
 | Setting | Value |
 |---------|-------|
-| Trial Period | 7 days |
+| Subscription Model | Annual with 1 free month |
+| Free Period | 30 days (1 month) |
+| Annual Price | TBD |
 | Password Min Length | 8 characters |
 | Password Requirements | Uppercase, lowercase, number |
 | Session Duration | 24 hours |
