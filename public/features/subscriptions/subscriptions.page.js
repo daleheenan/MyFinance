@@ -170,7 +170,7 @@ function render() {
         <div class="modal-content">
           <div class="modal-header">
             <h2 id="modal-title">Add Subscription</h2>
-            <button type="button" class="modal-close" id="modal-close">&times;</button>
+            <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
             <form id="subscription-form">
@@ -234,7 +234,7 @@ function render() {
         <div class="modal-content modal-sm">
           <div class="modal-header">
             <h2>Cancel Subscription</h2>
-            <button type="button" class="modal-close" id="delete-modal-close">&times;</button>
+            <button type="button" class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
           </div>
           <div class="modal-body">
             <p>Are you sure you want to cancel this subscription?</p>
@@ -547,10 +547,10 @@ function renderSubscriptions() {
         </div>
       </div>
       <div class="subscription-item__actions">
-        <button type="button" class="btn btn-icon btn-ghost edit-btn" data-id="${sub.id}" title="Edit">
+        <button type="button" class="btn btn-icon btn-ghost edit-btn" data-id="${sub.id}" title="Edit subscription" aria-label="Edit subscription">
           <span class="icon-edit"></span>
         </button>
-        <button type="button" class="btn btn-icon btn-ghost delete-btn" data-id="${sub.id}" title="Cancel">
+        <button type="button" class="btn btn-icon btn-ghost delete-btn" data-id="${sub.id}" title="Cancel subscription" aria-label="Cancel subscription">
           <span class="icon-delete"></span>
         </button>
       </div>

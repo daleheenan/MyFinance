@@ -655,6 +655,77 @@ p {
   font-size: var(--text-lg);
 }
 
+/* ===== BREADCRUMBS ===== */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumb-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  padding: var(--space-xs) 0;
+}
+
+.breadcrumb-link:hover {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.breadcrumb-separator {
+  color: var(--text-tertiary);
+  margin: 0 var(--space-xs);
+  font-size: var(--text-xs);
+}
+
+.breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+/* Breadcrumb with back button variant */
+.breadcrumb--with-back {
+  gap: var(--space-sm);
+}
+
+.breadcrumb__back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  margin-right: var(--space-xs);
+}
+
+.breadcrumb__back-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.breadcrumb__back-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ===== CARDS ===== */
 
 .card {
@@ -1280,17 +1351,40 @@ a:focus-visible {
     padding-left: var(--space-lg);
   }
 
-  /* Increase touch targets */
+  /* Increase touch targets for accessibility (44x44px minimum) */
   .btn-sm {
     min-height: 44px;
     min-width: 44px;
     padding: var(--space-sm) var(--space-md);
   }
 
+  .btn-icon,
+  .btn-ghost {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .form-input,
   .form-select {
     min-height: 44px;
     font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Ensure all interactive elements meet touch target size */
+  a.nav-link,
+  .breadcrumb-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .category-badge {
+    min-height: 36px;
+  }
+
+  .modal-close {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

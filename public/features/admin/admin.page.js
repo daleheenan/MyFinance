@@ -53,7 +53,7 @@ export async function render() {
       <!-- User Detail Modal -->
       <div id="userDetailModal" class="modal-overlay" style="display: none;">
         <div class="modal-content modal-large">
-          <button class="modal-close" data-action="close-modal">&times;</button>
+          <button class="modal-close" data-action="close-modal" aria-label="Close">&times;</button>
           <div id="userDetailContent"></div>
         </div>
       </div>
@@ -61,7 +61,7 @@ export async function render() {
       <!-- Edit User Modal -->
       <div id="editUserModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-          <button class="modal-close" data-action="close-modal">&times;</button>
+          <button class="modal-close" data-action="close-modal" aria-label="Close">&times;</button>
           <h2>Edit User</h2>
           <form id="editUserForm">
             <input type="hidden" id="editUserId" name="user_id">
@@ -97,7 +97,7 @@ export async function render() {
       <!-- Add User Modal -->
       <div id="addUserModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-          <button class="modal-close" data-action="close-modal">&times;</button>
+          <button class="modal-close" data-action="close-modal" aria-label="Close">&times;</button>
           <h2>Add New User</h2>
           <form id="addUserForm">
             <div class="form-group">
@@ -131,7 +131,7 @@ export async function render() {
       <!-- Confirm Delete Modal -->
       <div id="confirmDeleteModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-          <button class="modal-close" data-action="close-modal">&times;</button>
+          <button class="modal-close" data-action="close-modal" aria-label="Close">&times;</button>
           <h2>Confirm Delete User</h2>
           <p id="deleteConfirmText"></p>
           <p class="warning-text">This action cannot be undone. All user data including accounts, transactions, and settings will be permanently deleted.</p>

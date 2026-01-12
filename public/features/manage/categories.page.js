@@ -6,6 +6,7 @@
 import { api } from '../../core/api.js';
 import { escapeHtml } from '../../core/utils.js';
 import { createModal, showConfirmDialog } from '../../core/modal.js';
+import { createManageBreadcrumb } from '../../core/breadcrumb.js';
 
 let container = null;
 let cleanupFunctions = [];
@@ -47,6 +48,7 @@ export function unmount() {
 function render() {
   container.innerHTML = `
     <div class="page manage-page">
+      ${createManageBreadcrumb('/manage/categories')}
       <header class="page-header">
         <div class="page-header__content">
           <h1 class="page-title">Categories</h1>

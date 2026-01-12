@@ -7,6 +7,7 @@ import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce } from '../../core/utils.js';
 import { router } from '../../core/app.js';
 import { showError } from '../../core/toast.js';
+import { createFilteredBreadcrumb } from '../../core/breadcrumb.js';
 /**
  * Get CSRF token from cookie for form submissions
  */
@@ -143,9 +144,41 @@ export function unmount() {
   selectedTransactionIds = new Set();
 }
 
+/**
+ * Generate breadcrumb based on current filter state
+ */
+function getBreadcrumbHtml() {
+  // Only show breadcrumb when filters are active
+  const hasFilters = filters.startDate || filters.endDate || filters.categoryId || filters.search;
+  if (!hasFilters) return '';
+
+  // Build filter context label
+  const filterParts = [];
+  if (filters.categoryId) {
+    const cat = categories.find(c => c.id == filters.categoryId);
+    if (cat) filterParts.push(cat.name);
+  }
+  if (filters.search) {
+    filterParts.push(`"${filters.search}"`);
+  }
+  if (filters.startDate || filters.endDate) {
+    if (filters.startDate && filters.endDate) {
+      filterParts.push(`${filters.startDate} to ${filters.endDate}`);
+    } else if (filters.startDate) {
+      filterParts.push(`From ${filters.startDate}`);
+    } else {
+      filterParts.push(`Until ${filters.endDate}`);
+    }
+  }
+
+  const label = filterParts.join(' · ') || 'Filtered';
+  return createFilteredBreadcrumb('/transactions', { label, type: 'filter' });
+}
+
 function render() {
   container.innerHTML = `
     <div class="page transactions-page">
+      ${getBreadcrumbHtml()}
       <div class="card account-selector-card">
         <div class="account-selector">
           <label for="account-select" class="form-label">Account</label>
@@ -155,8 +188,25 @@ function render() {
         </div>
       </div>
 
-      <div class="card filters-card">
+      <div class="card filters-card" id="filters-card">
+        <div class="filters-header" id="filters-toggle">
+          <div class="filters-header__title">
+            Filters
+            <span class="filters-header__badge hidden" id="mobile-filter-badge">0</span>
+          </div>
+          <div class="filters-header__toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
         <div class="filters-bar">
+          <div class="quick-filters">
+            <button type="button" class="quick-filter-chip" data-range="today">Today</button>
+            <button type="button" class="quick-filter-chip" data-range="week">This Week</button>
+            <button type="button" class="quick-filter-chip" data-range="month">This Month</button>
+            <button type="button" class="quick-filter-chip" data-range="year">This Year</button>
+          </div>
           <div class="filter-group">
             <label for="filter-start-date" class="form-label">From</label>
             <input type="date" id="filter-start-date" class="form-input" value="${filters.startDate}">
@@ -353,6 +403,64 @@ function attachEventListeners() {
   clearBtn.addEventListener('click', clearHandler);
   onCleanup(() => clearBtn.removeEventListener('click', clearHandler));
 
+  // Mobile filter toggle
+  const filtersToggle = container.querySelector('#filters-toggle');
+  const filtersCard = container.querySelector('#filters-card');
+  const filterToggleHandler = () => {
+    filtersCard.classList.toggle('filters-expanded');
+  };
+  filtersToggle.addEventListener('click', filterToggleHandler);
+  onCleanup(() => filtersToggle.removeEventListener('click', filterToggleHandler));
+
+  // Quick filter chips
+  const quickFiltersContainer = container.querySelector('.quick-filters');
+  const quickFilterHandler = (e) => {
+    const chip = e.target.closest('.quick-filter-chip');
+    if (!chip) return;
+
+    const range = chip.dataset.range;
+    const today = new Date();
+    let startDate, endDate;
+
+    // Calculate date range
+    switch (range) {
+      case 'today':
+        startDate = endDate = today.toISOString().split('T')[0];
+        break;
+      case 'week':
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay()); // Sunday
+        startDate = weekStart.toISOString().split('T')[0];
+        endDate = today.toISOString().split('T')[0];
+        break;
+      case 'month':
+        startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+        endDate = today.toISOString().split('T')[0];
+        break;
+      case 'year':
+        startDate = `${today.getFullYear()}-01-01`;
+        endDate = today.toISOString().split('T')[0];
+        break;
+    }
+
+    // Update filter inputs and state
+    filters.startDate = startDate;
+    filters.endDate = endDate;
+    container.querySelector('#filter-start-date').value = startDate;
+    container.querySelector('#filter-end-date').value = endDate;
+
+    // Update active state on chips
+    quickFiltersContainer.querySelectorAll('.quick-filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+
+    // Apply filters
+    pagination.page = 1;
+    updateUrl();
+    loadTransactions();
+  };
+  quickFiltersContainer.addEventListener('click', quickFilterHandler);
+  onCleanup(() => quickFiltersContainer.removeEventListener('click', quickFilterHandler));
+
   const txnContainer = container.querySelector('#transactions-container');
   const tableHandler = (e) => handleTableClick(e);
   txnContainer.addEventListener('click', tableHandler);
@@ -480,6 +588,31 @@ function populateImportAccountSelector() {
 }
 
 /**
+ * Update filter badge count (both desktop and mobile)
+ */
+function updateFilterBadge() {
+  let count = 0;
+  if (filters.startDate) count++;
+  if (filters.endDate) count++;
+  if (filters.categoryId) count++;
+  if (filters.search) count++;
+
+  // Update desktop badge
+  const desktopBadge = container.querySelector('#active-filter-badge');
+  if (desktopBadge) {
+    desktopBadge.textContent = count;
+    desktopBadge.classList.toggle('hidden', count === 0);
+  }
+
+  // Update mobile badge
+  const mobileBadge = container.querySelector('#mobile-filter-badge');
+  if (mobileBadge) {
+    mobileBadge.textContent = count;
+    mobileBadge.classList.toggle('hidden', count === 0);
+  }
+}
+
+/**
  * Load transactions with current filters
  */
 async function loadTransactions() {
@@ -520,6 +653,7 @@ async function loadTransactions() {
 
     renderTransactionsTable();
     renderPagination();
+    updateFilterBadge();
 
     // Restore scroll position
     window.scrollTo(0, scrollPosition);
@@ -647,6 +781,65 @@ function renderTransactionsTable() {
   });
 
   fragment.appendChild(table);
+
+  // Also render mobile card view
+  const cardsContainer = document.createElement('div');
+  cardsContainer.className = 'transaction-cards';
+  cardsContainer.innerHTML = transactions.map(txn => {
+    const isSelected = selectedTransactionIds.has(txn.id);
+    const isExpanded = expandedRowId === txn.id;
+    const amount = txn.credit_amount > 0 ? txn.credit_amount : txn.debit_amount;
+    const isCredit = txn.credit_amount > 0;
+
+    return `
+      <div class="transaction-card ${isExpanded ? 'expanded' : ''} ${isSelected ? 'selected' : ''}" data-id="${txn.id}">
+        <div class="transaction-card__header">
+          ${isSelectMode ? `<input type="checkbox" class="transaction-card__checkbox txn-checkbox" data-id="${txn.id}" ${isSelected ? 'checked' : ''}>` : ''}
+          <span class="transaction-card__description">${escapeHtml(txn.description || txn.original_description)}</span>
+          <span class="transaction-card__amount ${isCredit ? 'transaction-card__amount--positive' : 'transaction-card__amount--negative'}">
+            ${isCredit ? '+' : '-'}${formatCurrency(amount)}
+          </span>
+        </div>
+        <div class="transaction-card__meta">
+          <span class="transaction-card__date">${formatDate(txn.transaction_date)}</span>
+          <span class="transaction-card__category category-badge editable-category" data-id="${txn.id}" style="background-color: ${txn.category_colour}20; color: ${txn.category_colour}">
+            ${txn.category_icon || getDefaultIcon(txn.category_name)} ${escapeHtml(txn.category_name || 'Uncategorised')}
+          </span>
+        </div>
+        <div class="transaction-card__details">
+          <div class="transaction-card__detail-grid">
+            <div class="transaction-card__detail-item">
+              <span class="transaction-card__detail-label">Original</span>
+              <span class="transaction-card__detail-value">${escapeHtml(txn.original_description || txn.description)}</span>
+            </div>
+            <div class="transaction-card__detail-item">
+              <span class="transaction-card__detail-label">Balance</span>
+              <span class="transaction-card__detail-value">${formatCurrency(txn.balance_after)}</span>
+            </div>
+            <div class="transaction-card__detail-item">
+              <span class="transaction-card__detail-label">Transfer</span>
+              <span class="transaction-card__detail-value">${txn.is_transfer ? 'Yes' : 'No'}</span>
+            </div>
+            <div class="transaction-card__detail-item">
+              <span class="transaction-card__detail-label">Recurring</span>
+              <span class="transaction-card__detail-value">${txn.is_recurring ? 'Yes' : 'No'}</span>
+            </div>
+          </div>
+          <div class="transaction-card__actions">
+            <button type="button" class="btn btn-secondary btn-sm recategorise-btn" data-id="${txn.id}">
+              Recategorise
+            </button>
+            <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="${txn.id}">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  fragment.appendChild(cardsContainer);
+
   txnContainer.innerHTML = '';
   txnContainer.appendChild(fragment);
 }
@@ -717,7 +910,7 @@ function handlePaginationKeypress(e) {
 }
 
 /**
- * Handle table click events (event delegation)
+ * Handle table/card click events (event delegation)
  */
 function handleTableClick(e) {
   const target = e.target;
@@ -728,7 +921,7 @@ function handleTableClick(e) {
     return;
   }
 
-  // Row click to expand/collapse (but not when clicking checkbox or in select mode)
+  // Desktop table row click to expand/collapse
   const row = target.closest('.transaction-row');
   if (row && !target.closest('.editable-description') && !target.closest('.editable-category') && !target.closest('.txn-checkbox') && !target.closest('.col-select')) {
     // In select mode, clicking the row toggles selection
@@ -747,6 +940,30 @@ function handleTableClick(e) {
     }
     // Normal mode: expand/collapse
     const id = parseInt(row.dataset.id, 10);
+    expandedRowId = expandedRowId === id ? null : id;
+    renderTransactionsTable();
+    return;
+  }
+
+  // Mobile card click to expand/collapse
+  const card = target.closest('.transaction-card');
+  if (card && !target.closest('.editable-category') && !target.closest('.txn-checkbox') && !target.closest('.transaction-card__checkbox') && !target.closest('.recategorise-btn') && !target.closest('.delete-btn')) {
+    // In select mode, clicking the card toggles selection
+    if (isSelectMode) {
+      const id = parseInt(card.dataset.id, 10);
+      if (selectedTransactionIds.has(id)) {
+        selectedTransactionIds.delete(id);
+      } else {
+        selectedTransactionIds.add(id);
+      }
+      updateBulkSelectionCount();
+      card.classList.toggle('selected', selectedTransactionIds.has(id));
+      const checkbox = card.querySelector('.txn-checkbox');
+      if (checkbox) checkbox.checked = selectedTransactionIds.has(id);
+      return;
+    }
+    // Normal mode: expand/collapse
+    const id = parseInt(card.dataset.id, 10);
     expandedRowId = expandedRowId === id ? null : id;
     renderTransactionsTable();
     return;

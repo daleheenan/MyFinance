@@ -81,13 +81,13 @@ function render() {
       <!-- Month Navigator -->
       <div class="card month-navigator-card">
         <div class="month-navigator">
-          <button type="button" class="btn btn-secondary btn-icon" id="prev-month-btn" title="Previous month">
+          <button type="button" class="btn btn-secondary btn-icon" id="prev-month-btn" title="Previous month" aria-label="Previous month">
             <span class="icon-chevron-left"></span>
           </button>
           <div class="month-display">
             <span class="month-label">${monthDisplay}</span>
           </div>
-          <button type="button" class="btn btn-secondary btn-icon" id="next-month-btn" title="Next month">
+          <button type="button" class="btn btn-secondary btn-icon" id="next-month-btn" title="Next month" aria-label="Next month">
             <span class="icon-chevron-right"></span>
           </button>
           <button type="button" class="btn btn-secondary btn-sm" id="today-btn">Today</button>
@@ -292,6 +292,60 @@ function formatMonthDisplay(month) {
 }
 
 /**
+ * Calculate days remaining in the current month
+ * @returns {Object} { daysRemaining, totalDays, daysPassed }
+ */
+function getDaysInfo() {
+  const [year, monthNum] = currentMonth.split('-').map(Number);
+  const today = new Date();
+  const firstOfMonth = new Date(year, monthNum - 1, 1);
+  const lastOfMonth = new Date(year, monthNum, 0);
+  const totalDays = lastOfMonth.getDate();
+
+  // If viewing current month, calculate from today
+  if (today.getFullYear() === year && today.getMonth() + 1 === monthNum) {
+    const daysPassed = today.getDate();
+    const daysRemaining = totalDays - daysPassed;
+    return { daysRemaining, totalDays, daysPassed };
+  }
+
+  // If viewing past month, all days passed
+  if (today > lastOfMonth) {
+    return { daysRemaining: 0, totalDays, daysPassed: totalDays };
+  }
+
+  // If viewing future month, no days passed
+  return { daysRemaining: totalDays, totalDays, daysPassed: 0 };
+}
+
+/**
+ * Get status label for a budget
+ * @param {number} percentUsed - Percentage of budget used
+ * @param {number} daysRemaining - Days remaining in month
+ * @param {number} totalDays - Total days in month
+ * @returns {Object} { label, class, icon }
+ */
+function getBudgetStatus(percentUsed, daysRemaining, totalDays) {
+  const daysPassed = totalDays - daysRemaining;
+  const expectedPercent = totalDays > 0 ? Math.round((daysPassed / totalDays) * 100) : 0;
+
+  if (percentUsed > 100) {
+    return { label: 'Over Budget', class: 'status-over', icon: '⚠️' };
+  }
+  if (percentUsed >= 90) {
+    return { label: 'Approaching Limit', class: 'status-warning', icon: '⚡' };
+  }
+  if (percentUsed >= 80) {
+    return { label: 'Near Limit', class: 'status-warning', icon: '📍' };
+  }
+  // Check if spending is ahead of schedule
+  if (percentUsed > expectedPercent + 15) {
+    return { label: 'Spending Fast', class: 'status-warning', icon: '📈' };
+  }
+  return { label: 'On Track', class: 'status-good', icon: '✓' };
+}
+
+/**
  * Generate a circular progress indicator SVG
  * @param {number} percent - Percentage used (0-100+)
  * @param {string} statusClass - CSS class for status (status-good, status-warning, status-over)
@@ -368,6 +422,15 @@ function renderSummary() {
     : summary.overallPercent >= 80 ? 'status-warning'
     : 'status-good';
 
+  const daysInfo = getDaysInfo();
+  const dailyBudget = summary.totalBudgeted > 0 && daysInfo.totalDays > 0
+    ? summary.totalBudgeted / daysInfo.totalDays
+    : 0;
+  const projectedSpend = daysInfo.daysPassed > 0
+    ? (summary.totalSpent / daysInfo.daysPassed) * daysInfo.totalDays
+    : 0;
+  const projectedClass = projectedSpend > summary.totalBudgeted ? 'amount-negative' : 'amount-positive';
+
   summaryContainer.innerHTML = `
     <div class="budget-summary">
       <div class="summary-main">
@@ -393,6 +456,14 @@ function renderSummary() {
           </div>
           <span class="progress-label">${summary.overallPercent}% used</span>
         </div>
+        ${daysInfo.daysRemaining > 0 ? `
+          <div class="progress-meta">
+            <span class="days-remaining">${daysInfo.daysRemaining} day${daysInfo.daysRemaining !== 1 ? 's' : ''} left</span>
+            ${daysInfo.daysPassed > 0 ? `
+              <span class="projected-spend">Projected: <span class="${projectedClass}">${formatCurrency(projectedSpend)}</span></span>
+            ` : ''}
+          </div>
+        ` : ''}
       </div>
       <div class="summary-status">
         <div class="status-item status-good">
@@ -444,6 +515,8 @@ function renderBudgets() {
   const list = document.createElement('div');
   list.className = 'budgets-list';
 
+  const daysInfo = getDaysInfo();
+
   budgets.forEach(budget => {
     const item = document.createElement('div');
     item.className = 'budget-item';
@@ -458,6 +531,15 @@ function renderBudgets() {
     // Generate circular progress SVG
     const circleProgress = generateProgressCircle(budget.percent_used, statusClass, budget.category_colour);
 
+    // Get enhanced status label
+    const status = getBudgetStatus(budget.percent_used, daysInfo.daysRemaining, daysInfo.totalDays);
+
+    // Calculate projected spend for this budget
+    const projectedSpend = daysInfo.daysPassed > 0
+      ? (budget.spent_amount / daysInfo.daysPassed) * daysInfo.totalDays
+      : 0;
+    const showProjection = daysInfo.daysPassed > 0 && daysInfo.daysRemaining > 0;
+
     item.innerHTML = `
       <div class="budget-item__main">
         <div class="budget-item__circle">
@@ -469,12 +551,13 @@ function renderBudgets() {
               <span class="category-badge" style="background-color: ${budget.category_colour}20; color: ${budget.category_colour}">
                 ${budget.category_icon || ''} ${escapeHtml(budget.category_name)}
               </span>
+              <span class="budget-status-label ${status.class}">${status.icon} ${status.label}</span>
             </div>
             <div class="budget-item__actions">
-              <button type="button" class="btn btn-icon btn-ghost edit-budget-btn" data-id="${budget.id}" title="Edit">
+              <button type="button" class="btn btn-icon btn-ghost edit-budget-btn" data-id="${budget.id}" title="Edit budget" aria-label="Edit budget">
                 <span class="icon-edit"></span>
               </button>
-              <button type="button" class="btn btn-icon btn-ghost delete-budget-btn" data-id="${budget.id}" title="Delete">
+              <button type="button" class="btn btn-icon btn-ghost delete-budget-btn" data-id="${budget.id}" title="Delete budget" aria-label="Delete budget">
                 <span class="icon-delete"></span>
               </button>
             </div>
@@ -501,6 +584,14 @@ function renderBudgets() {
                 ${formatCurrency(budget.remaining_amount)}
               </span>
             </div>
+            ${showProjection ? `
+              <div class="amount-item amount-item--projected">
+                <span class="amount-label">Projected</span>
+                <span class="amount-value ${projectedSpend > budget.budgeted_amount ? 'amount-negative' : 'amount-positive'}">
+                  ${formatCurrency(projectedSpend)}
+                </span>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>

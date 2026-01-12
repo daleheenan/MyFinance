@@ -260,6 +260,7 @@ Sample data no longer reappears:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2.2 | 2026-01-12 | UX improvements: breadcrumbs, mobile card view, collapsible filters, quick filter chips, filter badges, budget status labels with days remaining, projected spending, import status indicators, 44px touch targets, aria-labels, YoY balance chart with multi-year support and shaded comparison areas |
 | 1.2.1 | 2026-01-12 | Renamed Analytics to Insights, YoY chart dynamic account selector, modal styling, submenu highlighting fix, warmer microcopy |
 | 1.2.0 | 2026-01-11 | Admin user management, data isolation fixes, dynamic versioning |
 | 1.1.0 | 2026-01-11 | Version display, bug fixes, app rebranding |
@@ -273,7 +274,7 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| UX-NAV-01 | Add breadcrumb navigation on filtered/detail pages | HIGH | TODO |
+| UX-NAV-01 | Add breadcrumb navigation on filtered/detail pages | HIGH | DONE |
 | UX-NAV-02 | Create dedicated "More" / Discover page for secondary features | MEDIUM | TODO |
 | UX-NAV-03 | Implement favorites/customizable mobile bottom nav | LOW | TODO |
 | UX-NAV-04 | Add explicit back button in page headers for secondary views | MEDIUM | TODO |
@@ -286,10 +287,10 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| UX-MOB-01 | Implement card view for transactions on mobile (<768px) | HIGH | TODO |
-| UX-MOB-02 | Add collapsible filter panel on mobile (slide-out drawer) | HIGH | TODO |
+| UX-MOB-01 | Implement card view for transactions on mobile (<768px) | HIGH | DONE |
+| UX-MOB-02 | Add collapsible filter panel on mobile (slide-out drawer) | HIGH | DONE |
 | UX-MOB-03 | Add swipe-to-action gestures on transaction cards (edit/delete) | MEDIUM | TODO |
-| UX-MOB-04 | Ensure all touch targets are 44x44px minimum | MEDIUM | TODO |
+| UX-MOB-04 | Ensure all touch targets are 44x44px minimum | MEDIUM | DONE |
 | UX-MOB-05 | Add swipe navigation between Analytics tabs | LOW | TODO |
 | UX-MOB-06 | Full-screen modals on small screens | LOW | TODO |
 | UX-MOB-07 | Slide bottom nav down when modals open | LOW | TODO |
@@ -298,10 +299,10 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| UX-TXN-01 | Add multi-select mode for bulk categorization | HIGH | TODO |
+| UX-TXN-01 | Add multi-select mode for bulk categorization | HIGH | DONE |
 | UX-TXN-02 | Save and reuse filter presets | MEDIUM | TODO |
-| UX-TXN-03 | Show badge count for active filters | MEDIUM | TODO |
-| UX-TXN-04 | Add quick filter chips (Today, This Month, This Year) | MEDIUM | TODO |
+| UX-TXN-03 | Show badge count for active filters | MEDIUM | DONE |
+| UX-TXN-04 | Add quick filter chips (Today, This Month, This Year) | MEDIUM | DONE |
 | UX-TXN-05 | Implement infinite scroll / "Load more" option | LOW | TODO |
 | UX-TXN-06 | Show preview of similar transactions when categorizing | MEDIUM | TODO |
 | UX-TXN-07 | Add categorization suggestions based on learned patterns | MEDIUM | TODO |
@@ -311,10 +312,10 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| UX-BUD-01 | Show empty state with CTA for new users | HIGH | TODO |
+| UX-BUD-01 | Show empty state with CTA for new users | HIGH | DONE |
 | UX-BUD-02 | Show suggested budgets based on historical spending | MEDIUM | TODO |
-| UX-BUD-03 | Improve status labels: "On Track", "Approaching Limit", "Over Budget" | MEDIUM | TODO |
-| UX-BUD-04 | Show days remaining and projected spending | MEDIUM | TODO |
+| UX-BUD-03 | Improve status labels: "On Track", "Approaching Limit", "Over Budget" | MEDIUM | DONE |
+| UX-BUD-04 | Show days remaining and projected spending | MEDIUM | DONE |
 | UX-BUD-05 | Make edit/delete buttons always visible on mobile | LOW | TODO |
 | UX-BUD-06 | Add quick-fix actions on exceeded budgets | LOW | TODO |
 
@@ -343,7 +344,7 @@ Sample data no longer reappears:
 |----|------|----------|--------|
 | UX-SET-01 | Add sidebar navigation on desktop | MEDIUM | TODO |
 | UX-SET-02 | Add tabs or accordion on mobile | MEDIUM | TODO |
-| UX-SET-03 | Show import status indicators (Success/Partial/Failed) | MEDIUM | TODO |
+| UX-SET-03 | Show import status indicators (Success/Partial/Failed) | MEDIUM | DONE |
 | UX-SET-04 | Add "Download import report" option | LOW | TODO |
 
 ### CSV Import
@@ -359,9 +360,9 @@ Sample data no longer reappears:
 
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| UX-A11Y-01 | Implement modal focus trap | HIGH | TODO |
-| UX-A11Y-02 | Return focus to trigger button on modal close | HIGH | TODO |
-| UX-A11Y-03 | Add aria-labels to all icon-only buttons | MEDIUM | TODO |
+| UX-A11Y-01 | Implement modal focus trap | HIGH | DONE |
+| UX-A11Y-02 | Return focus to trigger button on modal close | HIGH | DONE |
+| UX-A11Y-03 | Add aria-labels to all icon-only buttons | MEDIUM | DONE |
 | UX-A11Y-04 | Link error messages with aria-describedby | MEDIUM | TODO |
 | UX-A11Y-05 | Add aria-invalid to form fields with errors | MEDIUM | TODO |
 | UX-A11Y-06 | Add scope="col" to table headers | LOW | TODO |

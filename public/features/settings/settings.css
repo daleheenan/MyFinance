@@ -467,6 +467,42 @@
   color: var(--red);
 }
 
+/* Import Status Indicators */
+.import-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+}
+
+.import-status__icon {
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.import-status__label {
+  font-size: var(--text-xs);
+}
+
+.import-status--success {
+  background: rgba(52, 199, 89, 0.15);
+  color: var(--green);
+}
+
+.import-status--partial {
+  background: rgba(255, 149, 0, 0.15);
+  color: var(--orange);
+}
+
+.import-status--failed {
+  background: rgba(255, 59, 48, 0.15);
+  color: var(--red);
+}
+
 /* ===== DATA EXPORT SECTION ===== */
 
 .export-placeholder {

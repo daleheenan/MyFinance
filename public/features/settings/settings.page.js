@@ -354,6 +354,28 @@ async function loadImportBatches() {
 }
 
 /**
+ * Get import status based on results
+ * @param {Object} batch - Import batch object
+ * @returns {Object} { status: string, label: string, class: string, icon: string }
+ */
+function getImportStatus(batch) {
+  const errorCount = batch.error_count || 0;
+  const successCount = batch.success_count || batch.row_count || 0;
+  const rowCount = batch.row_count || 0;
+
+  if (errorCount === 0 && successCount === rowCount) {
+    return { status: 'success', label: 'Success', class: 'import-status--success', icon: '✓' };
+  }
+  if (errorCount > 0 && successCount > 0) {
+    return { status: 'partial', label: 'Partial', class: 'import-status--partial', icon: '⚠' };
+  }
+  if (errorCount === rowCount || successCount === 0) {
+    return { status: 'failed', label: 'Failed', class: 'import-status--failed', icon: '✕' };
+  }
+  return { status: 'success', label: 'Success', class: 'import-status--success', icon: '✓' };
+}
+
+/**
  * Render import history table
  */
 function renderImportBatches() {
@@ -371,6 +393,7 @@ function renderImportBatches() {
     <table class="import-table">
       <thead>
         <tr>
+          <th>Status</th>
           <th>Date</th>
           <th>Filename</th>
           <th>Account</th>
@@ -382,8 +405,15 @@ function renderImportBatches() {
       <tbody>
         ${importBatches.map(batch => {
           const account = accounts.find(a => a.id === batch.account_id);
+          const status = getImportStatus(batch);
           return `
             <tr class="import-row" data-id="${batch.id}">
+              <td>
+                <span class="import-status ${status.class}" title="${status.label}">
+                  <span class="import-status__icon">${status.icon}</span>
+                  <span class="import-status__label">${status.label}</span>
+                </span>
+              </td>
               <td>${formatDate(batch.imported_at)}</td>
               <td><span class="import-filename">${escapeHtml(batch.filename || 'Unknown')}</span></td>
               <td>${account ? escapeHtml(account.account_name) : 'Unknown'}</td>

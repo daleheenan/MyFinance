@@ -130,6 +130,25 @@
   text-align: right;
 }
 
+/* ===== PROGRESS META (days remaining, projected) ===== */
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.days-remaining {
+  font-weight: var(--font-medium);
+}
+
+.projected-spend {
+  text-align: right;
+}
+
 /* ===== SUMMARY STATUS ===== */
 
 .summary-status {
@@ -276,6 +295,31 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* Budget status label (On Track, Near Limit, etc.) */
+.budget-status-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.budget-status-label.status-good {
+  background: rgba(52, 199, 89, 0.15);
+  color: var(--green);
+}
+
+.budget-status-label.status-warning {
+  background: rgba(255, 149, 0, 0.15);
+  color: var(--orange);
+}
+
+.budget-status-label.status-over {
+  background: rgba(255, 59, 48, 0.15);
+  color: var(--red);
 }
 
 .budget-item__actions {
@@ -354,6 +398,11 @@
   gap: var(--space-md);
 }
 
+/* When projected column is shown */
+.budget-item__amounts:has(.amount-item--projected) {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .amount-item {
   display: flex;
   flex-direction: column;
@@ -372,6 +421,20 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
+}
+
+/* Projected amount column */
+.amount-item--projected {
+  border-left: var(--border-light);
+  padding-left: var(--space-md);
+}
+
+.amount-item--projected .amount-label {
+  color: var(--text-tertiary);
+}
+
+.amount-item--projected .amount-value {
+  font-size: var(--text-sm);
 }
 
 /* ===== QUICK ADD SECTION ===== */

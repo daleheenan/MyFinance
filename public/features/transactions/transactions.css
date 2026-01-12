@@ -38,6 +38,64 @@
   padding: var(--space-md);
 }
 
+/* Mobile filter toggle header */
+.filters-header {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: var(--space-sm) 0;
+}
+
+.filters-header__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.filters-header__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  background: var(--blue);
+  color: white;
+  border-radius: 10px;
+}
+
+.filters-header__badge.hidden {
+  display: none;
+}
+
+.filters-header__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.filters-header__toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition-fast);
+}
+
+.filters-card.filters-expanded .filters-header__toggle svg {
+  transform: rotate(180deg);
+}
+
 .filters-bar {
   display: flex;
   flex-wrap: wrap;
@@ -98,6 +156,41 @@
 
 .filter-badge.hidden {
   display: none;
+}
+
+/* Quick filter chips */
+.quick-filters {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-light);
+}
+
+.quick-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.quick-filter-chip:hover {
+  color: var(--blue);
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.quick-filter-chip.active {
+  color: white;
+  background: var(--blue);
+  border-color: var(--blue);
 }
 
 /* ===== BULK ACTION BAR ===== */
@@ -745,12 +838,165 @@
   min-height: 200px;
 }
 
+/* ===== MOBILE CARD VIEW ===== */
+
+.transaction-cards {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.transaction-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.transaction-card:hover {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.transaction-card:active {
+  transform: scale(0.98);
+}
+
+.transaction-card.selected {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: var(--blue);
+}
+
+.transaction-card.expanded {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: var(--blue);
+}
+
+.transaction-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.transaction-card__checkbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.transaction-card__description {
+  flex: 1;
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-card__amount {
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transaction-card__amount--positive {
+  color: var(--green);
+}
+
+.transaction-card__amount--negative {
+  color: var(--red);
+}
+
+.transaction-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.transaction-card__date {
+  flex-shrink: 0;
+}
+
+.transaction-card__category {
+  cursor: pointer;
+}
+
+.transaction-card__details {
+  display: none;
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--border-light);
+}
+
+.transaction-card.expanded .transaction-card__details {
+  display: block;
+}
+
+.transaction-card__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.transaction-card__detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transaction-card__detail-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.transaction-card__detail-value {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.transaction-card__actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.transaction-card__actions .btn {
+  flex: 1;
+}
+
 /* ===== RESPONSIVE ===== */
 
 @media (max-width: 768px) {
+  /* Show collapsible filter header on mobile */
+  .filters-header {
+    display: flex;
+  }
+
+  /* Collapsible filters panel */
   .filters-bar {
     flex-direction: column;
     align-items: stretch;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all var(--transition-base);
+    margin-top: 0;
+  }
+
+  .filters-card.filters-expanded .filters-bar {
+    max-height: 500px;
+    opacity: 1;
+    margin-top: var(--space-md);
   }
 
   .filter-group {
@@ -777,17 +1023,13 @@
     align-items: center;
   }
 
+  /* Hide table, show cards on mobile */
   .transactions-table {
-    font-size: var(--text-xs);
-  }
-
-  .transactions-table th,
-  .transactions-table td {
-    padding: var(--space-sm);
-  }
-
-  .col-balance {
     display: none;
+  }
+
+  .transaction-cards {
+    display: flex;
   }
 
   .account-selector {
@@ -798,13 +1040,21 @@
   .account-selector .form-select {
     max-width: none;
   }
+
+  /* Bulk action bar mobile improvements */
+  .bulk-action-bar {
+    flex-direction: column;
+    gap: var(--space-sm);
+    text-align: center;
+  }
+
+  .bulk-action-buttons {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
-  .col-category {
-    display: none;
-  }
-
   .detail-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -832,5 +1082,10 @@
   .category-option {
     padding: var(--space-md);
     min-height: 48px;
+  }
+
+  /* Card adjustments for very small screens */
+  .transaction-card__detail-grid {
+    grid-template-columns: 1fr;
   }
 }
