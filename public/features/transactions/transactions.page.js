@@ -7,6 +7,13 @@ import { api } from '../../core/api.js';
 import { formatCurrency, formatDate, escapeHtml, debounce } from '../../core/utils.js';
 import { router } from '../../core/app.js';
 import { showError } from '../../core/toast.js';
+/**
+ * Get CSRF token from cookie for form submissions
+ */
+function getCsrfToken() {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
 
 const DEFAULT_ICONS = {
   salary: '💰', income: '💰', wages: '💰',
@@ -868,7 +875,11 @@ async function openCategoryPicker(txnId) {
     try {
       const response = await fetch('/api/categories/find-similar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(getCsrfToken() && { 'X-CSRF-Token': getCsrfToken() })
+        },
+        credentials: 'include',
         body: JSON.stringify({
           description: currentTxnDescription,
           exclude_id: txnId
@@ -940,7 +951,11 @@ function setupCategoryModalEvents() {
         try {
           const response = await fetch('/api/categories/apply-to-similar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(getCsrfToken() && { 'X-CSRF-Token': getCsrfToken() })
+            },
+            credentials: 'include',
             body: JSON.stringify({
               description: currentTxnDescription,
               category_id: categoryId,
@@ -1102,9 +1117,17 @@ function setupImportModalEvents() {
       formData.append('file', file);
       formData.append('account_id', accountId);
 
+      const csrfToken = getCsrfToken();
+      const headers = {};
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       const response = await fetch('/api/import/preview', {
         method: 'POST',
-        body: formData
+        headers,
+        body: formData,
+        credentials: 'include'
       });
       const json = await response.json();
 
@@ -1149,9 +1172,17 @@ function setupImportModalEvents() {
       // Include the column mapping from the preview response
       formData.append('mapping', JSON.stringify(importPreviewData.suggestedMapping));
 
+      const csrfTokenImport = getCsrfToken();
+      const importHeaders = {};
+      if (csrfTokenImport) {
+        importHeaders['X-CSRF-Token'] = csrfTokenImport;
+      }
+
       const response = await fetch('/api/import', {
         method: 'POST',
-        body: formData
+        headers: importHeaders,
+        body: formData,
+        credentials: 'include'
       });
       const json = await response.json();
 

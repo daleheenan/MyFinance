@@ -268,6 +268,9 @@ p {
   border-radius: var(--radius-sm);
   text-decoration: none;
   transition: all var(--transition-fast);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .nav-link:hover {
@@ -340,10 +343,15 @@ p {
 }
 
 .nav-dropdown:hover .nav-dropdown-menu,
-.nav-dropdown:focus-within .nav-dropdown-menu {
+.nav-dropdown:focus-within .nav-dropdown-menu,
+.nav-dropdown.open .nav-dropdown-menu {
   opacity: 1;
   visibility: visible;
   transform: translateY(4px);
+}
+
+.nav-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
 }
 
 .nav-dropdown-menu li {

@@ -64,6 +64,49 @@ function setupHamburgerMenu() {
   }
 }
 
+
+
+/**
+ * Setup touch support for dropdown menus on mobile/tablet
+ */
+function setupDropdownTouchSupport() {
+  const dropdowns = document.querySelectorAll('.nav-dropdown');
+  
+  dropdowns.forEach(dropdown => {
+    const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+    if (!toggle) return;
+    
+    // Handle click/touch on dropdown toggle
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Close other dropdowns
+      dropdowns.forEach(other => {
+        if (other !== dropdown) {
+          other.classList.remove('open');
+        }
+      });
+      
+      // Toggle this dropdown
+      dropdown.classList.toggle('open');
+    });
+  });
+  
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.nav-dropdown')) {
+      dropdowns.forEach(dropdown => dropdown.classList.remove('open'));
+    }
+  });
+  
+  // Close dropdowns when clicking a link inside
+  document.querySelectorAll('.nav-dropdown-menu .nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      dropdowns.forEach(dropdown => dropdown.classList.remove('open'));
+    });
+  });
+}
 /**
  * Update active states for both desktop and mobile navigation
  */
@@ -473,6 +516,7 @@ async function init() {
 
   // Setup mobile navigation
   setupHamburgerMenu();
+  setupDropdownTouchSupport();
   setupKeyboardShortcuts();
   setupGlobalSearch();
 
