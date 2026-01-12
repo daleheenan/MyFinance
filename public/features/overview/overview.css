@@ -300,6 +300,41 @@
   margin-bottom: var(--space-md);
 }
 
+.card-header--with-select {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.card-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.chart-account-selector {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-medium, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.chart-account-selector:hover {
+  border-color: var(--blue);
+}
+
+.chart-account-selector:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
 .trend-change {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);

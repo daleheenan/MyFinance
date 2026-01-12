@@ -10,6 +10,8 @@ import { router } from '../../core/app.js';
 // Private state
 let container = null;
 let cleanupFunctions = [];
+let accountsList = []; // Store accounts for chart selector
+let selectedChartAccountId = null; // Currently selected account for YoY chart
 
 /**
  * Register cleanup function to be called on unmount
@@ -133,20 +135,27 @@ function render() {
  */
 async function loadData() {
   try {
-    // Fetch all data in parallel
-    const [overviewStats, recentTransactions, categories, balanceYoY, anomalies] = await Promise.all([
+    // Fetch initial data in parallel (excluding YoY balance which needs account selection)
+    const [overviewStats, recentTransactions, categories, anomalies] = await Promise.all([
       api.get('/accounts/overview/stats'),
       api.get('/accounts/overview/recent-transactions?limit=15'),
       api.get('/categories?include_totals=true').catch(() => []),
-      api.get('/accounts/1/balance-yoy').catch(() => ({ years: [], months: [] })), // Year-over-year balance
       api.get('/analytics/anomalies?dismissed=false&limit=5').catch(() => [])
     ]);
+
+    // Store accounts list for chart selector
+    accountsList = overviewStats.accounts || [];
+
+    // Set default selected account (first account, or null if none)
+    if (accountsList.length > 0 && !selectedChartAccountId) {
+      selectedChartAccountId = accountsList[0].id;
+    }
 
     // Render quick stats first
     renderQuickStats(overviewStats.totals, overviewStats.month);
 
-    // Render year-over-year balance trend for Main Account
-    renderBalanceTrendYoY(balanceYoY);
+    // Render year-over-year balance trend with account selector
+    await loadAndRenderYoYChart();
 
     // Render anomaly alerts (before accounts)
     renderAnomalies(anomalies);
@@ -402,6 +411,89 @@ function renderBalanceTrend(data) {
 }
 
 /**
+ * Load and render the YoY balance chart for the selected account
+ */
+async function loadAndRenderYoYChart() {
+  const trendContainer = container.querySelector('#balance-trend-container');
+
+  if (!selectedChartAccountId || accountsList.length === 0) {
+    trendContainer.innerHTML = `
+      <div class="card-header">
+        <h3 class="card-title">Year-over-Year Balance</h3>
+      </div>
+      <div class="empty-state">
+        <p>Add an account to see your balance trends</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Show loading state
+  trendContainer.innerHTML = `
+    <div class="card-header card-header--with-select">
+      <h3 class="card-title">Year-over-Year Balance</h3>
+      ${renderAccountSelector()}
+    </div>
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading chart...</p>
+    </div>
+  `;
+
+  // Attach selector event listener
+  attachChartSelectorListener();
+
+  // Fetch balance data for selected account
+  try {
+    const balanceYoY = await api.get(`/accounts/${selectedChartAccountId}/balance-yoy`).catch(() => ({ years: [], months: [] }));
+    renderBalanceTrendYoY(balanceYoY);
+  } catch (err) {
+    trendContainer.innerHTML = `
+      <div class="card-header card-header--with-select">
+        <h3 class="card-title">Year-over-Year Balance</h3>
+        ${renderAccountSelector()}
+      </div>
+      <div class="empty-state">
+        <p>Unable to load balance data</p>
+      </div>
+    `;
+    attachChartSelectorListener();
+  }
+}
+
+/**
+ * Render the account selector dropdown for the chart
+ */
+function renderAccountSelector() {
+  if (accountsList.length === 0) return '';
+
+  const options = accountsList.map(acc =>
+    `<option value="${acc.id}" ${acc.id === selectedChartAccountId ? 'selected' : ''}>${escapeHtml(acc.account_name)}</option>`
+  ).join('');
+
+  return `
+    <select id="chart-account-selector" class="chart-account-selector">
+      ${options}
+    </select>
+  `;
+}
+
+/**
+ * Attach event listener to chart account selector
+ */
+function attachChartSelectorListener() {
+  const selector = container.querySelector('#chart-account-selector');
+  if (selector) {
+    const handler = async (e) => {
+      selectedChartAccountId = parseInt(e.target.value);
+      await loadAndRenderYoYChart();
+    };
+    selector.addEventListener('change', handler);
+    onCleanup(() => selector.removeEventListener('change', handler));
+  }
+}
+
+/**
  * Render year-over-year balance comparison chart
  * Shows current year vs last year with color-coded difference
  * @param {Object} data - { years: [{year, balances: [12 values]}], months: ['Jan',...] }
@@ -411,13 +503,15 @@ function renderBalanceTrendYoY(data) {
 
   if (!data || !data.years || data.years.length === 0) {
     trendContainer.innerHTML = `
-      <div class="card-header">
-        <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
+      <div class="card-header card-header--with-select">
+        <h3 class="card-title">Year-over-Year Balance</h3>
+        ${renderAccountSelector()}
       </div>
       <div class="empty-state">
-        <p>No balance data available</p>
+        <p>Keep tracking your finances to see balance trends over time</p>
       </div>
     `;
+    attachChartSelectorListener();
     return;
   }
 
@@ -433,13 +527,15 @@ function renderBalanceTrendYoY(data) {
   const allBalances = years.flatMap(y => y.balances.filter(b => b !== null));
   if (allBalances.length === 0) {
     trendContainer.innerHTML = `
-      <div class="card-header">
-        <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
+      <div class="card-header card-header--with-select">
+        <h3 class="card-title">Year-over-Year Balance</h3>
+        ${renderAccountSelector()}
       </div>
       <div class="empty-state">
-        <p>No balance data available</p>
+        <p>Keep tracking your finances to see balance trends over time</p>
       </div>
     `;
+    attachChartSelectorListener();
     return;
   }
 
@@ -532,9 +628,12 @@ function renderBalanceTrendYoY(data) {
     : '';
 
   trendContainer.innerHTML = `
-    <div class="card-header">
-      <h3 class="card-title">Main Account - Year-over-Year Balance</h3>
-      ${yoyText ? `<div class="trend-change ${yoyClass}">${yoyText}</div>` : ''}
+    <div class="card-header card-header--with-select">
+      <div class="card-header__left">
+        <h3 class="card-title">Year-over-Year Balance</h3>
+        ${yoyText ? `<div class="trend-change ${yoyClass}">${yoyText}</div>` : ''}
+      </div>
+      ${renderAccountSelector()}
     </div>
     <div class="balance-trend-chart balance-trend-chart--compact">
       <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" class="trend-svg">
@@ -585,6 +684,9 @@ function renderBalanceTrendYoY(data) {
       </span>
     </div>
   `;
+
+  // Attach event listener for account selector
+  attachChartSelectorListener();
 }
 
 /**

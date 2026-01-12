@@ -363,10 +363,18 @@ p {
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
   white-space: nowrap;
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .nav-dropdown-menu .nav-link:hover {
   background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nav-dropdown-menu .nav-link.active {
+  color: var(--blue);
+  background: rgba(0, 122, 255, 0.1);
 }
 
 /* ===== NAV SEARCH BUTTON ===== */
