@@ -389,6 +389,9 @@ function renderImportBatches() {
     return;
   }
 
+  // Limit to last 5 imports for cleaner display
+  const recentBatches = importBatches.slice(0, 5);
+
   importContainer.innerHTML = `
     <table class="import-table">
       <thead>
@@ -403,7 +406,7 @@ function renderImportBatches() {
         </tr>
       </thead>
       <tbody>
-        ${importBatches.map(batch => {
+        ${recentBatches.map(batch => {
           const account = accounts.find(a => a.id === batch.account_id);
           const status = getImportStatus(batch);
           return `
