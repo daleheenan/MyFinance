@@ -391,6 +391,45 @@ CREATE TABLE IF NOT EXISTS payment_history (
 CREATE INDEX IF NOT EXISTS idx_payment_history_user ON payment_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_payment_history_status ON payment_history(status);
 
+-- ===== SAVINGS GOALS =====
+
+-- Savings goals table
+CREATE TABLE IF NOT EXISTS savings_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    target_amount REAL NOT NULL,
+    current_amount REAL DEFAULT 0,
+    target_date TEXT,
+    linked_account_id INTEGER,
+    colour TEXT DEFAULT '#10B981',
+    icon TEXT DEFAULT '🎯',
+    is_completed INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (linked_account_id) REFERENCES accounts(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON savings_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_savings_goals_active ON savings_goals(is_active);
+
+-- Savings goal contributions (manual tracking)
+CREATE TABLE IF NOT EXISTS savings_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_id INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    contribution_date TEXT NOT NULL,
+    notes TEXT,
+    transaction_id INTEGER,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (goal_id) REFERENCES savings_goals(id) ON DELETE CASCADE,
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_savings_contributions_goal ON savings_contributions(goal_id);
+
 -- ===== VERSION HISTORY =====
 
 -- Version history table (tracks app updates)

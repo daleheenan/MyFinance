@@ -35,6 +35,10 @@ import * as adminPage from '../features/admin/admin.page.js';
 import * as manageAccountsPage from '../features/manage/accounts.page.js';
 import * as manageCategoriesPage from '../features/manage/categories.page.js';
 import * as manageRecurringPage from '../features/manage/recurring.page.js';
+import * as insightsPage from '../features/insights/insights.page.js';
+import * as goalsPage from '../features/goals/goals.page.js';
+import * as billsPage from '../features/bills/bills.page.js';
+import * as incomePage from '../features/income/income.page.js';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password', '/register', '/verify-email', '/registration-success'];
@@ -422,6 +426,10 @@ function registerRoutes() {
   router.register('/subscriptions', subscriptionsPage);
   router.register('/networth', networthPage);
   router.register('/forecasting', forecastingPage);
+  router.register('/insights', insightsPage);
+  router.register('/goals', goalsPage);
+  router.register('/bills', billsPage);
+  router.register('/income', incomePage);
   router.register('/settings', settingsPage);
 
   // Manage routes

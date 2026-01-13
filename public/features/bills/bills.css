@@ -1,0 +1,345 @@
+/**
+ * Bills Calendar Page Styles
+ */
+
+.bills-page {
+  padding: var(--spacing-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.page-header__subtitle {
+  margin: var(--spacing-xs) 0 0;
+  color: var(--text-secondary);
+}
+
+/* Summary Cards */
+.bills-summary {
+  margin-bottom: var(--spacing-xl);
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 800px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.summary-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.summary-card__label {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.summary-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-card__value--warning {
+  color: var(--warning-color);
+}
+
+.summary-card__value--green {
+  color: var(--success-color);
+}
+
+.summary-card__value--red {
+  color: var(--danger-color);
+}
+
+.summary-card__value--yellow {
+  color: var(--warning-color);
+}
+
+.change-icon {
+  font-size: 0.875rem;
+  margin-right: 4px;
+}
+
+/* Calendar Section */
+.calendar-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.calendar-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* Calendar Grid */
+.calendar {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-day-header {
+  padding: var(--spacing-sm);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  min-height: 90px;
+  padding: var(--spacing-xs);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-day--empty {
+  background: transparent;
+  border: none;
+}
+
+.calendar-day--past {
+  opacity: 0.6;
+}
+
+.calendar-day--today {
+  border-color: var(--primary-color);
+  border-width: 2px;
+}
+
+.calendar-day--has-upcoming {
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.calendar-day--has-paid {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.calendar-day__number {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.calendar-day--today .calendar-day__number {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.calendar-day__bills {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-bill {
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 0.625rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-bill--paid {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success-color);
+}
+
+.calendar-bill--due {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger-color);
+  font-weight: 600;
+}
+
+.calendar-bill--upcoming {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning-color);
+}
+
+.calendar-bill--more {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+}
+
+.calendar-day__total {
+  margin-top: auto;
+  padding-top: var(--spacing-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Calendar Legend */
+.calendar-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-dot--paid {
+  background: rgba(16, 185, 129, 0.4);
+}
+
+.legend-dot--due {
+  background: rgba(239, 68, 68, 0.4);
+}
+
+.legend-dot--upcoming {
+  background: rgba(245, 158, 11, 0.4);
+}
+
+/* Upcoming Section */
+.upcoming-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.upcoming-card {
+  padding: var(--spacing-lg);
+}
+
+.upcoming-card h3 {
+  margin: 0 0 var(--spacing-md);
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.upcoming-bill {
+  display: grid;
+  grid-template-columns: 60px 1fr auto auto;
+  gap: var(--spacing-md);
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 600px) {
+  .upcoming-bill {
+    grid-template-columns: 50px 1fr auto;
+  }
+  .upcoming-bill__days {
+    display: none;
+  }
+}
+
+.upcoming-bill__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xs);
+  background: var(--primary-color);
+  color: white;
+  border-radius: var(--radius-sm);
+}
+
+.upcoming-bill__day {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.upcoming-bill__month {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+}
+
+.upcoming-bill__details {
+  display: flex;
+  flex-direction: column;
+}
+
+.upcoming-bill__name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.upcoming-bill__category {
+  font-size: 0.75rem;
+}
+
+.upcoming-bill__amount {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.upcoming-bill__days {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* Empty state */
+.empty-state--compact {
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.empty-state--compact p {
+  margin: 0;
+  color: var(--text-muted);
+}
