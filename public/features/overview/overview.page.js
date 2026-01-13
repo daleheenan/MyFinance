@@ -445,7 +445,9 @@ async function loadAndRenderYoYChart() {
 
   // Fetch balance data for selected account
   try {
-    const balanceYoY = await api.get(`/accounts/${selectedChartAccountId}/balance-yoy`).catch(() => ({ years: [], months: [] }));
+    const response = await api.get(`/accounts/${selectedChartAccountId}/balance-yoy`).catch(() => ({ data: { years: [], months: [] } }));
+    // API returns { success: true, data: { years: [...], months: [...] } }
+    const balanceYoY = response.data || response;
     renderBalanceTrendYoY(balanceYoY);
   } catch (err) {
     trendContainer.innerHTML = `
@@ -983,7 +985,7 @@ function renderAccounts(accounts) {
 }
 
 /**
- * Generate SVG sparkline from balance data
+ * Generate SVG sparkline from balance data with smooth curves
  * @param {Array} data - Array of {date, balance} objects
  * @returns {string} SVG element as string
  */
@@ -1001,43 +1003,49 @@ function generateSparkline(data) {
   const maxBal = Math.max(...balances);
   const range = maxBal - minBal || 1; // Avoid division by zero
 
-  // Calculate points
+  // Calculate points as objects for smooth path generation
   const points = data.map((d, i) => {
     const x = padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
     const y = height - padding - ((d.balance - minBal) / range) * (height - 2 * padding);
-    return `${x},${y}`;
-  }).join(' ');
+    return { x, y };
+  });
 
   // Determine color based on trend (first vs last balance)
   const firstBalance = balances[0];
   const lastBalance = balances[balances.length - 1];
   const trendColor = lastBalance >= firstBalance ? 'var(--green)' : 'var(--red)';
 
-  // Create filled area path
-  const areaPath = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
-    const y = height - padding - ((d.balance - minBal) / range) * (height - 2 * padding);
-    return i === 0 ? `M ${x},${height - padding} L ${x},${y}` : `L ${x},${y}`;
-  }).join(' ') + ` L ${width - padding},${height - padding} Z`;
+  // Create smooth line path using Catmull-Rom spline
+  const smoothLinePath = createSmoothPath(points);
+
+  // Create smooth filled area path (under the curve)
+  const smoothAreaPath = points.length >= 2
+    ? `M ${points[0].x},${height - padding} L ${points[0].x},${points[0].y} ` +
+      (smoothLinePath.indexOf('C') >= 0 ? smoothLinePath.substring(smoothLinePath.indexOf('C')) : '') +
+      ` L ${points[points.length - 1].x},${height - padding} Z`
+    : '';
+
+  // Use unique ID based on first balance for gradient
+  const gradientId = `sparkline-gradient-${Math.abs(firstBalance).toFixed(0)}-${Math.random().toString(36).substr(2, 5)}`;
 
   return `
     <svg class="sparkline-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="sparkline-gradient-${data[0]?.balance || 0}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="${gradientId}" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" style="stop-color:${trendColor};stop-opacity:0.3"/>
           <stop offset="100%" style="stop-color:${trendColor};stop-opacity:0.05"/>
         </linearGradient>
       </defs>
-      <path d="${areaPath}" fill="url(#sparkline-gradient-${data[0]?.balance || 0})" />
-      <polyline
-        points="${points}"
+      <path d="${smoothAreaPath}" fill="url(#${gradientId})" />
+      <path
+        d="${smoothLinePath}"
         fill="none"
         stroke="${trendColor}"
         stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-      <circle cx="${width - padding}" cy="${height - padding - ((lastBalance - minBal) / range) * (height - 2 * padding)}" r="3" fill="${trendColor}" />
+      <circle cx="${points[points.length - 1].x}" cy="${points[points.length - 1].y}" r="3" fill="${trendColor}" />
     </svg>
   `;
 }
