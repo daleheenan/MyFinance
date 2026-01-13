@@ -48,10 +48,6 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
-      <div class="page-header">
-        <h1 class="page-title">Insights</h1>
-      </div>
-
       <!-- Sub-navigation with Date Range Filters -->
       <div class="analytics-nav-bar">
         <div class="analytics-sub-nav">
@@ -175,42 +171,126 @@ function renderTrends(data) {
 
   trendsContainer.innerHTML = `
     <div class="card-header">
-      <h3 class="card-title">Spending Trends</h3>
+      <h3 class="card-title">Spending Insights</h3>
       <span class="card-subtitle">${range.start_date} to ${range.end_date}</span>
     </div>
   `;
 
   if (!trends || trends.length === 0) {
-    trendsContainer.innerHTML += `<div class="empty-state"><p>Add some transactions to see your spending trends here</p></div>`;
+    trendsContainer.innerHTML += `<div class="empty-state"><p>Add some transactions to see your spending insights here</p></div>`;
     return;
   }
 
-  const maxSpending = Math.max(...trends.map(t => t.spending), 1);
+  // Calculate advanced KPIs
   const totalSpending = trends.reduce((sum, t) => sum + t.spending, 0);
-  const avgSpending = trends.length > 0 ? totalSpending / trends.length : 0;
+  const daysWithData = trends.filter(t => t.spending > 0).length;
+  const totalDays = trends.length;
+  const burnRate = daysWithData > 0 ? totalSpending / daysWithData : 0;
 
-  const chartEl = document.createElement('div');
-  chartEl.className = 'trend-chart';
+  // Peak spending day
+  const peakDay = trends.reduce((max, t) => t.spending > max.spending ? t : max, trends[0]);
 
-  trends.forEach(trend => {
-    const height = (trend.spending / maxSpending) * 100;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'trend-bar-wrapper';
-    wrapper.innerHTML = `
-      <div class="trend-bar" style="height: ${height}%" title="${trend.period}: ${formatCurrency(trend.spending)}"></div>
-    `;
-    chartEl.appendChild(wrapper);
-  });
-  trendsContainer.appendChild(chartEl);
+  // Calculate spending velocity (is spending accelerating or decelerating?)
+  const midpoint = Math.floor(trends.length / 2);
+  const firstHalf = trends.slice(0, midpoint);
+  const secondHalf = trends.slice(midpoint);
+  const firstHalfAvg = firstHalf.length > 0 ? firstHalf.reduce((s, t) => s + t.spending, 0) / firstHalf.length : 0;
+  const secondHalfAvg = secondHalf.length > 0 ? secondHalf.reduce((s, t) => s + t.spending, 0) / secondHalf.length : 0;
+  const velocityChange = firstHalfAvg > 0 ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100 : 0;
+  const velocityDirection = velocityChange > 5 ? 'accelerating' : velocityChange < -5 ? 'slowing' : 'steady';
 
-  const summaryEl = document.createElement('div');
-  summaryEl.className = 'trend-summary';
-  summaryEl.innerHTML = `
-    <div class="trend-stat"><span class="trend-stat-label">Total Spending</span><span class="trend-stat-value">${formatCurrency(totalSpending)}</span></div>
-    <div class="trend-stat"><span class="trend-stat-label">Avg per Day</span><span class="trend-stat-value">${formatCurrency(avgSpending)}</span></div>
-    <div class="trend-stat"><span class="trend-stat-label">Days</span><span class="trend-stat-value">${trends.length}</span></div>
+  // Projected monthly spend (extrapolate to 30 days)
+  const projectedMonthly = burnRate * 30;
+
+  // Days remaining in current period
+  const today = new Date();
+  const endDate = new Date(range.end_date);
+  const daysRemaining = Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)));
+
+  // Projected total for period
+  const projectedTotal = totalSpending + (burnRate * daysRemaining);
+
+  // Build the insights grid
+  const insightsEl = document.createElement('div');
+  insightsEl.className = 'spending-insights-grid';
+  insightsEl.innerHTML = `
+    <div class="insight-card insight-card--primary">
+      <div class="insight-icon">🔥</div>
+      <div class="insight-content">
+        <span class="insight-label">Daily Burn Rate</span>
+        <span class="insight-value">${formatCurrency(burnRate)}</span>
+        <span class="insight-hint">${daysWithData} active spending days</span>
+      </div>
+    </div>
+    <div class="insight-card insight-card--secondary">
+      <div class="insight-icon">📊</div>
+      <div class="insight-content">
+        <span class="insight-label">Projected Monthly</span>
+        <span class="insight-value">${formatCurrency(projectedMonthly)}</span>
+        <span class="insight-hint">Based on current rate</span>
+      </div>
+    </div>
+    <div class="insight-card insight-card--tertiary">
+      <div class="insight-icon">${velocityDirection === 'accelerating' ? '📈' : velocityDirection === 'slowing' ? '📉' : '➡️'}</div>
+      <div class="insight-content">
+        <span class="insight-label">Spending Velocity</span>
+        <span class="insight-value insight-value--${velocityDirection === 'slowing' ? 'positive' : velocityDirection === 'accelerating' ? 'negative' : 'neutral'}">${velocityDirection === 'steady' ? 'Steady' : (velocityChange > 0 ? '+' : '') + velocityChange.toFixed(0) + '%'}</span>
+        <span class="insight-hint">${velocityDirection === 'accelerating' ? 'Spending increasing' : velocityDirection === 'slowing' ? 'Spending decreasing' : 'Consistent pattern'}</span>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">⚡</div>
+      <div class="insight-content">
+        <span class="insight-label">Peak Spending Day</span>
+        <span class="insight-value">${formatCurrency(peakDay.spending)}</span>
+        <span class="insight-hint">${formatPeriodDate(peakDay.period)}</span>
+      </div>
+    </div>
+    ${daysRemaining > 0 ? `
+    <div class="insight-card insight-card--wide">
+      <div class="insight-icon">🎯</div>
+      <div class="insight-content">
+        <span class="insight-label">Projected Period Total</span>
+        <span class="insight-value">${formatCurrency(projectedTotal)}</span>
+        <span class="insight-hint">${daysRemaining} days remaining at ${formatCurrency(burnRate)}/day</span>
+      </div>
+    </div>
+    ` : ''}
   `;
-  trendsContainer.appendChild(summaryEl);
+  trendsContainer.appendChild(insightsEl);
+
+  // Spending trend mini-chart (sparkline style)
+  const maxSpending = Math.max(...trends.map(t => t.spending), 1);
+  const chartEl = document.createElement('div');
+  chartEl.className = 'spending-sparkline';
+  chartEl.innerHTML = `
+    <div class="sparkline-header">
+      <span class="sparkline-title">Daily Spending Pattern</span>
+      <span class="sparkline-total">${formatCurrency(totalSpending)} total</span>
+    </div>
+    <div class="sparkline-chart">
+      ${trends.map(trend => {
+        const height = (trend.spending / maxSpending) * 100;
+        const isHighSpend = trend.spending > burnRate * 1.5;
+        return `<div class="sparkline-bar${isHighSpend ? ' sparkline-bar--high' : ''}" style="height: ${Math.max(height, 2)}%" title="${formatPeriodDate(trend.period)}: ${formatCurrency(trend.spending)}"></div>`;
+      }).join('')}
+    </div>
+    <div class="sparkline-legend">
+      <span class="sparkline-avg-line" style="bottom: ${(burnRate / maxSpending) * 100}%"></span>
+      <span class="sparkline-avg-label">Avg: ${formatCurrency(burnRate)}</span>
+    </div>
+  `;
+  trendsContainer.appendChild(chartEl);
+}
+
+/**
+ * Format period date for display
+ */
+function formatPeriodDate(period) {
+  if (!period) return '';
+  const date = new Date(period);
+  if (isNaN(date.getTime())) return period;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 function renderYearOverYear() {
@@ -257,25 +337,105 @@ function renderYearOverYear() {
     return;
   }
 
-  const maxExpenses = Math.max(...selectedData.flatMap(y => y.months.map(m => m.expenses)), 1);
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  const chartEl = document.createElement('div');
-  chartEl.className = 'yoy-chart-container';
-  let chartHTML = '<div class="yoy-chart">';
+  // Create SVG line chart with smooth curves
+  const svgWidth = 800;
+  const svgHeight = 250;
+  const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+  const chartWidth = svgWidth - padding.left - padding.right;
+  const chartHeight = svgHeight - padding.top - padding.bottom;
 
-  for (let month = 0; month < 12; month++) {
-    chartHTML += `<div class="yoy-month-group"><div class="yoy-bars">`;
-    selectedData.forEach((yearData, idx) => {
-      const monthData = yearData.months.find(m => m.month === month + 1) || { expenses: 0 };
-      const height = (monthData.expenses / maxExpenses) * 100;
-      const color = YEAR_COLORS[idx % YEAR_COLORS.length];
-      chartHTML += `<div class="yoy-bar" style="height: ${height}%; background-color: ${color}" title="${yearData.year} ${monthNames[month]}: ${formatCurrency(monthData.expenses)}"></div>`;
-    });
-    chartHTML += `</div><div class="yoy-month-label">${monthNames[month]}</div></div>`;
+  // Calculate min/max for Y axis
+  const allExpenses = selectedData.flatMap(y => y.months.map(m => m.expenses));
+  const maxExpenses = Math.max(...allExpenses, 1);
+  const minExpenses = Math.min(...allExpenses, 0);
+  const range = maxExpenses - minExpenses || 1;
+
+  // Build data points for each year
+  const yearLines = selectedData.map((yearData, idx) => {
+    const points = [];
+    for (let m = 0; m < 12; m++) {
+      const monthData = yearData.months.find(md => md.month === m + 1);
+      if (monthData) {
+        const x = padding.left + (m / 11) * chartWidth;
+        const y = padding.top + chartHeight - ((monthData.expenses - minExpenses) / range) * chartHeight;
+        points.push({ x, y, month: m, expenses: monthData.expenses });
+      }
+    }
+    return { year: yearData.year, color: YEAR_COLORS[idx % YEAR_COLORS.length], points };
+  });
+
+  // Create smooth path using Catmull-Rom spline
+  function createSmoothPath(points) {
+    if (points.length < 2) return '';
+
+    const tension = 0.3;
+    let path = `M ${points[0].x} ${points[0].y}`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[Math.max(0, i - 1)];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(points.length - 1, i + 2)];
+
+      const cp1x = p1.x + (p2.x - p0.x) * tension;
+      const cp1y = p1.y + (p2.y - p0.y) * tension;
+      const cp2x = p2.x - (p3.x - p1.x) * tension;
+      const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
+    return path;
   }
-  chartHTML += '</div>';
-  chartEl.innerHTML = chartHTML;
+
+  // Build SVG content
+  let svgContent = `
+    <svg class="yoy-line-chart" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
+      <!-- Grid lines -->
+      <g class="grid-lines" stroke="var(--border-light)" stroke-dasharray="4,4">
+        ${[0, 0.25, 0.5, 0.75, 1].map(pct => {
+          const y = padding.top + chartHeight * (1 - pct);
+          return `<line x1="${padding.left}" y1="${y}" x2="${svgWidth - padding.right}" y2="${y}"/>`;
+        }).join('')}
+      </g>
+
+      <!-- Y-axis labels -->
+      <g class="y-axis" fill="var(--text-tertiary)" font-size="11">
+        ${[0, 0.25, 0.5, 0.75, 1].map(pct => {
+          const y = padding.top + chartHeight * (1 - pct);
+          const value = minExpenses + range * pct;
+          return `<text x="${padding.left - 8}" y="${y + 4}" text-anchor="end">${formatCompact(value)}</text>`;
+        }).join('')}
+      </g>
+
+      <!-- X-axis labels -->
+      <g class="x-axis" fill="var(--text-tertiary)" font-size="11" text-anchor="middle">
+        ${monthNames.map((name, i) => {
+          const x = padding.left + (i / 11) * chartWidth;
+          return `<text x="${x}" y="${svgHeight - 10}">${name}</text>`;
+        }).join('')}
+      </g>
+
+      <!-- Lines for each year -->
+      ${yearLines.map(yearLine => {
+        if (yearLine.points.length < 2) return '';
+        const pathD = createSmoothPath(yearLine.points);
+        return `
+          <path d="${pathD}" fill="none" stroke="${yearLine.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          ${yearLine.points.map(p => `
+            <circle cx="${p.x}" cy="${p.y}" r="5" fill="${yearLine.color}" stroke="var(--bg-primary)" stroke-width="2">
+              <title>${yearLine.year} ${monthNames[p.month]}: ${formatCurrency(p.expenses)}</title>
+            </circle>
+          `).join('')}
+        `;
+      }).join('')}
+    </svg>
+  `;
+
+  const chartEl = document.createElement('div');
+  chartEl.className = 'yoy-line-chart-container';
+  chartEl.innerHTML = svgContent;
   yoyContainer.appendChild(chartEl);
 
   const legendEl = document.createElement('div');
@@ -292,4 +452,12 @@ function renderYearOverYear() {
     return `<div class="yoy-summary-stat"><div class="yoy-summary-label">${yearData.year} Total</div><div class="yoy-summary-value amount-negative">${formatCurrency(total)}</div></div>`;
   }).join('');
   yoyContainer.appendChild(summaryEl);
+}
+
+/**
+ * Format currency for chart axis (compact form)
+ */
+function formatCompact(value) {
+  if (value >= 1000) return `£${(value / 1000).toFixed(1)}K`;
+  return `£${Math.round(value)}`;
 }

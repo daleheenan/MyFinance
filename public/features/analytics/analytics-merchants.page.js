@@ -42,10 +42,6 @@ function loadStyles() {
 function render() {
   container.innerHTML = `
     <div class="page analytics-page">
-      <div class="page-header">
-        <h1 class="page-title">Insights</h1>
-      </div>
-
       <!-- Sub-navigation with Filters -->
       <div class="analytics-nav-bar">
         <div class="analytics-sub-nav">

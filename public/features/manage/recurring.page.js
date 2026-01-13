@@ -13,6 +13,8 @@ let cleanupFunctions = [];
 let categories = [];
 let recurringPatterns = [];
 let detectedPatterns = [];
+let detectedBills = [];
+let selectedBillIndexes = new Set();
 
 function onCleanup(fn) {
   cleanupFunctions.push(fn);
@@ -53,6 +55,22 @@ function render() {
           <button class="btn btn-secondary" id="detect-recurring-btn">Detect Patterns</button>
         </div>
       </header>
+
+      <!-- Detected Bills Section (from transaction analysis) -->
+      <section class="manage-section card" id="detected-bills-section" style="display: none;">
+        <div class="manage-section-header">
+          <div>
+            <h2 class="manage-section-title">Detected Bills & Subscriptions</h2>
+            <p class="manage-section-description">Recurring payments found in your transactions</p>
+          </div>
+          <div class="manage-section-actions" id="bulk-actions" style="display: none;">
+            <span class="selected-count" id="selected-count">0 selected</span>
+            <button class="btn btn-primary btn-sm" id="add-selected-btn">Add Selected</button>
+            <button class="btn btn-secondary btn-sm" id="clear-selection-btn">Clear</button>
+          </div>
+        </div>
+        <div id="detected-bills-list"></div>
+      </section>
 
       <section class="manage-section card" id="recurring-section">
         <div class="manage-section-header">
@@ -95,6 +113,34 @@ function attachEventListeners() {
     const clickHandler = (e) => handleDelegatedClick(e);
     managePage.addEventListener('click', clickHandler);
     onCleanup(() => managePage.removeEventListener('click', clickHandler));
+
+    // Handle checkbox changes for detected bills
+    const changeHandler = (e) => {
+      if (e.target.matches('.detected-bill-checkbox input[type="checkbox"]')) {
+        const index = parseInt(e.target.dataset.index);
+        toggleBillSelection(index);
+      }
+    };
+    managePage.addEventListener('change', changeHandler);
+    onCleanup(() => managePage.removeEventListener('change', changeHandler));
+  }
+
+  // Bulk action buttons
+  const addSelectedBtn = container.querySelector('#add-selected-btn');
+  if (addSelectedBtn) {
+    const handler = () => addSelectedBills();
+    addSelectedBtn.addEventListener('click', handler);
+    onCleanup(() => addSelectedBtn.removeEventListener('click', handler));
+  }
+
+  const clearSelectionBtn = container.querySelector('#clear-selection-btn');
+  if (clearSelectionBtn) {
+    const handler = () => {
+      selectedBillIndexes.clear();
+      renderDetectedBills();
+    };
+    clearSelectionBtn.addEventListener('click', handler);
+    onCleanup(() => clearSelectionBtn.removeEventListener('click', handler));
   }
 }
 
@@ -125,6 +171,22 @@ function handleDelegatedClick(e) {
     rejectDetectedPattern(index);
     return;
   }
+
+  // Handle add single bill button
+  const addSingleBtn = target.closest('.add-single-bill-btn');
+  if (addSingleBtn) {
+    const index = parseInt(addSingleBtn.dataset.index);
+    addSingleBill(index);
+    return;
+  }
+
+  // Handle clicking on detected bill row (toggle selection)
+  const billItem = target.closest('.detected-bill-item');
+  if (billItem && !target.closest('button') && !target.closest('input')) {
+    const index = parseInt(billItem.dataset.index);
+    toggleBillSelection(index);
+    return;
+  }
 }
 
 function findItemByButtonId(target, selector, array) {
@@ -137,7 +199,8 @@ function findItemByButtonId(target, selector, array) {
 async function loadAllData() {
   await Promise.all([
     loadCategories(),
-    loadRecurringPatterns()
+    loadRecurringPatterns(),
+    loadDetectedBills()
   ]);
 }
 
@@ -169,6 +232,167 @@ async function loadRecurringPatterns() {
         <button class="btn btn-secondary btn-sm" onclick="location.reload()">Retry</button>
       </div>
     `;
+  }
+}
+
+async function loadDetectedBills() {
+  try {
+    // Try to load detected subscriptions from the subscriptions API
+    const [expenseBills, incomeBills] = await Promise.all([
+      api.get('/subscriptions/detect?type=expense').catch(() => []),
+      api.get('/subscriptions/detect?type=income').catch(() => [])
+    ]);
+
+    // Combine and filter out patterns already in recurring
+    detectedBills = [...expenseBills, ...incomeBills].filter(bill => {
+      const pattern = bill.pattern || bill.merchant_pattern;
+      return !recurringPatterns.some(rp =>
+        rp.description_pattern?.toLowerCase() === pattern?.toLowerCase() ||
+        rp.merchant_name?.toLowerCase() === (bill.merchant_name || bill.source_name)?.toLowerCase()
+      );
+    });
+
+    selectedBillIndexes.clear();
+    renderDetectedBills();
+  } catch (err) {
+    console.error('Failed to load detected bills:', err);
+    detectedBills = [];
+  }
+}
+
+function renderDetectedBills() {
+  const section = document.getElementById('detected-bills-section');
+  const listContainer = document.getElementById('detected-bills-list');
+
+  if (!detectedBills || detectedBills.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  const fragment = document.createDocumentFragment();
+  detectedBills.forEach((bill, index) => {
+    const displayName = bill.source_name || bill.merchant_name || bill.pattern;
+    const isIncome = bill.type === 'income';
+    const isSelected = selectedBillIndexes.has(index);
+
+    const item = document.createElement('div');
+    item.className = `detected-bill-item${isSelected ? ' selected' : ''}`;
+    item.dataset.index = index;
+    item.innerHTML = `
+      <label class="detected-bill-checkbox">
+        <input type="checkbox" ${isSelected ? 'checked' : ''} data-index="${index}">
+        <span class="checkmark"></span>
+      </label>
+      <div class="detected-bill-info">
+        <div class="detected-bill-name">${escapeHtml(displayName)}</div>
+        <div class="detected-bill-details">
+          <span class="detected-bill-frequency">${capitalizeFirst(bill.frequency || 'monthly')}</span>
+          <span class="detected-bill-occurrences">${bill.occurrence_count || 0} occurrences</span>
+          ${isIncome ? '<span class="detected-bill-type detected-bill-type--income">Income</span>' : ''}
+        </div>
+      </div>
+      <div class="detected-bill-amount ${isIncome ? 'amount-positive' : 'amount-negative'}">
+        ${isIncome ? '+' : ''}${formatCurrency(bill.typical_amount || 0)}
+      </div>
+      <div class="detected-bill-actions">
+        <button class="btn btn-secondary btn-sm add-single-bill-btn" data-index="${index}">Add</button>
+      </div>
+    `;
+    fragment.appendChild(item);
+  });
+
+  listContainer.innerHTML = '';
+  listContainer.appendChild(fragment);
+
+  updateBulkActionsVisibility();
+}
+
+function updateBulkActionsVisibility() {
+  const bulkActions = document.getElementById('bulk-actions');
+  const selectedCount = document.getElementById('selected-count');
+
+  if (selectedBillIndexes.size > 0) {
+    bulkActions.style.display = 'flex';
+    selectedCount.textContent = `${selectedBillIndexes.size} selected`;
+  } else {
+    bulkActions.style.display = 'none';
+  }
+}
+
+function toggleBillSelection(index) {
+  if (selectedBillIndexes.has(index)) {
+    selectedBillIndexes.delete(index);
+  } else {
+    selectedBillIndexes.add(index);
+  }
+  renderDetectedBills();
+}
+
+async function addSelectedBills() {
+  if (selectedBillIndexes.size === 0) return;
+
+  const billsToAdd = Array.from(selectedBillIndexes).map(i => detectedBills[i]);
+  const btn = document.getElementById('add-selected-btn');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const bill of billsToAdd) {
+    try {
+      await api.post('/recurring', {
+        description_pattern: bill.pattern || bill.merchant_pattern,
+        merchant_name: bill.merchant_name || bill.source_name,
+        typical_amount: bill.typical_amount,
+        typical_day: bill.billing_day,
+        frequency: bill.frequency || 'monthly',
+        category_id: bill.category_id,
+        is_subscription: true
+      });
+      successCount++;
+    } catch (err) {
+      failCount++;
+      console.error('Failed to add bill:', err);
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Add Selected';
+
+  if (successCount > 0) {
+    showToast(`Added ${successCount} recurring pattern${successCount > 1 ? 's' : ''}`, 'success');
+  }
+  if (failCount > 0) {
+    showToast(`Failed to add ${failCount} pattern${failCount > 1 ? 's' : ''}`, 'error');
+  }
+
+  // Reload data
+  selectedBillIndexes.clear();
+  await loadAllData();
+}
+
+async function addSingleBill(index) {
+  const bill = detectedBills[index];
+  if (!bill) return;
+
+  try {
+    await api.post('/recurring', {
+      description_pattern: bill.pattern || bill.merchant_pattern,
+      merchant_name: bill.merchant_name || bill.source_name,
+      typical_amount: bill.typical_amount,
+      typical_day: bill.billing_day,
+      frequency: bill.frequency || 'monthly',
+      category_id: bill.category_id,
+      is_subscription: true
+    });
+
+    showToast(`"${bill.merchant_name || bill.source_name || bill.pattern}" added as recurring`, 'success');
+    await loadAllData();
+  } catch (err) {
+    showToast(`Failed to add: ${err.message}`, 'error');
   }
 }
 
