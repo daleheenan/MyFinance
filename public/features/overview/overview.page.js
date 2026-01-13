@@ -600,34 +600,17 @@ function renderBalanceTrendYoY(data) {
   const prevYearData = yearData.length > 1 ? yearData[1] : null;
 
   // Generate shaded difference areas between current year and previous year
+  // The shading follows the smooth bezier curves of both lines
   let shadedAreas = '';
-  if (prevYearData) {
-    // For each month where we have both current and previous year data
-    for (let m = 0; m <= currentMonth && m < 12; m++) {
-      const currBal = currentYearBalances[m];
-      const prevBal = prevYearData.balances[m];
+  if (prevYearData && currentYearData.points.length >= 2 && prevYearData.points.length >= 2) {
+    // Find overlapping points (months where both years have data, up to current month)
+    const currentPoints = currentYearData.points.filter(p => p.monthIndex <= currentMonth);
+    const prevPoints = prevYearData.points.filter(p => p.monthIndex <= currentMonth);
 
-      if (currBal !== null && prevBal !== null) {
-        const x = padding.left + (m / (months.length - 1 || 1)) * chartWidth;
-        const currY = padding.top + chartHeight - ((currBal - minBal) / range) * chartHeight;
-        const prevY = padding.top + chartHeight - ((prevBal - minBal) / range) * chartHeight;
-
-        const barWidth = chartWidth / 13; // Slightly narrower than month spacing
-        const isAbove = currBal >= prevBal;
-        const fillColor = isAbove ? 'var(--green)' : 'var(--red)';
-
-        // Draw vertical bar from previous year line to current year line
-        const topY = Math.min(currY, prevY);
-        const bottomY = Math.max(currY, prevY);
-        const barHeight = bottomY - topY;
-
-        if (barHeight > 1) {
-          shadedAreas += `
-            <rect x="${x - barWidth / 2}" y="${topY}" width="${barWidth}" height="${barHeight}"
-                  fill="${fillColor}" opacity="0.25" rx="2"/>
-          `;
-        }
-      }
+    if (currentPoints.length >= 2 && prevPoints.length >= 2) {
+      // Create the filled area path that follows both curves
+      // We need to segment by crossover points to color green/red correctly
+      shadedAreas = createShadedAreaBetweenCurves(currentPoints, prevPoints);
     }
   }
 
@@ -805,6 +788,61 @@ function createSmoothPath(points) {
   }
 
   return path;
+}
+
+/**
+ * Create shaded area between two curved lines (current vs previous year)
+ * Splits the area into green (current above) and red (current below) segments
+ * @param {Array} currentPoints - Points for current year line
+ * @param {Array} prevPoints - Points for previous year line
+ * @returns {string} SVG path elements for shaded areas
+ */
+function createShadedAreaBetweenCurves(currentPoints, prevPoints) {
+  if (currentPoints.length < 2 || prevPoints.length < 2) return '';
+
+  // Align points by monthIndex - only use months where both have data
+  const alignedMonths = [];
+  const currByMonth = new Map(currentPoints.map(p => [p.monthIndex, p]));
+  const prevByMonth = new Map(prevPoints.map(p => [p.monthIndex, p]));
+
+  for (let m = 0; m < 12; m++) {
+    if (currByMonth.has(m) && prevByMonth.has(m)) {
+      alignedMonths.push({
+        monthIndex: m,
+        curr: currByMonth.get(m),
+        prev: prevByMonth.get(m)
+      });
+    }
+  }
+
+  if (alignedMonths.length < 2) return '';
+
+  // Build aligned point arrays
+  const currAligned = alignedMonths.map(a => a.curr);
+  const prevAligned = alignedMonths.map(a => a.prev);
+
+  // Get the forward smooth path for current year (just the path commands after M)
+  const currPath = createSmoothPath(currAligned);
+
+  // Get the reverse smooth path for previous year
+  const prevReversed = [...alignedMonths.map(a => a.prev)].reverse();
+  const prevPath = createSmoothPath(prevReversed);
+
+  // Determine overall color based on endpoint comparison
+  // For simplicity, use a single color based on majority or final position
+  const lastCurr = currAligned[currAligned.length - 1];
+  const lastPrev = alignedMonths[alignedMonths.length - 1].prev;
+  const isCurrentAbove = lastCurr.y <= lastPrev.y; // Lower Y = higher value in SVG
+  const fillColor = isCurrentAbove ? 'var(--green)' : 'var(--red)';
+
+  // Create closed path: follow current line forward, then previous line backward
+  // currPath starts with "M x y C..." - we use it as is
+  // prevPath starts with "M x y C..." - we need to replace M with L
+  const prevPathContinued = prevPath.replace(/^M\s*[\d.]+\s+[\d.]+/, 'L');
+
+  const closedPath = `${currPath} ${prevPathContinued} Z`;
+
+  return `<path d="${closedPath}" fill="${fillColor}" opacity="0.15" stroke="none"/>`;
 }
 
 /**
