@@ -599,19 +599,26 @@ function renderBalanceTrendYoY(data) {
   // Previous year data (if available)
   const prevYearData = yearData.length > 1 ? yearData[1] : null;
 
-  // Generate shaded difference areas between current year and previous year
+  // Generate shaded difference areas between the two most recent years with enough data
   // The shading follows the smooth bezier curves of both lines
   let shadedAreas = '';
-  if (prevYearData && currentYearData.points.length >= 2 && prevYearData.points.length >= 2) {
-    // Find overlapping points (months where both years have data, up to current month)
-    const currentPoints = currentYearData.points.filter(p => p.monthIndex <= currentMonth);
-    const prevPoints = prevYearData.points.filter(p => p.monthIndex <= currentMonth);
 
-    if (currentPoints.length >= 2 && prevPoints.length >= 2) {
-      // Create the filled area path that follows both curves
-      // We need to segment by crossover points to color green/red correctly
-      shadedAreas = createShadedAreaBetweenCurves(currentPoints, prevPoints);
+  // Find two years with at least 2 data points each to compare
+  let compareYear1 = null;
+  let compareYear2 = null;
+
+  for (let i = 0; i < yearData.length - 1; i++) {
+    const y1 = yearData[i];
+    const y2 = yearData[i + 1];
+    if (y1.points.length >= 2 && y2.points.length >= 2) {
+      compareYear1 = y1;
+      compareYear2 = y2;
+      break;
     }
+  }
+
+  if (compareYear1 && compareYear2) {
+    shadedAreas = createShadedAreaBetweenCurves(compareYear1.points, compareYear2.points);
   }
 
   // Calculate YTD comparison with previous year
