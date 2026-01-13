@@ -791,8 +791,8 @@ function createSmoothPath(points) {
 }
 
 /**
- * Create shaded area between two curved lines (current vs previous year)
- * Splits the area into green (current above) and red (current below) segments
+ * Create shaded area segments between two curved lines (current vs previous year)
+ * Each segment between consecutive months forms a closed shape following both curves
  * @param {Array} currentPoints - Points for current year line
  * @param {Array} prevPoints - Points for previous year line
  * @returns {string} SVG path elements for shaded areas
@@ -817,32 +817,62 @@ function createShadedAreaBetweenCurves(currentPoints, prevPoints) {
 
   if (alignedMonths.length < 2) return '';
 
-  // Build aligned point arrays
-  const currAligned = alignedMonths.map(a => a.curr);
-  const prevAligned = alignedMonths.map(a => a.prev);
+  let paths = '';
 
-  // Get the forward smooth path for current year (just the path commands after M)
-  const currPath = createSmoothPath(currAligned);
+  // Create a segment for each pair of consecutive months
+  for (let i = 0; i < alignedMonths.length - 1; i++) {
+    const m1 = alignedMonths[i];
+    const m2 = alignedMonths[i + 1];
 
-  // Get the reverse smooth path for previous year
-  const prevReversed = [...alignedMonths.map(a => a.prev)].reverse();
-  const prevPath = createSmoothPath(prevReversed);
+    // Get bezier control points for this segment (using Catmull-Rom)
+    const tension = 0.3;
 
-  // Determine overall color based on endpoint comparison
-  // For simplicity, use a single color based on majority or final position
-  const lastCurr = currAligned[currAligned.length - 1];
-  const lastPrev = alignedMonths[alignedMonths.length - 1].prev;
-  const isCurrentAbove = lastCurr.y <= lastPrev.y; // Lower Y = higher value in SVG
-  const fillColor = isCurrentAbove ? 'var(--green)' : 'var(--red)';
+    // For current year curve segment
+    const c0 = i > 0 ? alignedMonths[i - 1].curr : m1.curr;
+    const c1 = m1.curr;
+    const c2 = m2.curr;
+    const c3 = i + 2 < alignedMonths.length ? alignedMonths[i + 2].curr : m2.curr;
 
-  // Create closed path: follow current line forward, then previous line backward
-  // currPath starts with "M x y C..." - we use it as is
-  // prevPath starts with "M x y C..." - we need to replace M with L
-  const prevPathContinued = prevPath.replace(/^M\s*[\d.]+\s+[\d.]+/, 'L');
+    const ccp1x = c1.x + (c2.x - c0.x) * tension;
+    const ccp1y = c1.y + (c2.y - c0.y) * tension;
+    const ccp2x = c2.x - (c3.x - c1.x) * tension;
+    const ccp2y = c2.y - (c3.y - c1.y) * tension;
 
-  const closedPath = `${currPath} ${prevPathContinued} Z`;
+    // For previous year curve segment
+    const p0 = i > 0 ? alignedMonths[i - 1].prev : m1.prev;
+    const p1 = m1.prev;
+    const p2 = m2.prev;
+    const p3 = i + 2 < alignedMonths.length ? alignedMonths[i + 2].prev : m2.prev;
 
-  return `<path d="${closedPath}" fill="${fillColor}" opacity="0.15" stroke="none"/>`;
+    const pcp1x = p1.x + (p2.x - p0.x) * tension;
+    const pcp1y = p1.y + (p2.y - p0.y) * tension;
+    const pcp2x = p2.x - (p3.x - p1.x) * tension;
+    const pcp2y = p2.y - (p3.y - p1.y) * tension;
+
+    // Determine color based on midpoint comparison (average of segment)
+    const avgCurrY = (c1.y + c2.y) / 2;
+    const avgPrevY = (p1.y + p2.y) / 2;
+    const isCurrentAbove = avgCurrY <= avgPrevY; // Lower Y = higher value in SVG
+    const fillColor = isCurrentAbove ? 'var(--green)' : 'var(--red)';
+
+    // Build closed path:
+    // 1. Start at curr point 1
+    // 2. Bezier curve to curr point 2
+    // 3. Line to prev point 2
+    // 4. Reverse bezier curve to prev point 1
+    // 5. Close back to start
+    const segmentPath = `
+      M ${c1.x} ${c1.y}
+      C ${ccp1x} ${ccp1y}, ${ccp2x} ${ccp2y}, ${c2.x} ${c2.y}
+      L ${p2.x} ${p2.y}
+      C ${pcp2x} ${pcp2y}, ${pcp1x} ${pcp1y}, ${p1.x} ${p1.y}
+      Z
+    `;
+
+    paths += `<path d="${segmentPath}" fill="${fillColor}" opacity="0.2" stroke="none"/>`;
+  }
+
+  return paths;
 }
 
 /**
