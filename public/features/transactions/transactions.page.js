@@ -1731,27 +1731,6 @@ function openBulkCategoryPicker() {
 }
 
 /**
- * Update the active filter count badge
- */
-function updateFilterBadge() {
-  const badge = container.querySelector('#active-filter-badge');
-  if (!badge) return;
-
-  let count = 0;
-  if (filters.startDate) count++;
-  if (filters.endDate) count++;
-  if (filters.categoryId) count++;
-  if (filters.search) count++;
-
-  if (count > 0) {
-    badge.textContent = count;
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
-  }
-}
-
-/**
  * Update URL with current filters (without page reload)
  */
 function updateUrl() {
